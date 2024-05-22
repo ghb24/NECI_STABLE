@@ -36,8 +36,7 @@ module guga_gas_pchb_main
     use fortran_strings, only: split, to_upper
     use input_parser_mod, only: TokenIterator_t
 
-    use gasci, only: GASSpec_t
-
+    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t
     use guga_base_class, only: AbInitGUGABase_t
 
     use guga_gas_pchb_singles_main, only: &
@@ -79,21 +78,17 @@ module guga_gas_pchb_main
 
 contains
 
-    subroutine init(this, GAS_spec, options)
+    subroutine init(this, indexer, options)
         !! Initialize the PCHB excitation generator.
         !!
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
             !!  The GAS specifications for the excitation generator.
         type(GAS_PCHB_options_t), intent(in) :: options
-        routine_name("guga_gas_pchb_main::GAS_PCHB_init")
-        if (.not. GAS_spec%is_valid(nBasis)) then
-            call stop_all(this_routine, "GAS specification not valid.")
-        end if
         call options%assert_validity()
 
-        call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, .false., this%singles_generator)
-        call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, options%use_lookup, this%doubles_generator)
+        call singles_allocate_and_init(indexer, options%singles, options%use_lookup, .false., this%singles_generator)
+        call doubles_allocate_and_init(indexer, options%doubles, options%use_lookup, options%use_lookup, this%doubles_generator)
     end subroutine
 
     subroutine finalize(this)

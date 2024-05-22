@@ -16,7 +16,7 @@ module gasci_singles_pc_weighted
     use get_excit, only: make_single
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_1_t, spin_allowed
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
@@ -82,7 +82,7 @@ module gasci_singles_pc_weighted
             !! They are made independent of the determinant by various approximations:
             !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             !! where \(R\) runs over all orbitals instead of only the occupied.
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
             !! The Supergroup indexer.
             !! This is only a pointer because components cannot be targets
             !! otherwise. :-(
@@ -214,7 +214,7 @@ contains
 
     subroutine init(this, indexer, use_lookup, create_lookup)
         class(PC_Weighted_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         routine_name("init")
         integer, allocatable :: supergroups(:, :)

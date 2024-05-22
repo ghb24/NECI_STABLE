@@ -19,7 +19,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use SystemData, only: nEl, nBasis
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: root
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
         get_PCHB_weight
@@ -46,7 +46,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
         !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
         type(AliasSampler_3D_t) :: pchb_samplers
 
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
         class(ParticleSelector_t), allocatable :: particle_selector
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -74,7 +74,7 @@ contains
     subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'

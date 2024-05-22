@@ -8,7 +8,7 @@ module gasci_pchb_doubles_main
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use generalized_supergroup, only: SuperGroupIndexer_t
     use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
@@ -61,7 +61,7 @@ module gasci_pchb_doubles_main
 contains
 
     subroutine allocate_and_init(indexer, options, use_lookup, generator)
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         type(PCHB_DoublesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup

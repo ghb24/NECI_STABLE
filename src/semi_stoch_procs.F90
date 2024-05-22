@@ -78,7 +78,7 @@ module semi_stoch_procs
 
     use global_det_data, only: set_supergroup_idx
 
-    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use generalized_supergroup, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
 

@@ -9,7 +9,8 @@ module gasci_singles_main
     use SymExcitDataMod, only: ScratchSize
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_types, only: Excite_1_t, spin_allowed
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
     use fortran_strings, only: to_upper
@@ -71,7 +72,7 @@ module gasci_singles_main
 
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
         !> Use a lookup for the supergroup index in global_det_data.
         logical, public :: use_lookup = .false.
         !> Create **and** manage! the supergroup index lookup in global_det_data.
@@ -92,7 +93,7 @@ contains
 
 
     subroutine allocate_and_init(indexer, options, use_lookup, generator)
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup
@@ -114,7 +115,12 @@ contains
             end select
         else if (options%algorithm == GAS_used_singles_vals%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
-            allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(indexer%GAS_spec))
+            select type(indexer)
+            type is(GAS_SuperGroupIndexer_t)
+                allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(indexer%GAS_spec))
+            class default
+                call stop_all(this_routine, 'On the fly heat bath requires vanilla GAS')
+            end select
         else if (options%algorithm == GAS_used_singles_vals%PC_WEIGHTED) then
             call print_options(options%PC_weighted, stdout)
             call do_allocation(generator, options%PC_weighted%drawing)
@@ -174,7 +180,7 @@ contains
 
     subroutine GAS_singles_uniform_init(this, indexer, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'

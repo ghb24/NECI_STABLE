@@ -37,8 +37,7 @@ module generalized_supergroup
         procedure, public :: get_supergroups => indexer_get_supergroups
         procedure(is_allowed_single_t), deferred :: is_allowed_single
         procedure(is_allowed_double_t), deferred :: is_allowed_double
-        procedure(is_allowed_distinct_double_t), deferred :: is_allowed_distinct_double
-        generic, public :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
+        generic, public :: is_allowed => is_allowed_single, is_allowed_double
 
         procedure(idxer_gen_all_excits_t), deferred, public :: gen_all_excits
 
@@ -56,6 +55,8 @@ module generalized_supergroup
         procedure, public :: idx_csf => get_supergroup_idx_csf
         generic, public :: lookup_supergroup_idx => lookup_supergroup_idx_CSF
         procedure :: lookup_supergroup_idx_CSF
+        procedure(is_allowed_distinct_double_t), deferred :: is_allowed_distinct_double
+        generic, public :: is_allowed => is_allowed_distinct_double
 
         procedure(to_supergroup_csf_t), deferred :: to_supergroup_csf
         generic, public :: to_supergroup => to_supergroup_csf
@@ -84,8 +85,8 @@ module generalized_supergroup
         end function
 
         logical pure function is_allowed_distinct_double_t(this, exc, supergroup)
-            import :: SuperGroupIndexer_t, DistinctDouble_t
-            class(SuperGroupIndexer_t), intent(in) :: this
+            import :: AlsoGUGA_SuperGroupIndexer_t, DistinctDouble_t
+            class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: this
             type(DistinctDouble_t), intent(in) :: exc
             integer, intent(in) :: supergroup(:)
         end function

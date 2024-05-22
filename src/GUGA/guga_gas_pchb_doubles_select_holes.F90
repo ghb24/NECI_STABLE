@@ -29,8 +29,7 @@ module guga_gas_pchb_doubles_select_holes
 
     use growing_buffers, only: buffer_int64_1D_t
 
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t, lookup_supergroup_indexer
 
     use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init
@@ -71,8 +70,7 @@ module guga_gas_pchb_doubles_select_holes
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
-        class(GASSpec_t), allocatable :: GAS_spec
+        class(AlsoGUGA_SuperGroupIndexer_t), pointer :: indexer => null()
         procedure(get_doubles_weight_t), pointer, nopass :: get_weight => null()
 
     contains
@@ -169,9 +167,9 @@ contains
         call this%all_info_table%sync()
     end subroutine
 
-    subroutine init_GAS_PCHB_Doubles_t(this, GAS_spec, particle_selection, weighting_selection, use_lookup, create_lookup)
+    subroutine init_GAS_PCHB_Doubles_t(this, indexer, particle_selection, weighting_selection, use_lookup, create_lookup)
         class(GAS_PCHB_Doubles_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
         type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
         type(WeightingChoice_t), intent(in) :: weighting_selection
         logical, intent(in) :: use_lookup, create_lookup
@@ -201,10 +199,7 @@ contains
                 &on if too many blooms happen!"
         end if
 
-        ASSERT(GAS_spec%recoupling())
-
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -221,7 +216,7 @@ contains
         call set_doubles_weight_pointer(weighting_selection, this%get_weight)
 
         call this%setup_pchb_sampler_conditional(root, ij_weights)
-        call particle_allocate_and_init(particle_selection, this%GAS_spec, ij_weights, root, use_lookup, this%particle_selector)
+        call particle_allocate_and_init(particle_selection, this%indexer, ij_weights, root, use_lookup, this%particle_selector)
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine
 
@@ -232,7 +227,7 @@ contains
             call this%all_info_table%shared_dealloc()
             call this%finalize_pchb_sampler()
             call this%particle_selector%finalize()
-            deallocate(this%particle_selector, this%info_tables, this%GAS_spec, this%indexer)
+            deallocate(this%particle_selector, this%info_tables, this%indexer)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
@@ -358,7 +353,7 @@ contains
                             ab = fuse_symm_idx(a, b)
                             if (iProcIndex_intra == rank_with_info) then
                                 associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
+                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
                                     w(ab) = this%get_weight(exc)
                                 end if
                                 end associate
@@ -596,7 +591,7 @@ contains
                         idx = idx%normalize()
                         exc = DistinctDouble_t(idx)
                         if (exc%typ == distinct_doubles%invalid &
-                            .or. .not. this%GAS_spec%is_allowed(exc, this%GAS_spec%count_per_GAS(csf_i))) then
+                            .or. .not. this%indexer%is_allowed(exc, this%indexer%to_supergroup(csf_i))) then
                             cycle
                         end if
                         call buffer%push_back(exc%fuse())

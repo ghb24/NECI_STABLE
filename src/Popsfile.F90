@@ -68,7 +68,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
                                set_det_offdiagH, store_decoding, max_ratio_size, fvals_size, &
                                apvals_size, set_supergroup_idx
-    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use generalized_supergroup, only: lookup_supergroup_indexer
     use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data

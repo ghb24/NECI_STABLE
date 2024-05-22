@@ -21,7 +21,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, &
         allocate_and_init, get_PCHB_weight
@@ -47,7 +47,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
             !! It yields \( p(AB | IJ, i_{\text{sg}}) \)
             !! where IJ is a fused index I < J and `i_sg` is the supergroup.
 
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -69,7 +69,7 @@ contains
         !! more specifically, sets up a lookup table for ab -> (a,b) and
         !! sets up the alias table for picking ab given ij with prob ~ Hijab
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_init'

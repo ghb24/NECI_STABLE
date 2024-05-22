@@ -7,8 +7,7 @@ module guga_gas_pchb_singles_main
     use MPI_wrapper, only: root
     use constants, only: n_int, dp, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t, lookup_supergroup_indexer
     use excitation_types, only: Excite_1_t
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD, GugaBits
@@ -62,10 +61,9 @@ module guga_gas_pchb_singles_main
     !> The precomputed GAS uniform excitation generator
     type, extends(SinglesGUGABase_t) :: GAS_UniformExcGenerator_t
         private
-        class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -90,10 +88,9 @@ module guga_gas_pchb_singles_main
     !> The precomputed GAS uniform excitation generator
     type, extends(SinglesGUGABase_t) :: GAS_Weighted_t
         private
-        class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -145,8 +142,8 @@ contains
     end function
 
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, create_lookup, generator)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    subroutine allocate_and_init(indexer, options, use_lookup, create_lookup, generator)
+        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
         type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup, create_lookup
         class(SinglesGUGABase_t), allocatable, intent(inout) :: generator
@@ -163,13 +160,13 @@ contains
             allocate(GAS_UniformExcGenerator_t :: generator)
             select type(generator)
             type is(GAS_UniformExcGenerator_t)
-                call generator%init(GAS_spec, use_lookup, create_lookup)
+                call generator%init(indexer, use_lookup, create_lookup)
             end select
         else if (options%algorithm == option_vals%algorithm%FULL_FULL) then
             allocate(GAS_Weighted_t :: generator)
             select type(generator)
             type is(GAS_Weighted_t)
-                call generator%init(options%weighting, GAS_spec, use_lookup, create_lookup)
+                call generator%init(options%weighting, indexer, use_lookup, create_lookup)
             end select
         else
             call stop_all(this_routine, "unsupported singles option.")
@@ -178,9 +175,9 @@ contains
 
 
 
-    subroutine init_GAS_UniformExcGenerator_t(this, GAS_spec, use_lookup, create_lookup)
+    subroutine init_GAS_UniformExcGenerator_t(this, indexer, use_lookup, create_lookup)
         class(GAS_UniformExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         routine_name('init_GAS_UniformExcGenerator_t')
@@ -188,8 +185,7 @@ contains
 
         integer :: i_sg, src, tgt
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -217,7 +213,7 @@ contains
                     type(Excite_1_t) :: exc
                     exc = Excite_1_t(2 * src, 2 * tgt)
                     if (src /= tgt &
-                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
                             .and. symmetry_allowed(exc)) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
@@ -247,7 +243,7 @@ contains
 
     subroutine GAS_singles_uniform_finalize(this)
         class(GAS_UniformExcGenerator_t), intent(inout) :: this
-        deallocate(this%allowed_holes, this%indexer, this%GAS_spec)
+        deallocate(this%allowed_holes, this%indexer)
         if (this%create_lookup) nullify(lookup_supergroup_indexer)
     end subroutine
 
@@ -377,10 +373,10 @@ contains
         end select
     end function
 
-    subroutine init_GAS_Weighted_t(this, weighting, GAS_spec, use_lookup, create_lookup)
+    subroutine init_GAS_Weighted_t(this, weighting, indexer, use_lookup, create_lookup)
         class(GAS_Weighted_t), intent(inout) :: this
         type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         routine_name("init_GAS_Weighted_t")
@@ -388,10 +384,9 @@ contains
         integer :: i_sg, src, tgt, nBi
         real(dp), allocatable :: I_weights(:), A_weights(:)
 
-        this%GAS_spec = GAS_spec
-        nBi = this%GAS_spec%n_spin_orbs()
+        nBi = this%indexer%n_spin_orbs()
         @:ASSERT(nBi == 2 * nSpatOrbs)
-        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -430,7 +425,7 @@ contains
                     type(Excite_1_t) :: exc
                     exc = Excite_1_t(2 * src, 2 * tgt)
                     if (src /= tgt &
-                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
                             .and. symmetry_allowed(exc)) then
                         A_weights(2 * tgt) = abs(this%get_weight(src, tgt))
                         A_weights(2 * tgt - 1) = A_weights(2 * tgt)
@@ -448,12 +443,12 @@ contains
 
     subroutine finalize_GAS_Weighted_t(this)
         class(GAS_Weighted_t), intent(inout) :: this
-        if (allocated(this%GAS_spec)) then
+        if (associated(this%indexer)) then
             ! Yes I assume that either all or none are allocated
             call this%I_sampler%finalize()
             call this%A_sampler%finalize()
             nullify(this%get_weight)
-            deallocate(this%indexer, this%GAS_spec)
+            deallocate(this%indexer)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine

@@ -20,7 +20,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use sets_mod, only: set, operator(.cap.), operator(.in.)
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: iProcIndex_intra, root
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init, get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
@@ -51,7 +51,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
             !! The sampler for the second hole `B`.
             !! It yields \( p(B | A, IJ, i_{\text{sg}}) \)
             !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the supergroup.
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
         integer(n_int), private :: last_possible_occupied
             !! The last element of the ilut array has some elements
             !! which are not used, if the number of spinorbitals is not a multiple of
@@ -83,7 +83,7 @@ contains
     subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'

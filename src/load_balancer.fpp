@@ -37,7 +37,7 @@ module load_balance
                          Hii, MaxWalkersPart, tTrialHash, TotWalkers, &
                          trial_space_size, ll_node, NoBosonActiveWalk
     use core_space_util, only: cs_replicas
-    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use generalized_supergroup, only: lookup_supergroup_indexer
     use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial

@@ -18,7 +18,7 @@ module gasci_pchb_doubles_select_particles
     use MPI_wrapper, only: iProcIndex_intra
     use excitation_types, only: Excite_2_t
     use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
@@ -117,7 +117,7 @@ module gasci_pchb_doubles_select_particles
 
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -178,7 +178,7 @@ contains
 
     subroutine allocate_and_init(PCHB_particle_selection, indexer, IJ_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: IJ_weights(:, :, :)
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
@@ -265,7 +265,7 @@ contains
 
     subroutine init_PC_WeightedParticles_t(this, indexer, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: weights(:, :, :)
             !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under supergroup `i_sg`
         integer, intent(in) :: rank_with_info

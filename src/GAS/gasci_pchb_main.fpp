@@ -37,7 +37,7 @@ module gasci_pchb_main
     use SystemData, only: tUHF, nBasis
     use fortran_strings, only: Token_t, join
 
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use generalized_supergroup, only: SuperGroupIndexer_t
     use gasci_singles_main, only: &
         GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals, &
         PC_WeightedSinglesOptions_t, &
@@ -113,7 +113,7 @@ contains
         !! Initialize the PCHB excitation generator.
         !!
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
+        class(SuperGroupIndexer_t), intent(in) :: indexer
             !!  The GAS specifications for the excitation generator.
         type(GAS_PCHB_options_t), intent(in) :: options
 
