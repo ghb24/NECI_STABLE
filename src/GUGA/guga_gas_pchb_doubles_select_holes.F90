@@ -29,7 +29,7 @@ module guga_gas_pchb_doubles_select_holes
 
     use growing_buffers, only: buffer_int64_1D_t
 
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
 
     use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init

@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module gasci_pchb_doubles_spinorb_fastweighted
+module property_vector_pchb_doubles_spinorb_fastweighted
     !! spin-orbital-resolved GASCI-PCHB using the "fast weighted" scheme
     use constants, only: dp, n_int, maxExcit, stdout, int64
     use util_mod, only: operator(.isclose.), near_zero, stop_all, operator(.implies.)
@@ -21,8 +21,8 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
-    use gasci_pchb_doubles_select_particles, only: &
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, &
         allocate_and_init, get_PCHB_weight
     better_implicit_none
@@ -343,4 +343,4 @@ contains
 
     end subroutine GAS_doubles_PCHB_spinorb_compute_samplers
 
-end module gasci_pchb_doubles_spinorb_fastweighted
+end module property_vector_pchb_doubles_spinorb_fastweighted

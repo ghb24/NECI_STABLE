@@ -10,9 +10,9 @@ module gasci_pchb_test_helper
 
     use gasci, only: LocalGASSpec_t
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
-    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
+    use property_vector_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
         GAS_PCHB_options_vals
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t
+    use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t
     use gasci_singles_main, only: GAS_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
 
     use excitation_generators, only: ExcitationGenerator_t

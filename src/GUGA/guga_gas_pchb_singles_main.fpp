@@ -7,7 +7,7 @@ module guga_gas_pchb_singles_main
     use MPI_wrapper, only: root
     use constants, only: n_int, dp, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
     use excitation_types, only: Excite_1_t
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD, GugaBits

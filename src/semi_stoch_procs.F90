@@ -78,7 +78,7 @@ module semi_stoch_procs
 
     use global_det_data, only: set_prop_vec_idx
 
-    use generalized_supergroup, only: lookup_property_indexer
+    use property_vector_index, only: lookup_property_indexer
 
     use LoggingData, only: tAccumPopsActive
 

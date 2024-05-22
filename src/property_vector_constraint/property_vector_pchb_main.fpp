@@ -25,7 +25,7 @@
 !
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
-module gasci_pchb_main
+module property_vector_pchb_main
     !! Precomputed Heat Bath Implementation for GASCI. This modules implements
     !! the excitation generator GASCI PCHB either resolve in spin- or spatial-
     !! orbitals.
@@ -37,12 +37,12 @@ module gasci_pchb_main
     use SystemData, only: tUHF, nBasis
     use fortran_strings, only: Token_t, join
 
-    use generalized_supergroup, only: PropertyIndexer_t
+    use property_vector_index, only: PropertyIndexer_t
     use gasci_singles_main, only: &
         GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals, &
         PC_WeightedSinglesOptions_t, &
         singles_allocate_and_init => allocate_and_init
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
+    use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t, &
         PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init
 
@@ -201,4 +201,4 @@ contains
         res = join([Token_t(options%singles%to_str()), Token_t(options%doubles%to_str())], ' ')
     end function
 
-end module gasci_pchb_main
+end module property_vector_pchb_main

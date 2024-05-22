@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module gasci_pchb_doubles_spinorb_fullyweighted
+module property_vector_pchb_doubles_spinorb_fullyweighted
     !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: getSpinIndex, near_zero, swap, &
@@ -20,8 +20,8 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use sets_mod, only: set, operator(.cap.), operator(.in.)
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: iProcIndex_intra, root
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
-    use gasci_pchb_doubles_select_particles, only: &
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init, get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
     better_implicit_none
@@ -408,4 +408,4 @@ contains
         call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
 
-end module gasci_pchb_doubles_spinorb_fullyweighted
+end module property_vector_pchb_doubles_spinorb_fullyweighted

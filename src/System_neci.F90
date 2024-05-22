@@ -51,7 +51,7 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS
     use gasci_util, only: t_output_GAS_sizes
-    use gasci_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
+    use property_vector_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit

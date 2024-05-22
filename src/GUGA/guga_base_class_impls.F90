@@ -1,6 +1,6 @@
 #include "macros.h"
 submodule (guga_base_class) guga_base_class_impls
-    use generalized_supergroup, only: indexer, AlsoGUGA_PropertyIndexer_t
+    use property_vector_index, only: indexer, AlsoGUGA_PropertyIndexer_t
     use guga_pchb_class, only: PCHB_t
     use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t, options
 

@@ -35,7 +35,7 @@ contains
     end subroutine test_gasci_driver
 
     subroutine test_string_conversion()
-        use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, doubles_options_vals
+        use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t, doubles_options_vals
 
         type(PCHB_DoublesOptions_t) :: options
 
@@ -53,7 +53,7 @@ contains
     end subroutine
 
     subroutine test_decide_on_option()
-        use gasci_pchb_main, only: &
+        use property_vector_pchb_main, only: &
             GAS_PCHB_OptionsUserInput_t, GAS_PCHB_user_input_vals, &
             GAS_PCHB_options_t, vals => GAS_PCHB_options_vals, decide_on_PCHB_options
 

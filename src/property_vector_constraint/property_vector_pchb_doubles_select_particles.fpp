@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module gasci_pchb_doubles_select_particles
+module property_vector_pchb_doubles_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
@@ -18,7 +18,7 @@ module gasci_pchb_doubles_select_particles
     use MPI_wrapper, only: iProcIndex_intra
     use excitation_types, only: Excite_2_t
     use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &

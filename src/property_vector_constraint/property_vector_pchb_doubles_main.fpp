@@ -1,18 +1,18 @@
 #include "macros.h"
 #:include "../macros.fpph"
 
-module gasci_pchb_doubles_main
+module property_vector_pchb_doubles_main
     use constants, only: stdout
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
-    use generalized_supergroup, only: PropertyIndexer_t
-    use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
-    use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
-    use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
+    use property_vector_index, only: PropertyIndexer_t
+    use property_vector_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
+    use property_vector_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
+    use property_vector_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
+    use property_vector_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
     better_implicit_none
 
@@ -137,4 +137,4 @@ contains
     end function
 
 
-end module gasci_pchb_doubles_main
+end module property_vector_pchb_doubles_main

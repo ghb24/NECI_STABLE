@@ -1,7 +1,7 @@
 #include "macros.h"
 #:include "../macros.fpph"
 
-module gasci_singles_pc_weighted
+module property_vector_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
     use util_mod, only: stop_all, EnumBase_t, operator(.div.)
@@ -16,7 +16,7 @@ module gasci_singles_pc_weighted
     use get_excit, only: make_single
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_1_t, spin_allowed
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
     use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
@@ -622,4 +622,4 @@ contains
         call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine
 
-end module gasci_singles_pc_weighted
+end module property_vector_singles_pc_weighted

@@ -349,7 +349,7 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
     use gasci, only: tSD_GAS, tGAS, finalize_GAS
-    use generalized_supergroup, only: lookup_property_indexer
+    use property_vector_index, only: lookup_property_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 

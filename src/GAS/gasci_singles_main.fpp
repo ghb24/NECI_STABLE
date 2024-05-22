@@ -9,7 +9,7 @@ module gasci_singles_main
     use SymExcitDataMod, only: ScratchSize
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_types, only: Excite_1_t, spin_allowed
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
@@ -17,7 +17,7 @@ module gasci_singles_main
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
 
-    use gasci_singles_pc_weighted, only: PC_Weighted_t, &
+    use property_vector_singles_pc_weighted, only: PC_Weighted_t, &
         do_allocation, print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t
     better_implicit_none

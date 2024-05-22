@@ -64,7 +64,7 @@ module gasci_supergroup_index
     use excitation_types, only: Excite_1_t, Excite_2_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
 
     better_implicit_none
 

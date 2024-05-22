@@ -11,7 +11,7 @@ module guga_gas_pchb_doubles_select_particles
     use sets_mod, only: operator(.in.)
     use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.), near_zero
     use UMatCache, only: gtID
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
 

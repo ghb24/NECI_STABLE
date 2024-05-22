@@ -10,13 +10,13 @@ module pchb_excitgen
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
         SingleExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_singles_pc_weighted, only: &
+    use property_vector_singles_pc_weighted, only: &
         PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
         PC_Weighted_t, do_allocation, print_options
-    use gasci_pchb_main, only: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
+    use property_vector_pchb_main, only: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
+    use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t
+    use property_vector_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t
     better_implicit_none
 
     private

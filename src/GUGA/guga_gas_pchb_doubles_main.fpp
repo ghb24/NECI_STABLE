@@ -6,7 +6,7 @@ module guga_gas_pchb_doubles_main
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
     use fortran_strings, only: to_upper, split
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
 
     use guga_base_class, only: DoublesGUGABase_t
     use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t, &

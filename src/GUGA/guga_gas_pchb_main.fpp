@@ -36,7 +36,7 @@ module guga_gas_pchb_main
     use fortran_strings, only: split, to_upper
     use input_parser_mod, only: TokenIterator_t
 
-    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
     use guga_base_class, only: AbInitGUGABase_t
 
     use guga_gas_pchb_singles_main, only: &

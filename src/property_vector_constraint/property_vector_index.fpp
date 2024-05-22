@@ -3,7 +3,7 @@
 #:include "../algorithms.fpph"
 
 
-module generalized_supergroup
+module property_vector_index
     !! This module generalizes the "supergroup" concept of GAS to arbitrary property vectors.
     !! This allows more general constraints such as Löwdin's perturbation theory via PQ space folding
     !!  or constraints that use e.g. the spin projection.

@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module gasci_pchb_doubles_spatorb_fastweighted
+module property_vector_pchb_doubles_spatorb_fastweighted
     !! precomputed heat bath implementation for GASCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: getSpinIndex, near_zero, swap, &
@@ -19,8 +19,8 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use SystemData, only: nEl, nBasis
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: root
-    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
-    use gasci_pchb_doubles_select_particles, only: &
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
+    use property_vector_pchb_doubles_select_particles, only: &
         allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
         get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
@@ -451,4 +451,4 @@ contains
         call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
 
-end module gasci_pchb_doubles_spatorb_fastweighted
+end module property_vector_pchb_doubles_spatorb_fastweighted
