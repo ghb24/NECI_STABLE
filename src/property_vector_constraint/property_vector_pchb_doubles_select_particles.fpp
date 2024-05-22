@@ -18,7 +18,7 @@ module gasci_pchb_doubles_select_particles
     use MPI_wrapper, only: iProcIndex_intra
     use excitation_types, only: Excite_2_t
     use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
-    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
@@ -78,7 +78,7 @@ module gasci_pchb_doubles_select_particles
             implicit none
             class(ParticleSelector_t), intent(in) :: this
             integer, intent(in) :: nI(nEl), i_sg
-                !! The determinant in nI-format and the supergroup index
+                !! The determinant in nI-format and the prop_vec index
             integer, intent(in) :: I, J
                 !! The particles.
         end function
@@ -87,7 +87,7 @@ module gasci_pchb_doubles_select_particles
             import :: dp, ParticleSelector_t, nEl, n_int, nIfD
             class(ParticleSelector_t), intent(in) :: this
             integer, intent(in) :: nI(nEl), i_sg
-                !! The determinant in nI-format and the supergroup index
+                !! The determinant in nI-format and the prop_vec index
             integer(n_int), intent(in) :: ilutI(0 : nIfD)
                 !! The determinant in bitmask format
             integer, intent(out) :: srcs(2), elecs(2)
@@ -111,15 +111,15 @@ module gasci_pchb_doubles_select_particles
     type, extends(ParticleSelector_t), abstract :: PC_Particles_t
         private
         type(AliasSampler_1D_t) :: I_sampler
-            !! The shape is (n_supergroup) -> number_of_spin_orbs
+            !! The shape is (n_prop_vec) -> number_of_spin_orbs
         type(AliasSampler_2D_t) :: J_sampler
-            !! The shape is (number_of_spin_orbs, n_supergroup) -> number_of_spin_orbs
+            !! The shape is (number_of_spin_orbs, n_prop_vec) -> number_of_spin_orbs
 
-        class(SuperGroupIndexer_t), allocatable :: indexer
+        class(PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
-            !! Use a lookup for the supergroup index in global_det_data.
+            !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
-            !! Create **and** manage! the supergroup index lookup in global_det_data.
+            !! Create **and** manage! the prop_vec index lookup in global_det_data.
     contains
         private
         procedure, public :: init => init_PC_WeightedParticles_t
@@ -176,7 +176,7 @@ contains
 
     subroutine allocate_and_init(PCHB_particle_selection, indexer, IJ_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: IJ_weights(:, :, :)
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
@@ -212,7 +212,7 @@ contains
     subroutine draw_UniformParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(UniformParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
@@ -243,7 +243,7 @@ contains
         !! two given particles in different order.
         class(UniformParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: I, J
             !! The particles.
         real(dp) :: p
@@ -263,16 +263,16 @@ contains
 
     subroutine init_PC_WeightedParticles_t(this, indexer, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: weights(:, :, :)
-            !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under supergroup `i_sg`
+            !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under prop_vec `i_sg`
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init'
 
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         integer :: nBI
         integer :: i_sg
 
@@ -281,31 +281,31 @@ contains
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (allocated(lookup_supergroup_indexer)) then
-                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            if (allocated(lookup_property_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                allocate(lookup_supergroup_indexer, source=this%indexer)
+                write(stdout, *) 'PC particles is creating and managing the prop_vec lookup'
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'PC particles is using the prop_vec lookup'
 
         nBI = nBasis
 
-        supergroups = this%indexer%get_supergroups()
+        prop_vecs = this%indexer%get_prop_vecs()
 
         if (iProcIndex_intra == rank_with_info) then
             @:ASSERT(nBI == size(weights, 1) .and. nBI == size(weights, 2))
-            @:ASSERT(size(supergroups, 2) == size(weights, 3))
+            @:ASSERT(size(prop_vecs, 2) == size(weights, 3))
         end if
 
-        call this%I_sampler%shared_alloc(size(supergroups, 2), nBI, 'PC_particles_i')
-        call this%J_sampler%shared_alloc([nBI, size(supergroups, 2)], nBI, 'PC_particles_j')
+        call this%I_sampler%shared_alloc(size(prop_vecs, 2), nBI, 'PC_particles_i')
+        call this%J_sampler%shared_alloc([nBI, size(prop_vecs, 2)], nBI, 'PC_particles_j')
         block
             integer :: I
             real(dp) :: dummy(2)
             dummy = 10000._dp
-            do i_sg = 1, size(supergroups, 2)
+            do i_sg = 1, size(prop_vecs, 2)
                 do I = 1, nBI
                     if (iProcIndex_intra == rank_with_info) then
                         call this%J_sampler%setup_entry(I, i_sg, rank_with_info, weights(:, I, i_sg))
@@ -325,7 +325,7 @@ contains
     subroutine draw_PC_FullyWeightedParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_FullyWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
@@ -394,7 +394,7 @@ contains
         !! two given particles in different order.
         class(PC_FullyWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: I, J
             !! The particles.
         real(dp) :: p
@@ -422,7 +422,7 @@ contains
     subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
@@ -485,7 +485,7 @@ contains
         !! two given particles in different order.
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: I, J
             !! The particles.
         real(dp) :: p
@@ -510,7 +510,7 @@ contains
     subroutine draw_PC_FastWeightedParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_FastWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         integer, intent(out) :: srcs(2), elecs(2)
@@ -568,7 +568,7 @@ contains
         !! two given particles in different order.
         class(PC_FastWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: I, J
             !! The particles.
         real(dp) :: p
@@ -587,7 +587,7 @@ contains
             call this%J_sampler%finalize()
             ! Yes, we assume, that either all or none are allocated
             deallocate(this%indexer)
-            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine
 

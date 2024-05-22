@@ -86,12 +86,12 @@ contains
             call assert_true(GAS_spec%is_valid())
 
             indexer = GAS_SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -120,12 +120,12 @@ contains
             call assert_false(GAS_spec%is_connected())
 
             indexer = GAS_SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -156,12 +156,12 @@ contains
             call assert_true(GAS_spec%is_connected())
 
             indexer = GAS_SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -182,7 +182,7 @@ contains
 
             indexer = GAS_SuperGroupIndexer_t(GAS_spec)
 
-            call assert_equals(5, indexer%n_supergroups())
+            call assert_equals(5, indexer%n_prop_vecs())
 
             call assert_equals(1, indexer%idx_nI([1, 2, 9]))
             call assert_equals(1, indexer%idx_nI([1, 3, 9]))
@@ -218,7 +218,7 @@ contains
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -251,7 +251,7 @@ contains
         expected = [1, 5, 25, 125, 625]
 
         do i = 1, size(sg_indexer)
-            call assert_equals(expected(i), sg_indexer(i)%n_supergroups())
+            call assert_equals(expected(i), sg_indexer(i)%n_prop_vecs())
         end do
 
     contains

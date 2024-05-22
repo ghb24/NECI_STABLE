@@ -173,7 +173,7 @@ module fcimc_initialisation
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                set_det_offdiagH, clean_global_det_data, &
                                init_global_det_data, set_spawn_rate, &
-                               store_decoding, set_supergroup_idx
+                               store_decoding, set_prop_vec_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -349,7 +349,7 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
     use gasci, only: tSD_GAS, tGAS, finalize_GAS
-    use generalized_supergroup, only: lookup_supergroup_indexer
+    use generalized_supergroup, only: lookup_property_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -2848,8 +2848,8 @@ contains
 
             call store_decoding(1, HFDet)
 
-            if (allocated(lookup_supergroup_indexer)) then
-                call set_supergroup_idx(1, lookup_supergroup_indexer%idx_nI(HFDet))
+            if (allocated(lookup_property_indexer)) then
+                call set_prop_vec_idx(1, lookup_property_indexer%idx_nI(HFDet))
             end if
 
             if (tContTimeFCIMC .and. tContTimeFull) &
@@ -2996,8 +2996,8 @@ contains
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
                 call set_det_offdiagH(site, h_cast(0_dp))
 
-                if (allocated(lookup_supergroup_indexer)) then
-                    call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
+                if (allocated(lookup_property_indexer)) then
+                    call set_prop_vec_idx(site, lookup_property_indexer%idx_nI(ProjEDet(:, run)))
                 end if
 
                 ! store the determinant
@@ -3327,8 +3327,8 @@ contains
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
                     call set_det_offdiagH(DetIndex, HOffDiagtemp)
 
-                    if (allocated(lookup_supergroup_indexer)) then
-                        call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
+                    if (allocated(lookup_property_indexer)) then
+                        call set_prop_vec_idx(DetIndex, lookup_property_indexer%idx_nI(nJ))
                     end if
 
                     ! store the determinant

@@ -19,7 +19,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use SystemData, only: nEl, nBasis
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: root
-    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_pchb_doubles_select_particles, only: &
         allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
         get_PCHB_weight
@@ -29,7 +29,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
     private
     public :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
 
-    ! there are three pchb_samplers for each supergroup:
+    ! there are three pchb_samplers for each prop_vec:
     ! 1 - same-spin case
     ! 2 - opp spin case without exchange
     ! 3 - opp spin case with exchange
@@ -38,15 +38,15 @@ module gasci_pchb_doubles_spatorb_fastweighted
     !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
         private
-        !> Use a lookup for the supergroup index in global_det_data
+        !> Use a lookup for the prop_vec index in global_det_data
         logical, public :: use_lookup = .false.
-        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        !> Create **and** manage! the prop_vec index lookup in global_det_data.
         logical, public :: create_lookup = .false.
 
-        !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
+        !> The shape is (fused_number_of_double_excitations, 3, n_prop_vec)
         type(AliasSampler_3D_t) :: pchb_samplers
 
-        class(SuperGroupIndexer_t), allocatable :: indexer
+        class(PropertyIndexer_t), allocatable :: indexer
         class(ParticleSelector_t), allocatable :: particle_selector
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -74,7 +74,7 @@ contains
     subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
@@ -87,14 +87,14 @@ contains
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (allocated(lookup_supergroup_indexer)) then
-                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            if (allocated(lookup_property_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the supergroup lookup'
-                allocate(lookup_supergroup_indexer, source=this%indexer)
+                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the prop_vec lookup'
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the prop_vec lookup'
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
@@ -131,7 +131,7 @@ contains
             ! Yes we assume that either all or none are allocated.
             deallocate(this%particle_selector, this%tgtOrbs, this%pExch, this%indexer)
             if (this%create_lookup) then
-                deallocate(lookup_supergroup_indexer)
+                deallocate(lookup_property_indexer)
             end if
         end if
     end subroutine GAS_doubles_PCHB_finalize
@@ -178,7 +178,7 @@ contains
 #endif
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -333,36 +333,36 @@ contains
         integer :: ex(2, 2)
         integer(int64) :: memCost
         real(dp), allocatable :: w(:), pNoExch(:), IJ_weights(:, :, :)
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         integer :: i_sg, i_exch
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
         ! number of possible source orbital pairs
         ijMax = fuse_symm_idx(nBI, nBI)
         abMax = ijMax
         ! allocate the bias for picking an exchange excitation
-        allocate(this%pExch(ijMax, size(supergroups, 2)), source=0.0_dp)
+        allocate(this%pExch(ijMax, size(prop_vecs, 2)), source=0.0_dp)
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
 
-        !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
-        memCost = size(supergroups, 2, kind=int64) &
+        !> n_prop_vec * number_of_fused_indices * 3 * (bytes_per_sampler)
+        memCost = size(prop_vecs, 2, kind=int64) &
                     * int(ijMax, int64) &
                     * 3_int64 &
                     * (int(abMax, int64) * 3_int64 * 8_int64)
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "The number of prop_vecs is", size(prop_vecs, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
-        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB_RHF')
+        write(stdout, *) "Depending on the number of prop_vecs this can take up to 10min."
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(prop_vecs, 2)], abMax, 'PCHB_RHF')
 
         ! One could allocate only on the intra-node-root here, if memory
         ! at initialization ever becomes an issue.
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
         allocate(w(abMax))
-        allocate(IJ_weights(nBI * 2, nBI * 2, size(supergroups, 2)), source=0._dp)
-        over_supergroup: do i_sg = 1, size(supergroups, 2)
+        allocate(IJ_weights(nBI * 2, nBI * 2, size(prop_vecs, 2)), source=0._dp)
+        over_prop_vec: do i_sg = 1, size(prop_vecs, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             pNoExch = 1.0_dp - this%pExch(:, i_sg)
             over_spin_type: do i_exch = 1, 3
@@ -383,7 +383,7 @@ contains
                                 if (any(ex(2, 2) == ex(1, :)) .or. ex(2, 2) == ex(2, 1)) cycle
 
                                 associate(exc => canonicalize(Excite_2_t(ex)))
-                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg))) then
+                                if (this%indexer%is_allowed(exc, prop_vecs(:, i_sg))) then
                                     w(ab) = get_PCHB_weight(exc)
                                 end if
                                 end associate
@@ -422,7 +422,7 @@ contains
             else where
                 this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
             end where
-        end do over_supergroup
+        end do over_prop_vec
 
 
         call allocate_and_init(PCHB_particle_selection, this%indexer, &

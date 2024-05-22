@@ -67,8 +67,8 @@ MODULE PopsfileMod
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
                                set_det_offdiagH, store_decoding, max_ratio_size, fvals_size, &
-                               apvals_size, set_supergroup_idx
-    use generalized_supergroup, only: lookup_supergroup_indexer
+                               apvals_size, set_prop_vec_idx
+    use generalized_supergroup, only: lookup_property_indexer
     use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data
@@ -981,13 +981,13 @@ contains
         end if
 
         call fill_in_diag_helements()
-        if (allocated(lookup_supergroup_indexer)) then
+        if (allocated(lookup_property_indexer)) then
             block
                 integer :: i, nI(nel)
                 do i = 1, int(TotWalkers)
                     call decode_bit_det(nI, CurrentDets(:, i))
-                    call set_supergroup_idx( &
-                        i, lookup_supergroup_indexer%idx_nI(nI))
+                    call set_prop_vec_idx( &
+                        i, lookup_property_indexer%idx_nI(nI))
                 end do
             end block
         end if

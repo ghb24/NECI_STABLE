@@ -20,7 +20,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use sets_mod, only: set, operator(.cap.), operator(.in.)
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: iProcIndex_intra, root
-    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init, get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
@@ -37,21 +37,21 @@ module gasci_pchb_doubles_spinorb_fullyweighted
         !! This means it is guaranteed that only unoccupied sites are sampled.
         private
         logical, public :: use_lookup = .false.
-            !! Use a lookup for the supergroup index in global_det_data
+            !! Use a lookup for the prop_vec index in global_det_data
         logical, public :: create_lookup = .false.
-            !! Create **and** manage! the supergroup index lookup in global_det_data.
+            !! Create **and** manage! the prop_vec index lookup in global_det_data.
 
         class(ParticleSelector_t), allocatable :: particle_selector
             !! The particle selector for I, J
         type(AliasSampler_2D_t) :: A_sampler
             !! The sampler for the first hole `A`.
             !! It yields \( p(A | IJ, i_{\text{sg}}) \)
-            !! where IJ is a fused index I < J and `i_sg` is the supergroup.
+            !! where IJ is a fused index I < J and `i_sg` is the prop_vec.
         type(AliasSampler_3D_t) :: B_sampler
             !! The sampler for the second hole `B`.
             !! It yields \( p(B | A, IJ, i_{\text{sg}}) \)
-            !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the supergroup.
-        class(SuperGroupIndexer_t), allocatable :: indexer
+            !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the prop_vec.
+        class(PropertyIndexer_t), allocatable :: indexer
         integer(n_int), private :: last_possible_occupied
             !! The last element of the ilut array has some elements
             !! which are not used, if the number of spinorbitals is not a multiple of
@@ -83,7 +83,7 @@ contains
     subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
@@ -93,14 +93,14 @@ contains
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (allocated(lookup_supergroup_indexer)) then
-                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            if (allocated(lookup_property_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the property vector lookup.')
             else
-                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the supergroup lookup'
-                allocate(lookup_supergroup_indexer, source=this%indexer)
+                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the property vector lookup'
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the property vector lookup'
 
         this%last_possible_occupied = 0_n_int
         block
@@ -126,7 +126,7 @@ contains
             call this%B_sampler%finalize()
             call this%particle_selector%finalize()
             deallocate(this%particle_selector, this%indexer)
-            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
 
     end subroutine GAS_doubles_PCHB_finalize
@@ -161,7 +161,7 @@ contains
         hel = h_cast(0.0_dp)
 #endif
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -317,36 +317,36 @@ contains
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
         integer(int64) :: memCost
         real(dp), allocatable :: w_A(:), w_B(:), IJ_weights(:, :, :)
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         integer :: i_sg
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
         ! number of possible source orbital pairs
         IJ_max = fuse_symm_idx(nBasis, nBasis)
 
-        !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
-        memCost = size(supergroups, 2, kind=int64) &
+        !> n_prop_vec * number_of_fused_indices * 3 * (bytes_per_sampler)
+        memCost = size(prop_vecs, 2, kind=int64) &
                     * (int(IJ_max, int64) * (int(nBasis, int64) * 3_int64 * 8_int64) & ! p(A | IJ)
                         + int(IJ_max, int64) * (int(nBasis, int64)**2 * 3_int64 * 8_int64) & ! P (B | IJ A)
                     )
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "The number of property vectors is", size(prop_vecs, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
-        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%A_sampler%shared_alloc([IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
-        call this%B_sampler%shared_alloc([nBasis, IJ_max, size(supergroups, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
+        write(stdout, *) "Depending on the number of property vectors this can take up to 10min."
+        call this%A_sampler%shared_alloc([IJ_max, size(prop_vecs, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
+        call this%B_sampler%shared_alloc([nBasis, IJ_max, size(prop_vecs, 2)], nBasis, 'A_sampler_PCHB_spinorb_FullyWeighted')
 
         if (iProcIndex_intra == root) then
             allocate(w_A(nBasis), w_B(nBasis), source=0._dp)
-            allocate(IJ_weights(nBasis, nBasis, size(supergroups, 2)), source=0._dp)
+            allocate(IJ_weights(nBasis, nBasis, size(prop_vecs, 2)), source=0._dp)
         else
             allocate(w_A(0), w_B(0), IJ_weights(0, 0, 0))
         end if
 
         ! initialize the three samplers
-        do i_sg = 1, size(supergroups, 2)
+        do i_sg = 1, size(prop_vecs, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBasis
                 second_particle: do J = I + 1, nBasis
@@ -359,7 +359,7 @@ contains
                             if (any(B == [I, J, A])) cycle
                             associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                             if (iProcIndex_intra == root) then
-                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
+                                if (this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) &
                                         .and. spin_allowed(exc)) then
                                     w_B(B) = get_PCHB_weight(exc)
                                 end if

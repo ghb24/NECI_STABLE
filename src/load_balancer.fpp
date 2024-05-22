@@ -13,7 +13,7 @@ module load_balance
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &
                                set_det_diagH, set_det_offdiagH, &
-                               set_spawn_rate, set_supergroup_idx, &
+                               set_spawn_rate, set_prop_vec_idx, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
                                reset_all_tot_spawns, reset_all_acc_spawns, &
@@ -37,7 +37,7 @@ module load_balance
                          Hii, MaxWalkersPart, tTrialHash, TotWalkers, &
                          trial_space_size, ll_node, NoBosonActiveWalk
     use core_space_util, only: cs_replicas
-    use generalized_supergroup, only: lookup_supergroup_indexer
+    use generalized_supergroup, only: lookup_property_indexer
     use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
@@ -634,8 +634,8 @@ contains
         !In case we are filling a hole, clear the removed flag
         call set_flag(CurrentDets(:, DetPosition), flag_removed, .false.)
 
-        if (allocated(lookup_supergroup_indexer)) then
-            call set_supergroup_idx(DetPosition, lookup_supergroup_indexer%idx_nI(nJ))
+        if (allocated(lookup_property_indexer)) then
+            call set_prop_vec_idx(DetPosition, lookup_property_indexer%idx_nI(nJ))
         end if
 
         ! Add the new determinant to the hash table.

@@ -64,7 +64,7 @@ module gasci_supergroup_index
     use excitation_types, only: Excite_1_t, Excite_2_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
-    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t
+    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
 
     better_implicit_none
 
@@ -73,17 +73,17 @@ module gasci_supergroup_index
     public :: GAS_SuperGroupIndexer_t, get_CAS_indexer
     public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
-    type, extends(AlsoGUGA_SuperGroupIndexer_t) :: GAS_SuperGroupIndexer_t
+    type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
-        procedure, public :: get_supergroups => indexer_get_supergroups
+        procedure, public :: get_prop_vecs => indexer_get_supergroups
             !! We overwrite the `get_supergroups` method of the generalized indexer
             !! because this allows us a much larger number of GAS spaces
             !! for disconnected spaces.
 
-        procedure :: to_supergroup_nI
-        procedure :: to_supergroup_csf
+        procedure :: to_prop_vec_nI => to_supergroup_nI
+        procedure :: to_prop_vec_csf => to_supergroup_csf
 
         procedure :: is_allowed_single
         procedure :: is_allowed_double
@@ -485,9 +485,9 @@ contains
 
         allocate(idxer%GAS_spec, source=GAS_spec)
         allocate(idxer%allowed_composition_indices, source=allowed_indices)
-        idxer%n_El_ = GAS_spec%nEl()
+        idxer%prop_vec_sum_ = GAS_spec%nEl()
         idxer%n_spin_orbs_ = GAS_spec%n_spin_orbs()
-        idxer%n_sg_dim_ = GAS_spec%nGAS()
+        idxer%prop_vec_dim_ = GAS_spec%nGAS()
     end function
 
     pure function indexer_get_supergroups(this) result(res)
@@ -504,9 +504,9 @@ contains
         integer(int64) :: i
         routine_name("indexer_get_supergroups")
 
-        allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
+        allocate(res(this%GAS_spec%nGAS(), this%n_prop_vecs()))
         if (this%GAS_spec%is_connected()) then
-            do i = 1_int64, this%n_supergroups()
+            do i = 1_int64, this%n_prop_vecs()
                 res(:, i) = composition_from_idx(&
                     this%GAS_spec%nGAS(), this%GAS_spec%nEl(), this%allowed_composition_indices(i))
             end do
@@ -527,35 +527,35 @@ contains
     end function
 
 
-    logical pure function is_allowed_single(this, exc, supergroup)
+    logical pure function is_allowed_single(this, exc, prop_vec)
         !! Check if a single excitation is allowed.
         !!
         !! Is called once at initialization, so it does not have to be super fast.
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(Excite_1_t), intent(in) :: exc
-        integer, intent(in) :: supergroup(:)
+        integer, intent(in) :: prop_vec(:)
 
-        is_allowed_single = this%GAS_spec%is_allowed(exc, supergroup)
+        is_allowed_single = this%GAS_spec%is_allowed(exc, prop_vec)
     end function
 
 
-    logical pure function is_allowed_double(this, exc, supergroup)
+    logical pure function is_allowed_double(this, exc, prop_vec)
         !! Check if a double excitation is allowed.
         !!
         !! Is called once at initialization, so it does not have to be super fast.
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(Excite_2_t), intent(in) :: exc
-        integer, intent(in) :: supergroup(:)
+        integer, intent(in) :: prop_vec(:)
 
-        is_allowed_double = this%GAS_spec%is_allowed(exc, supergroup)
+        is_allowed_double = this%GAS_spec%is_allowed(exc, prop_vec)
     end function
 
-    logical pure function is_allowed_distinct_double(this, exc, supergroup)
+    logical pure function is_allowed_distinct_double(this, exc, prop_vec)
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(DistinctDouble_t), intent(in) :: exc
-        integer, intent(in) :: supergroup(:)
+        integer, intent(in) :: prop_vec(:)
 
-        is_allowed_distinct_double = this%GAS_spec%is_allowed(exc, supergroup)
+        is_allowed_distinct_double = this%GAS_spec%is_allowed(exc, prop_vec)
     end function
 
 
@@ -579,14 +579,14 @@ contains
     pure function to_supergroup_nI(this, nI) result(supergroup)
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: nI(:)
-        integer :: supergroup(this%dim_sg())
+        integer :: supergroup(this%prop_vec_dim())
         supergroup = this%GAS_spec%count_per_GAS(nI)
     end function
 
     pure function to_supergroup_csf(this, csf_i) result(supergroup)
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
-        integer :: supergroup(this%dim_sg())
+        integer :: supergroup(this%prop_vec_dim())
         supergroup = this%GAS_spec%count_per_GAS(csf_i)
     end function
 

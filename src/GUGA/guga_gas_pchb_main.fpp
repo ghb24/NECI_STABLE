@@ -36,7 +36,7 @@ module guga_gas_pchb_main
     use fortran_strings, only: split, to_upper
     use input_parser_mod, only: TokenIterator_t
 
-    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t
+    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
     use guga_base_class, only: AbInitGUGABase_t
 
     use guga_gas_pchb_singles_main, only: &
@@ -82,7 +82,7 @@ contains
         !! Initialize the PCHB excitation generator.
         !!
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
+        class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
             !!  The GAS specifications for the excitation generator.
         type(GAS_PCHB_options_t), intent(in) :: options
         call options%assert_validity()

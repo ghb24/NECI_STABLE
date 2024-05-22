@@ -9,7 +9,7 @@ module gasci_singles_main
     use SymExcitDataMod, only: ScratchSize
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_types, only: Excite_1_t, spin_allowed
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
@@ -66,16 +66,16 @@ module gasci_singles_main
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
         private
         ! allowed_holes(:, src, i_sg)
-        ! is a bitmask that returns for a given supergroup `i_sg` and `src`
+        ! is a bitmask that returns for a given prop_vec `i_sg` and `src`
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
 
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        class(SuperGroupIndexer_t), allocatable :: indexer
-        !> Use a lookup for the supergroup index in global_det_data.
+        class(PropertyIndexer_t), allocatable :: indexer
+        !> Use a lookup for the prop_vec index in global_det_data.
         logical, public :: use_lookup = .false.
-        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        !> Create **and** manage! the prop_vec index lookup in global_det_data.
         logical, public :: create_lookup = .false.
     contains
         private
@@ -93,10 +93,10 @@ contains
 
 
     subroutine allocate_and_init(indexer, options, use_lookup, generator)
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
-            !! Use the supergroup lookup
+            !! Use the prop_vec lookup
         class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
         routine_name("gasci_singles_main::allocate_and_init")
 
@@ -110,7 +110,7 @@ contains
             select type(generator => generator)
             type is(GAS_singles_PC_uniform_ExcGenerator_t)
                 ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
+                !   prop_vec lookup!
                 call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else if (options%algorithm == GAS_used_singles_vals%ON_FLY_HEAT_BATH) then
@@ -127,7 +127,7 @@ contains
             select type(generator)
             class is(PC_Weighted_t)
                 ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
+                !   prop_vec lookup!
                 call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else
@@ -180,9 +180,9 @@ contains
 
     subroutine GAS_singles_uniform_init(this, indexer, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
 
         integer :: i_sg, src, tgt
@@ -190,24 +190,24 @@ contains
         allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
-            if (allocated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
-                allocate(lookup_supergroup_indexer, source=this%indexer)
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
         if (use_lookup) write(stdout, *) 'GAS singles is using the supergroup lookup'
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
-        allocate(this%allowed_holes(0 : nIfD, this%indexer%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
+        allocate(this%allowed_holes(0 : nIfD, this%indexer%n_spin_orbs(), size(prop_vecs, 2)), source=0_n_int)
 
 
-        ! Find for each supergroup (i_sg)
+        ! Find for each prop_vec (i_sg)
         ! the allowed holes `tgt` for a given `src`.
-        do i_sg = 1, size(supergroups, 2)
+        do i_sg = 1, size(prop_vecs, 2)
             ! Note that the loop cannot take a symmetric shape.
             ! It may be, that (1 -> 5) is allowed, but (5 -> 1) is not.
             do src = 1, this%indexer%n_spin_orbs()
@@ -215,7 +215,7 @@ contains
                     if (src == tgt) cycle
                     associate(exc => Excite_1_t(src, tgt))
                     if (spin_allowed(exc) &
-                            .and. this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) &
                             .and. symmetry_allowed(exc)) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
@@ -248,7 +248,7 @@ contains
 
         if (allocated(this%allowed_holes)) then
             deallocate(this%allowed_holes, this%indexer)
-            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine GAS_singles_uniform_finalize
 
@@ -268,7 +268,7 @@ contains
 
         @:ASSERT(use_lookup .implies. present(store))
         if (use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if

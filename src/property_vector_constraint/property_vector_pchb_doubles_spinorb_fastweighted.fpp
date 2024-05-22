@@ -21,7 +21,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
-    use generalized_supergroup, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use generalized_supergroup, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, &
         allocate_and_init, get_PCHB_weight
@@ -36,18 +36,18 @@ module gasci_pchb_doubles_spinorb_fastweighted
         !! This means we choose holes via \(p(AB|IJ)\)
         private
         logical, public :: use_lookup = .false.
-            !! use a lookup for the supergroup index
+            !! use a lookup for the prop_vec index
         logical, public :: create_lookup = .false.
-            !! create and manage the supergroup index
+            !! create and manage the prop_vec index
 
         class(ParticleSelector_t), allocatable :: particle_selector
             !! particle selector for getting I, J
         type(AliasSampler_2D_t) :: AB_sampler
             !! sampler for holes, dubbed \(AB\) (fused index)
             !! It yields \( p(AB | IJ, i_{\text{sg}}) \)
-            !! where IJ is a fused index I < J and `i_sg` is the supergroup.
+            !! where IJ is a fused index I < J and `i_sg` is the prop_vec.
 
-        class(SuperGroupIndexer_t), allocatable :: indexer
+        class(PropertyIndexer_t), allocatable :: indexer
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -69,7 +69,7 @@ contains
         !! more specifically, sets up a lookup table for ab -> (a,b) and
         !! sets up the alias table for picking ab given ij with prob ~ Hijab
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(SuperGroupIndexer_t), intent(in) :: indexer
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_init'
@@ -81,11 +81,11 @@ contains
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (allocated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS PCHB (spinorb) doubles is creating and managing the supergroup lookup'
-                allocate(lookup_supergroup_indexer, source=this%indexer)
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
@@ -121,7 +121,7 @@ contains
             call this%particle_selector%finalize()
             ! Yes, we assume, that either all or none are allocated
             deallocate(this%particle_selector, this%tgtOrbs, this%indexer)
-            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine GAS_doubles_PCHB_spinorb_finalize
 
@@ -155,7 +155,7 @@ contains
             !! unused in this generator
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_gen_exc'
 
-        integer :: i_sg ! supergroup index
+        integer :: i_sg ! prop_vec index
         integer :: src(2) ! particles (I, J)
         integer :: elecs(2) ! particle indices in nI
         integer :: tgt(2)
@@ -173,7 +173,7 @@ contains
         hel = h_cast(0._dp) ! macro
 #endif
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -282,34 +282,34 @@ contains
         integer :: I, J, IJ, IJMax
         integer :: A, B, AB, ABMax
         integer(int64) :: memCost
-            !! n_supergroup * num_fused_indices * bytes_per_sampler
+            !! n_prop_vec * num_fused_indices * bytes_per_sampler
         real(dp), allocatable :: w(:), IJ_weights(:, :, :)
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         integer :: i_sg
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
         ! number of possible spin orbital pairs
         ijMax = fuse_symm_idx(nBI, nBI)
         abMax = ijMax
 
-        memCost = size(supergroups, 2, kind=int64) &
+        memCost = size(prop_vecs, 2, kind=int64) &
                   * int(ijMax, int64) &
                   * int(abMax, int64) * 8_int64
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "The number of supergroups is", size(prop_vecs, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
 
-        call this%AB_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'AB_PCHB_spinorb_sampler')
+        call this%AB_sampler%shared_alloc([ijMax, size(prop_vecs, 2)], abMax, 'AB_PCHB_spinorb_sampler')
 
         ! One could allocate only on the intra-node-root here, if memory
         ! at initialization ever becomes an issue.
         ! Look at `gasci_pchb_doubles_spin_fulllyweighted.fpp` for inspiration.
-        allocate(w(abMax), IJ_weights(nBI, nBI, size(supergroups, 2)), source=0._dp)
+        allocate(w(abMax), IJ_weights(nBI, nBI, size(prop_vecs, 2)), source=0._dp)
 
-        supergroup: do i_sg = 1, size(supergroups, 2)
+        prop_vec: do i_sg = 1, size(prop_vecs, 2)
             if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             first_particle: do I = 1, nBI
                 ! A,B are ordered, so we can assume I < J
@@ -323,7 +323,7 @@ contains
                             if (any(B == [I, J, A])) cycle
                             AB = fuse_symm_idx(A, B)
                             associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
-                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
+                                if (this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) .and. spin_allowed(exc)) then
                                     w(AB) = get_PCHB_weight(exc)
                                 end if
                             end associate
@@ -336,7 +336,7 @@ contains
                     IJ_weights(J, I, i_sg) = IJ_weights(I, J, i_sg)
                 end do second_particle
             end do first_particle
-        end do supergroup
+        end do prop_vec
 
         call allocate_and_init(PCHB_particle_selection, this%indexer, &
             IJ_weights, root, this%use_lookup, this%particle_selector)

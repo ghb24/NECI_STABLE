@@ -6,7 +6,7 @@ module guga_gas_pchb_doubles_main
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
     use fortran_strings, only: to_upper, split
-    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t
+    use generalized_supergroup, only: AlsoGUGA_PropertyIndexer_t
 
     use guga_base_class, only: DoublesGUGABase_t
     use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t, &
@@ -46,7 +46,7 @@ module guga_gas_pchb_doubles_main
 contains
 
     subroutine allocate_and_init(indexer, options, use_lookup, create_lookup, generator)
-        class(AlsoGUGA_SuperGroupIndexer_t), intent(in) :: indexer
+        class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         type(PCHB_DoublesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup, create_lookup
             !! Use the supergroup lookup

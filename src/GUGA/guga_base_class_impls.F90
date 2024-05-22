@@ -1,6 +1,6 @@
 #include "macros.h"
 submodule (guga_base_class) guga_base_class_impls
-    use generalized_supergroup, only: indexer, AlsoGUGA_SuperGroupIndexer_t
+    use generalized_supergroup, only: indexer, AlsoGUGA_PropertyIndexer_t
     use guga_pchb_class, only: PCHB_t
     use guga_gas_pchb_main, only: GAS_PCHB_ExcGenerator_t, options
 
@@ -25,7 +25,7 @@ contains
                 type is (GAS_PCHB_ExcGenerator_t)
                 block
                     select type(indexer)
-                    class is (AlsoGUGA_SuperGroupIndexer_t)
+                    class is (AlsoGUGA_PropertyIndexer_t)
                         call GUGA_exc_generator%init(indexer, options)
                     class default
                         call stop_all(this_routine, "GUGA PCHB requires an indexer compatible to it.")
