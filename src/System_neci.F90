@@ -2000,11 +2000,12 @@ contains
                         call stop_all(t_r, 'Error in GAS spec.')
                     end if
 
+                    if (nEl == 0) call stop_all(this_routine, "Please specify electrons first.")
                     select type(GAS_specification)
                     type is(CumulGASSpec_t)
-                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
+                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
                     type is(LocalGASSpec_t)
-                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
+                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
                     type is(FlexibleGASSpec_t)
                         GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
                         call GAS_specification%write_to(stdout)

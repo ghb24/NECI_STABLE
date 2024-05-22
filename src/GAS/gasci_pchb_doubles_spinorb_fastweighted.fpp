@@ -80,7 +80,7 @@ contains
         integer :: AB, A, B, abMax, nBI
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 

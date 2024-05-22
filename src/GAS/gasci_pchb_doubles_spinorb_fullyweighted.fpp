@@ -92,7 +92,7 @@ contains
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
