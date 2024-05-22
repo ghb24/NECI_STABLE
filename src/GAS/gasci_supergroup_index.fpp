@@ -61,16 +61,19 @@ module gasci_supergroup_index
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
         composition_from_idx, next_composition
+    use excitation_types, only: Excite_1_t, Excite_2_t
+    use guga_bitRepOps, only: CSF_Info_t
+    use guga_data, only: DistinctDouble_t
+    use generalized_supergroup, only: AlsoGUGA_SuperGroupIndexer_t
 
     better_implicit_none
 
     private
 
-    public :: SuperGroupIndexer_t, lookup_supergroup_indexer
+    public :: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer, indexer
     public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
-    type :: SuperGroupIndexer_t
-        private
+    type :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
         integer(int64), allocatable :: allowed_composition_indices(:)
     contains
@@ -83,13 +86,23 @@ module gasci_supergroup_index
         procedure :: lookup_supergroup_idx_CSF
         procedure, public :: n_supergroups => get_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
+        procedure :: is_allowed_single
+        procedure :: is_allowed_double
+        procedure :: is_allowed_distinct_double
+        generic, public :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
+
+        procedure, public :: gen_all_excits => idxer_gen_all_excits
+
+        procedure, public :: n_spin_orbs => get_nOrbs
+        procedure, public :: nEl => get_nEl
     end type
 
-    interface SuperGroupIndexer_t
+    interface GAS_SuperGroupIndexer_t
         module procedure construct_SuperGroupIndexer_t
     end interface
 
-    type(SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
+    class(GAS_SuperGroupIndexer_t), allocatable :: indexer
+    class(GAS_SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
 
 contains
 
@@ -468,7 +481,7 @@ contains
         !! Get the number of possible supergroups.
         !!
         !! GAS allowed compositions are called supergroups.
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer :: res
         if (this%GAS_spec%is_connected()) then
             res = size(this%allowed_composition_indices)
@@ -483,35 +496,19 @@ contains
         !!  constrained by cumulative minima and maxima.
         !!
         !! GAS allowed compositions are called supergroups.
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
         integer(int64) :: i
-        routine_name("indexer_get_supergroups")
 
         allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
-        if (this%GAS_spec%is_connected()) then
-            do i = 1_int64, this%n_supergroups()
-                res(:, i) = composition_from_idx(&
-                    this%GAS_spec%nGAS(), this%GAS_spec%nEl(), this%allowed_composition_indices(i))
-            end do
-        else
-            associate(GAS_spec => this%GAS_spec)
-            select type(GAS_spec)
-            type is(LocalGASSpec_t)
-                res(:, 1) = GAS_spec%get_min()
-            type is(CumulGASSpec_t)
-                res(:, 1) = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1)
-            type is(FlexibleGASSpec_t)
-                res(:, 1) = GAS_spec%supergroups(:, 1)
-            class default
-                call stop_all(this_routine, 'Wrong class.')
-            end select
-            end associate
-        end if
+        do i = 1_int64, this%n_supergroups()
+            res(:, i) = composition_from_idx(&
+                this%GAS_spec%nGAS(), this%GAS_spec%nEl(), this%allowed_composition_indices(i))
+        end do
     end function
 
     pure function get_supergroup_idx(this, supergroup) result(idx)
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: supergroup(:)
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx'
@@ -527,7 +524,7 @@ contains
 
     pure function get_supergroup_idx_det(this, nI) result(idx)
         !!  Calculate the supergroup index for a determinant nI
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: nI(:)
             !! The determinant for which the supergroup index should be calculated.
         integer :: idx
@@ -544,7 +541,7 @@ contains
 
     pure function get_supergroup_idx_csf(self, csf_i) result(idx)
         !!  Calculate the supergroup index for a CSF `csf_i`
-        class(SuperGroupIndexer_t), intent(in) :: self
+        class(GAS_SuperGroupIndexer_t), intent(in) :: self
         type(CSF_Info_t), intent(in) :: csf_i
             !! The CSF for which the supergroup index should be calculated.
         integer :: idx
@@ -566,7 +563,7 @@ contains
         !!  outside the control of this class.
         !!  Carefully make sure, that global_det_data is correctly initialized.
         use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: idet
             !!  The index of nI in the FciMCData::CurrentDets array.
         integer, intent(in) :: nI(:)
@@ -590,7 +587,7 @@ contains
         !!  outside the control of this class.
         !!  Carefully make sure, that global_det_data is correctly initialized.
         use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: this
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
             !! The CSF
         integer :: idx
@@ -608,7 +605,7 @@ contains
 
     pure function construct_SuperGroupIndexer_t(GAS_spec) result(idxer)
         class(GASSpec_t), intent(in) :: GAS_spec
-        type(SuperGroupIndexer_t) :: idxer
+        type(GAS_SuperGroupIndexer_t) :: idxer
         character(*), parameter :: this_routine = 'construct_SuperGroupIndexer_t'
         @:pure_ASSERT(GAS_spec%is_valid())
 
@@ -616,5 +613,66 @@ contains
         if (GAS_spec%is_connected()) then
             idxer%allowed_composition_indices = get_allowed_composition_indices(GAS_spec)
         end if
+    end function
+
+
+    logical pure function is_allowed_single(this, exc, supergroup)
+        !! Check if a single excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        is_allowed_single = this%GAS_spec%is_allowed(exc, supergroup)
+    end function
+
+
+    logical pure function is_allowed_double(this, exc, supergroup)
+        !! Check if a double excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        is_allowed_double = this%GAS_spec%is_allowed(exc, supergroup)
+    end function
+
+    logical pure function is_allowed_distinct_double(this, exc, supergroup)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(DistinctDouble_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        is_allowed_distinct_double = this%GAS_spec%is_allowed(exc, supergroup)
+    end function
+
+
+    subroutine idxer_gen_all_excits(this, nI, n_excits, det_list, ic)
+        !!  Get all excitated determinants from
+        !!  det_I that are allowed under GAS constraints.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: nI(:)
+            !!  Starting determinant
+        integer, intent(out) :: n_excits
+            !!  Number of determinants
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+            !!  Allocatable array of determinants in ilut format
+        integer, intent(in), optional :: ic
+            !!  Optional input for excitation level (ic=1 => singles, ic=2 => doubles)
+            !!      If ommited generate all.
+
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list, ic)
+    end subroutine
+
+    integer elemental function get_nOrbs(this)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        get_nOrbs = this%GAS_spec%n_spin_orbs()
+    end function
+
+    integer elemental function get_nEl(this)
+        !! Get the number of electrons.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        get_nEl = this%GAS_spec%nEl()
     end function
 end module gasci_supergroup_index

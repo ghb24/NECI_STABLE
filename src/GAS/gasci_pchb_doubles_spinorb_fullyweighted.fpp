@@ -20,9 +20,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
     use sets_mod, only: set, operator(.cap.), operator(.in.)
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: iProcIndex_intra, root
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, allocate_and_init, get_PCHB_weight
     use excitation_generators, only: DoubleExcitationGenerator_t
@@ -53,8 +51,7 @@ module gasci_pchb_doubles_spinorb_fullyweighted
             !! The sampler for the second hole `B`.
             !! It yields \( p(B | A, IJ, i_{\text{sg}}) \)
             !! where IJ is a fused index I < J, A is the first hole and `i_sg` is the supergroup.
-        class(GASSpec_t), allocatable :: GAS_spec
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         integer(n_int), private :: last_possible_occupied
             !! The last element of the ilut array has some elements
             !! which are not used, if the number of spinorbitals is not a multiple of
@@ -83,16 +80,15 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
+    subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -129,7 +125,7 @@ contains
             call this%A_sampler%finalize()
             call this%B_sampler%finalize()
             call this%particle_selector%finalize()
-            deallocate(this%particle_selector, this%GAS_spec, this%indexer)
+            deallocate(this%particle_selector, this%indexer)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
 
@@ -363,7 +359,7 @@ contains
                             if (any(B == [I, J, A])) cycle
                             associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
                             if (iProcIndex_intra == root) then
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
                                         .and. spin_allowed(exc)) then
                                     w_B(B) = get_PCHB_weight(exc)
                                 end if
@@ -385,7 +381,7 @@ contains
             end do first_particle
         end do
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+        call allocate_and_init(PCHB_particle_selection, this%indexer, &
             IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_compute_samplers
@@ -397,7 +393,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
 
 

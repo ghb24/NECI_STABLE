@@ -22,7 +22,6 @@ module gasci_disconnected
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t
     use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
 
     use excitation_generators, only: ExcitationGenerator_t
     better_implicit_none
@@ -235,7 +234,7 @@ contains
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:)
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list)
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list)
     end subroutine
 
 

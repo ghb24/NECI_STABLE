@@ -8,7 +8,7 @@ module gasci_pchb_doubles_main
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
-    use gasci, only: GASSpec_t
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
     use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
@@ -60,8 +60,8 @@ module gasci_pchb_doubles_main
 
 contains
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    subroutine allocate_and_init(indexer, options, use_lookup, generator)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         type(PCHB_DoublesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup
@@ -86,13 +86,13 @@ contains
         select type(generator)
         type is(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
+                indexer, use_lookup, use_lookup, options%particle_selection)
         type is(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
+                indexer, use_lookup, use_lookup, options%particle_selection)
         type is(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
+                indexer, use_lookup, use_lookup, options%particle_selection)
         class default
             call stop_all(this_routine, "Error. Should never be here.")
         end select

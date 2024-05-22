@@ -16,12 +16,10 @@ module gasci_pchb_doubles_spatorb_fastweighted
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: excit_gen_store_type, projEDet
-    use SystemData, only: nEl
+    use SystemData, only: nEl, nBasis
     use bit_rep_data, only: NIfTot
     use MPI_wrapper, only: root
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         allocate_and_init, ParticleSelector_t, PCHB_ParticleSelection_t, &
         get_PCHB_weight
@@ -48,9 +46,8 @@ module gasci_pchb_doubles_spatorb_fastweighted
         !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
         type(AliasSampler_3D_t) :: pchb_samplers
 
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         class(ParticleSelector_t), allocatable :: particle_selector
-        class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
     contains
@@ -74,10 +71,10 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, &
+    subroutine GAS_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
         class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
@@ -85,8 +82,7 @@ contains
         integer :: ab, a, b, abMax
         integer :: nBI
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -102,7 +98,7 @@ contains
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
-        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
+        nBI = nBasis
         ! initialize the mapping ab -> (a, b)
         abMax = fuse_symm_idx(nBI, nBI)
         allocate(this%tgtOrbs(2, 0 : abMax), source=0)
@@ -387,7 +383,7 @@ contains
                                 if (any(ex(2, 2) == ex(1, :)) .or. ex(2, 2) == ex(2, 1)) cycle
 
                                 associate(exc => canonicalize(Excite_2_t(ex)))
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg))) then
+                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg))) then
                                     w(ab) = get_PCHB_weight(exc)
                                 end if
                                 end associate
@@ -429,7 +425,7 @@ contains
         end do over_supergroup
 
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+        call allocate_and_init(PCHB_particle_selection, this%indexer, &
             IJ_weights, root, this%use_lookup, this%particle_selector)
 
     contains
@@ -452,7 +448,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
     end subroutine GAS_doubles_PCHB_gen_all_excits
 
 end module gasci_pchb_doubles_spatorb_fastweighted

@@ -8,7 +8,7 @@ module gasci_pchb_doubles_select_particles
     use bit_rep_data, only: nIfD
     use util_mod, only: EnumBase_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, t_mol_3_body
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, t_mol_3_body, nBasis
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pParallel, projEDet
     use sets_mod, only: operator(.in.)
@@ -18,8 +18,7 @@ module gasci_pchb_doubles_select_particles
     use MPI_wrapper, only: iProcIndex_intra
     use excitation_types, only: Excite_2_t
     use sltcnd_mod, only: nI_invariant_sltcnd_excit, sltcnd_excit
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     better_implicit_none
     private
     public :: ParticleSelector_t, PC_FullyWeightedParticles_t, &
@@ -116,10 +115,9 @@ module gasci_pchb_doubles_select_particles
         type(AliasSampler_2D_t) :: J_sampler
             !! The shape is (number_of_spin_orbs, n_supergroup) -> number_of_spin_orbs
 
-        class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -178,9 +176,9 @@ contains
         end select
     end function
 
-    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, IJ_weights, rank_with_info, use_lookup, particle_selector)
+    subroutine allocate_and_init(PCHB_particle_selection, indexer, IJ_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: IJ_weights(:, :, :)
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
@@ -192,19 +190,19 @@ contains
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+                call particle_selector%init(indexer, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FULL) then
             allocate(PC_WeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+                call particle_selector%init(indexer, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FAST) then
             allocate(PC_FastWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FastWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+                call particle_selector%init(indexer, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
@@ -265,9 +263,9 @@ contains
     end subroutine
 
 
-    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, rank_with_info, use_lookup, create_lookup)
+    subroutine init_PC_WeightedParticles_t(this, indexer, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: weights(:, :, :)
             !! `w(J, I, i_sg)`, The weight of picking `J` after picking `I` under supergroup `i_sg`
         integer, intent(in) :: rank_with_info
@@ -280,8 +278,7 @@ contains
         integer :: nBI
         integer :: i_sg
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -295,7 +292,7 @@ contains
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
-        nBI = this%GAS_spec%n_spin_orbs()
+        nBI = nBasis
 
         supergroups = this%indexer%get_supergroups()
 
@@ -587,11 +584,11 @@ contains
     subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_Particles_t), intent(inout) :: this
 
-        if (allocated(this%GAS_spec)) then
+        if (associated(this%indexer)) then
             call this%I_sampler%finalize()
             call this%J_sampler%finalize()
             ! Yes, we assume, that either all or none are allocated
-            deallocate(this%indexer, this%GAS_spec)
+            deallocate(this%indexer)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine

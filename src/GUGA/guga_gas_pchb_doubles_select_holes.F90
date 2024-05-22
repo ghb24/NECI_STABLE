@@ -30,7 +30,7 @@ module guga_gas_pchb_doubles_select_holes
     use growing_buffers, only: buffer_int64_1D_t
 
     use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
 
     use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init
@@ -71,7 +71,7 @@ module guga_gas_pchb_doubles_select_holes
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         class(GASSpec_t), allocatable :: GAS_spec
         procedure(get_doubles_weight_t), pointer, nopass :: get_weight => null()
 
@@ -204,7 +204,7 @@ contains
         ASSERT(GAS_spec%recoupling())
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 

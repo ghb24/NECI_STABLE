@@ -21,12 +21,10 @@ module gasci_pchb_doubles_spinorb_fastweighted
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_2_t, spin_allowed
     use aliasSampling, only: AliasSampler_2D_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use gasci_pchb_doubles_select_particles, only: &
         ParticleSelector_t, PCHB_ParticleSelection_t, &
         allocate_and_init, get_PCHB_weight
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
     better_implicit_none
 
     private
@@ -49,8 +47,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
             !! It yields \( p(AB | IJ, i_{\text{sg}}) \)
             !! where IJ is a fused index I < J and `i_sg` is the supergroup.
 
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
-        class(GASSpec_t), allocatable :: GAS_spec
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -65,22 +62,21 @@ module gasci_pchb_doubles_spinorb_fastweighted
 
 contains
 
-    subroutine GAS_doubles_PCHB_spinorb_init(this, GAS_spec, use_lookup, &
+    subroutine GAS_doubles_PCHB_spinorb_init(this, indexer, use_lookup, &
                             create_lookup, PCHB_particle_selection)
         !! initalises the spinorb-resolved PCHB doubles excitation generator
         !!
         !! more specifically, sets up a lookup table for ab -> (a,b) and
         !! sets up the alias table for picking ab given ij with prob ~ Hijab
         class(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_spinorb_init'
 
         integer :: AB, A, B, abMax, nBI
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -96,7 +92,7 @@ contains
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of *spin* orbs
-        nBI = this%GAS_spec%n_spin_orbs()
+        nBI = nBasis
         ! initialize the mapping ab -> (a, b)
         abMax = fuse_symm_idx(nBI, nBI)
         allocate(this%tgtOrbs(2, 0:abMax), source=0)
@@ -124,7 +120,7 @@ contains
             call this%AB_sampler%finalize()
             call this%particle_selector%finalize()
             ! Yes, we assume, that either all or none are allocated
-            deallocate(this%particle_selector, this%tgtOrbs, this%indexer, this%GAS_spec)
+            deallocate(this%particle_selector, this%tgtOrbs, this%indexer)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine GAS_doubles_PCHB_spinorb_finalize
@@ -274,9 +270,9 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
 
-    end subroutine GAS_doubles_PCHB_spinorb_gen_all_excits
+    end subroutine
 
     subroutine GAS_doubles_PCHB_spinorb_compute_samplers(this, nBI, PCHB_particle_selection)
         !! computes and stores values for the alias (spin-independent) sampling table
@@ -327,7 +323,7 @@ contains
                             if (any(B == [I, J, A])) cycle
                             AB = fuse_symm_idx(A, B)
                             associate(exc => merge(Excite_2_t(I, A, J, B), Excite_2_t(I, B, J, A), A < B))
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
+                                if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) .and. spin_allowed(exc)) then
                                     w(AB) = get_PCHB_weight(exc)
                                 end if
                             end associate
@@ -342,7 +338,7 @@ contains
             end do first_particle
         end do supergroup
 
-        call allocate_and_init(PCHB_particle_selection, this%GAS_spec, &
+        call allocate_and_init(PCHB_particle_selection, this%indexer, &
             IJ_weights, root, this%use_lookup, this%particle_selector)
 
     end subroutine GAS_doubles_PCHB_spinorb_compute_samplers

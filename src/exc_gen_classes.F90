@@ -13,6 +13,7 @@ module exc_gen_classes
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name, tSD_GAS
+    use gasci_supergroup_index, only: indexer
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_user_input, decide_on_PCHB_options
 
@@ -66,7 +67,7 @@ contains
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
                         call current_exc_generator%init(&
-                            GAS_specification, &
+                            indexer, &
                             decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF)&
                         )
                     end select

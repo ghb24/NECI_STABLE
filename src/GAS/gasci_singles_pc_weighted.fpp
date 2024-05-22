@@ -16,9 +16,7 @@ module gasci_singles_pc_weighted
     use get_excit, only: make_single
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_1_t, spin_allowed
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
@@ -84,9 +82,7 @@ module gasci_singles_pc_weighted
             !! They are made independent of the determinant by various approximations:
             !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             !! where \(R\) runs over all orbitals instead of only the occupied.
-        class(GASSpec_t), allocatable :: GAS_spec
-            !! The GAS specification
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
             !! The Supergroup indexer.
             !! This is only a pointer because components cannot be targets
             !! otherwise. :-(
@@ -216,16 +212,15 @@ contains
         end if
     end function
 
-    subroutine init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine init(this, indexer, use_lookup, create_lookup)
         class(PC_Weighted_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         routine_name("init")
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -239,7 +234,7 @@ contains
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
-        nBI = this%GAS_spec%n_spin_orbs()
+        nBI = this%indexer%n_spin_orbs()
         supergroups = this%indexer%get_supergroups()
         n_supergroups = size(supergroups, 2)
 
@@ -262,7 +257,7 @@ contains
                     do tgt = 1, nBi
                         if (src == tgt) cycle
                         exc = Excite_1_t(src, tgt)
-                        if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                        if (this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
                                 .and. spin_allowed(exc) &
                                 .and. symmetry_allowed(exc) &
                         ) then
@@ -469,7 +464,7 @@ contains
         integer :: i_sg
         real(dp) :: p_src, p_tgt
 
-        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+        integer :: unoccupied(this%indexer%n_spin_orbs() - nEl)
         integer(n_int) :: ilut_unoccupied(0 : nIfD)
 
         @:ASSERT(ic == 1)
@@ -572,7 +567,7 @@ contains
             ! that assumption is wrong.
             call this%I_sampler%finalize()
             call this%A_sampler%finalize()
-            deallocate(this%indexer, this%weights, this%GAS_spec)
+            deallocate(this%indexer, this%weights)
             if (this%create_lookup) nullify(lookup_supergroup_indexer)
         end if
     end subroutine
@@ -624,7 +619,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine
 
 end module gasci_singles_pc_weighted

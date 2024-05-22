@@ -37,7 +37,7 @@ module gasci_pchb_main
     use SystemData, only: tUHF, nBasis
     use fortran_strings, only: Token_t, join
 
-    use gasci, only: GASSpec_t
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use gasci_singles_main, only: &
         GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals, &
         PC_WeightedSinglesOptions_t, &
@@ -109,25 +109,21 @@ module gasci_pchb_main
 contains
 
 
-    subroutine GAS_PCHB_init(this, GAS_spec, options)
+    subroutine GAS_PCHB_init(this, indexer, options)
         !! Initialize the PCHB excitation generator.
         !!
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
             !!  The GAS specifications for the excitation generator.
         type(GAS_PCHB_options_t), intent(in) :: options
-        routine_name("gasci_pchb_main::GAS_PCHB_init")
 
         call set_timer(GAS_PCHB_init_time)
 
-        if (.not. GAS_spec%is_valid(nBasis)) then
-            call stop_all(this_routine, "GAS specification not valid.")
-        end if
         call options%assert_validity()
 
         write(stdout, '(A)') 'GAS PCHB with' // options%to_str() // 'is used'
-        call singles_allocate_and_init(GAS_spec, options%singles, options%use_lookup, this%singles_generator)
-        call doubles_allocate_and_init(GAS_spec, options%doubles, options%use_lookup, this%doubles_generator)
+        call singles_allocate_and_init(indexer, options%singles, options%use_lookup, this%singles_generator)
+        call doubles_allocate_and_init(indexer, options%doubles, options%use_lookup, this%doubles_generator)
 
         call halt_timer(GAS_PCHB_init_time)
     end subroutine GAS_PCHB_init

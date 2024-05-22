@@ -12,7 +12,7 @@ module guga_gas_pchb_doubles_select_particles
     use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.), near_zero
     use UMatCache, only: gtID
     use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
 
@@ -123,7 +123,7 @@ module guga_gas_pchb_doubles_select_particles
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -289,7 +289,7 @@ contains
         nBi = this%GAS_spec%n_spin_orbs()
         @:ASSERT(2 * nSpatOrbs == nBi)
 
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 

@@ -7,11 +7,9 @@ module gasci_singles_main
     use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: ScratchSize
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use excitation_types, only: Excite_1_t, spin_allowed
     use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
     use fortran_strings, only: to_upper
@@ -70,10 +68,10 @@ module gasci_singles_main
         ! is a bitmask that returns for a given supergroup `i_sg` and `src`
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
-        class(GASSpec_t), allocatable :: GAS_spec
+
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         !> Use a lookup for the supergroup index in global_det_data.
         logical, public :: use_lookup = .false.
         !> Create **and** manage! the supergroup index lookup in global_det_data.
@@ -93,8 +91,8 @@ module gasci_singles_main
 contains
 
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    subroutine allocate_and_init(indexer, options, use_lookup, generator)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup
@@ -112,11 +110,11 @@ contains
             type is(GAS_singles_PC_uniform_ExcGenerator_t)
                 ! NOTE: only one of the excitation generators should manage the
                 !   supergroup lookup!
-                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+                call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else if (options%algorithm == GAS_used_singles_vals%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
-            allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
+            allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(indexer%GAS_spec))
         else if (options%algorithm == GAS_used_singles_vals%PC_WEIGHTED) then
             call print_options(options%PC_weighted, stdout)
             call do_allocation(generator, options%PC_weighted%drawing)
@@ -124,7 +122,7 @@ contains
             class is(PC_Weighted_t)
                 ! NOTE: only one of the excitation generators should manage the
                 !   supergroup lookup!
-                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+                call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else
             call stop_all(this_routine, "Invalid choice for singles.")
@@ -174,17 +172,16 @@ contains
         end associate
     end function
 
-    subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine GAS_singles_uniform_init(this, indexer, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
 
         integer :: i_sg, src, tgt
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -199,7 +196,7 @@ contains
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
-        allocate(this%allowed_holes(0 : nIfD, this%GAS_spec%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
+        allocate(this%allowed_holes(0 : nIfD, this%indexer%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
 
 
         ! Find for each supergroup (i_sg)
@@ -207,12 +204,12 @@ contains
         do i_sg = 1, size(supergroups, 2)
             ! Note that the loop cannot take a symmetric shape.
             ! It may be, that (1 -> 5) is allowed, but (5 -> 1) is not.
-            do src = 1, this%GAS_spec%n_spin_orbs()
-                do tgt = 1, this%GAS_spec%n_spin_orbs()
+            do src = 1, this%indexer%n_spin_orbs()
+                do tgt = 1, this%indexer%n_spin_orbs()
                     if (src == tgt) cycle
                     associate(exc => Excite_1_t(src, tgt))
                     if (spin_allowed(exc) &
-                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. this%indexer%is_allowed(exc, supergroups(:, i_sg)) &
                             .and. symmetry_allowed(exc)) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
@@ -353,6 +350,6 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine GAS_singles_uniform_gen_all_excits
 end module gasci_singles_main

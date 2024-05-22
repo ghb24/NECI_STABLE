@@ -8,7 +8,7 @@ module guga_gas_pchb_singles_main
     use constants, only: n_int, dp, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
     use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, lookup_supergroup_indexer
     use excitation_types, only: Excite_1_t
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD, GugaBits
@@ -65,7 +65,7 @@ module guga_gas_pchb_singles_main
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -93,7 +93,7 @@ module guga_gas_pchb_singles_main
         class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GAS_SuperGroupIndexer_t), pointer :: indexer => null()
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -189,7 +189,7 @@ contains
         integer :: i_sg, src, tgt
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -391,7 +391,7 @@ contains
         this%GAS_spec = GAS_spec
         nBi = this%GAS_spec%n_spin_orbs()
         @:ASSERT(nBi == 2 * nSpatOrbs)
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=GAS_SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then

@@ -7,6 +7,7 @@ module pchb_excitgen
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
     use gasci, only: CAS_spec
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
         SingleExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
@@ -152,7 +153,7 @@ contains
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
         call doubles_allocate_and_init(&
-                CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
+                GAS_SuperGroupIndexer_t(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2)), options%doubles, &
                 .false., this%doubles_generator)
     end subroutine
 
@@ -177,7 +178,7 @@ contains
             call do_allocation(generator, options%PC_weighted%drawing)
             select type(generator)
             class is(PC_Weighted_t)
-                call generator%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                call generator%init(GAS_SuperGroupIndexer_t(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2)), &
                                     use_lookup=.false., create_lookup=.false.)
             end select
         else
