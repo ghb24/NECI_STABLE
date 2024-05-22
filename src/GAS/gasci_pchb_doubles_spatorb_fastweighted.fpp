@@ -46,7 +46,7 @@ module gasci_pchb_doubles_spatorb_fastweighted
         !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
         type(AliasSampler_3D_t) :: pchb_samplers
 
-        class(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), allocatable :: indexer
         class(ParticleSelector_t), allocatable :: particle_selector
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
@@ -82,23 +82,23 @@ contains
         integer :: ab, a, b, abMax
         integer :: nBI
 
-        allocate(this%indexer, source=indexer)
+        this%indexer = indexer
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
-        nBI = nBasis
+        nBI = numBasisIndices(this%indexer%n_spin_orbs())
         ! initialize the mapping ab -> (a, b)
         abMax = fuse_symm_idx(nBI, nBI)
         allocate(this%tgtOrbs(2, 0 : abMax), source=0)
@@ -131,7 +131,7 @@ contains
             ! Yes we assume that either all or none are allocated.
             deallocate(this%particle_selector, this%tgtOrbs, this%pExch, this%indexer)
             if (this%create_lookup) then
-                nullify(lookup_supergroup_indexer)
+                deallocate(lookup_supergroup_indexer)
             end if
         end if
     end subroutine GAS_doubles_PCHB_finalize

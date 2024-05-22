@@ -47,7 +47,7 @@ module gasci_pchb_doubles_spinorb_fastweighted
             !! It yields \( p(AB | IJ, i_{\text{sg}}) \)
             !! where IJ is a fused index I < J and `i_sg` is the supergroup.
 
-        class(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), allocatable :: indexer
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
@@ -76,16 +76,16 @@ contains
 
         integer :: AB, A, B, abMax, nBI
 
-        allocate(this%indexer, source=indexer)
+        this%indexer = indexer
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS PCHB (spinorb) doubles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
@@ -121,7 +121,7 @@ contains
             call this%particle_selector%finalize()
             ! Yes, we assume, that either all or none are allocated
             deallocate(this%particle_selector, this%tgtOrbs, this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine GAS_doubles_PCHB_spinorb_finalize
 

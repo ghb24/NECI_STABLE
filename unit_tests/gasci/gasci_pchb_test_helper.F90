@@ -9,6 +9,7 @@ module gasci_pchb_test_helper
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
         GAS_PCHB_options_vals
     use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t
@@ -59,6 +60,7 @@ contains
         logical, intent(in) :: UHF, hermitian
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
+        type(GAS_SuperGroupIndexer_t) :: indexer
         type(GAS_PCHB_options_t), allocatable :: settings(:)
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
@@ -168,6 +170,7 @@ contains
                                         spat_GAS_orbs=[1, 1, 1, 2, 2, 2], nEl=6)
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
+                indexer = GAS_SuperGroupIndexer_t(GAS_spec)
 
                 call init_excitgen_test(det_I, &
                     RandomFcidumpWriter_t(&
@@ -177,7 +180,7 @@ contains
                 )
 
                 call exc_generator%init(&
-                    GAS_spec, options=settings(i) &
+                    indexer, options=settings(i) &
                 )
 
                 call run_excit_gen_tester( &

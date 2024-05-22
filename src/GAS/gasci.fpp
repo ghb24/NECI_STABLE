@@ -112,8 +112,8 @@ module gasci
         procedure, private :: is_allowed_distinct_double
         generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
 
-        procedure, private :: get_available_singles
-        procedure, private :: get_available_doubles
+        procedure :: get_available_singles
+        procedure :: get_available_doubles
         procedure :: gen_all_excits
     end type
 
@@ -443,7 +443,8 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
 
-        src_spaces = this%get_iGAS(exc%val(1, :))
+        src_spaces(1) = this%get_iGAS(exc%val(1, 1))
+        src_spaces(2) = this%get_iGAS(exc%val(1, 2))
         tgt_spaces = this%get_iGAS(exc%val(2, :))
 
         if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then

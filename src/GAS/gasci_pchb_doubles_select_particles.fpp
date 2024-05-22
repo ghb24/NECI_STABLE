@@ -115,9 +115,7 @@ module gasci_pchb_doubles_select_particles
         type(AliasSampler_2D_t) :: J_sampler
             !! The shape is (number_of_spin_orbs, n_supergroup) -> number_of_spin_orbs
 
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        class(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
             !! Use a lookup for the supergroup index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -278,16 +276,16 @@ contains
         integer :: nBI
         integer :: i_sg
 
-        allocate(this%indexer, source=indexer)
+        this%indexer = indexer
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
@@ -584,12 +582,12 @@ contains
     subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_Particles_t), intent(inout) :: this
 
-        if (associated(this%indexer)) then
+        if (allocated(this%indexer)) then
             call this%I_sampler%finalize()
             call this%J_sampler%finalize()
             ! Yes, we assume, that either all or none are allocated
             deallocate(this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine
 

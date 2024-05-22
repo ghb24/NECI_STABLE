@@ -981,7 +981,7 @@ contains
         end if
 
         call fill_in_diag_helements()
-        if (associated(lookup_supergroup_indexer)) then
+        if (allocated(lookup_supergroup_indexer)) then
             block
                 integer :: i, nI(nel)
                 do i = 1, int(TotWalkers)

@@ -188,11 +188,11 @@ contains
         allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
@@ -244,7 +244,7 @@ contains
     subroutine GAS_singles_uniform_finalize(this)
         class(GAS_UniformExcGenerator_t), intent(inout) :: this
         deallocate(this%allowed_holes, this%indexer)
-        if (this%create_lookup) nullify(lookup_supergroup_indexer)
+        if (this%create_lookup) deallocate(lookup_supergroup_indexer)
     end subroutine
 
 
@@ -389,11 +389,11 @@ contains
         allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
@@ -449,7 +449,7 @@ contains
             call this%A_sampler%finalize()
             nullify(this%get_weight)
             deallocate(this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine
 

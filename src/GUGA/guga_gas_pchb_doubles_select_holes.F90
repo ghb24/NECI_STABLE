@@ -70,7 +70,7 @@ module guga_gas_pchb_doubles_select_holes
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
-        class(AlsoGUGA_SuperGroupIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_SuperGroupIndexer_t), allocatable :: indexer
         procedure(get_doubles_weight_t), pointer, nopass :: get_weight => null()
 
     contains
@@ -204,11 +204,11 @@ contains
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GUGA GAS PCHB doubles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
@@ -228,7 +228,7 @@ contains
             call this%finalize_pchb_sampler()
             call this%particle_selector%finalize()
             deallocate(this%particle_selector, this%info_tables, this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine
 

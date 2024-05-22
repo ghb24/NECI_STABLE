@@ -2848,7 +2848,7 @@ contains
 
             call store_decoding(1, HFDet)
 
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call set_supergroup_idx(1, lookup_supergroup_indexer%idx_nI(HFDet))
             end if
 
@@ -2996,7 +2996,7 @@ contains
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
                 call set_det_offdiagH(site, h_cast(0_dp))
 
-                if (associated(lookup_supergroup_indexer)) then
+                if (allocated(lookup_supergroup_indexer)) then
                     call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
                 end if
 
@@ -3327,7 +3327,7 @@ contains
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
                     call set_det_offdiagH(DetIndex, HOffDiagtemp)
 
-                    if (associated(lookup_supergroup_indexer)) then
+                    if (allocated(lookup_supergroup_indexer)) then
                         call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
                     end if
 

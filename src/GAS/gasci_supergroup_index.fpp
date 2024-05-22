@@ -77,6 +77,11 @@ module gasci_supergroup_index
         class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
+        procedure, public :: get_supergroups => indexer_get_supergroups
+            !! We overwrite the `get_supergroups` method of the generalized indexer
+            !! because this allows us a much larger number of GAS spaces
+            !! for disconnected spaces.
+
         procedure :: to_supergroup_nI
         procedure :: to_supergroup_csf
 
@@ -471,14 +476,54 @@ contains
         character(*), parameter :: this_routine = 'construct_SuperGroupIndexer_t'
         @:pure_ASSERT(GAS_spec%is_valid())
 
-        allowed_indices = get_allowed_composition_indices(GAS_spec)
-        idxer = GAS_SuperGroupIndexer_t(&
-                GAS_spec=GAS_spec, &
-                n_El_=GAS_spec%nEl(), &
-                n_spin_orbs_=GAS_spec%n_spin_orbs(), &
-                n_sg_dim_=size(allowed_indices), &
-                allowed_composition_indices=allowed_indices &
-        )
+        if (GAS_spec%is_connected()) then
+            allowed_indices = get_allowed_composition_indices(GAS_spec)
+        else
+            allowed_indices = [-1_int64]
+        end if
+
+
+        allocate(idxer%GAS_spec, source=GAS_spec)
+        allocate(idxer%allowed_composition_indices, source=allowed_indices)
+        idxer%n_El_ = GAS_spec%nEl()
+        idxer%n_spin_orbs_ = GAS_spec%n_spin_orbs()
+        idxer%n_sg_dim_ = GAS_spec%nGAS()
+    end function
+
+    pure function indexer_get_supergroups(this) result(res)
+        !! Get the ordered compositions of n into k summands
+        !!  constrained by cumulative minima and maxima.
+        !!
+        !! GAS allowed compositions are called supergroups.
+        !!
+        !! We overwrite the `get_supergroups` method of the generalized indexer
+        !! because this allows us a much larger number of GAS spaces
+        !! for disconnected spaces.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, allocatable :: res(:, :)
+        integer(int64) :: i
+        routine_name("indexer_get_supergroups")
+
+        allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
+        if (this%GAS_spec%is_connected()) then
+            do i = 1_int64, this%n_supergroups()
+                res(:, i) = composition_from_idx(&
+                    this%GAS_spec%nGAS(), this%GAS_spec%nEl(), this%allowed_composition_indices(i))
+            end do
+        else
+            associate(GAS_spec => this%GAS_spec)
+            select type(GAS_spec)
+            type is(LocalGASSpec_t)
+                res(:, 1) = GAS_spec%get_min()
+            type is(CumulGASSpec_t)
+                res(:, 1) = GAS_spec%get_cmin() - eoshift(GAS_spec%get_cmin(), shift=-1)
+            type is(FlexibleGASSpec_t)
+                res(:, 1) = GAS_spec%supergroups(:, 1)
+            class default
+                call stop_all(this_routine, 'Wrong class.')
+            end select
+            end associate
+        end if
     end function
 
 

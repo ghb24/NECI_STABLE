@@ -8,7 +8,6 @@ module test_gasci_discarding_mod
 
     use gasci, only: LocalGASSpec_t
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_util, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: init_excitgen_test, finalize_excitgen_test

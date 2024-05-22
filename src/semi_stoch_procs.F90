@@ -1270,7 +1270,7 @@ contains
 
             ! After reordering the dets, we have to reset all supergroup
             ! idx in the global_det_data
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 do i = 1, nwalkers
                     call decode_bit_det(nI, CurrentDets(:, i))
                     call set_supergroup_idx(&

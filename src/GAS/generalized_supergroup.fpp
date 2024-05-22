@@ -34,7 +34,7 @@ module generalized_supergroup
         generic, public :: lookup_supergroup_idx => lookup_supergroup_idx_nI
         procedure :: lookup_supergroup_idx_nI
         procedure, public :: n_supergroups => get_n_supergroups
-        procedure, public :: get_supergroups => indexer_get_supergroups
+        procedure, public :: get_supergroups
         procedure(is_allowed_single_t), deferred :: is_allowed_single
         procedure(is_allowed_double_t), deferred :: is_allowed_double
         generic, public :: is_allowed => is_allowed_single, is_allowed_double
@@ -123,8 +123,7 @@ module generalized_supergroup
 
     end interface
 
-    class(SuperGroupIndexer_t), allocatable :: indexer
-    class(SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
+    class(SuperGroupIndexer_t), allocatable :: indexer, lookup_supergroup_indexer
 
 contains
 
@@ -191,7 +190,7 @@ contains
         res = size(this%allowed_composition_indices)
     end function
 
-    pure function indexer_get_supergroups(this) result(res)
+    pure function get_supergroups(this) result(res)
         !! Get the ordered compositions of n into k summands
         !!  constrained by cumulative minima and maxima.
         !!

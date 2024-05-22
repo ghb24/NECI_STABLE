@@ -634,7 +634,7 @@ contains
         !In case we are filling a hole, clear the removed flag
         call set_flag(CurrentDets(:, DetPosition), flag_removed, .false.)
 
-        if (associated(lookup_supergroup_indexer)) then
+        if (allocated(lookup_supergroup_indexer)) then
             call set_supergroup_idx(DetPosition, lookup_supergroup_indexer%idx_nI(nJ))
         end if
 

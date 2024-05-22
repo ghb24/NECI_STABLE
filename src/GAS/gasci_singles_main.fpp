@@ -72,7 +72,7 @@ module gasci_singles_main
 
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
-        class(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), allocatable :: indexer
         !> Use a lookup for the supergroup index in global_det_data.
         logical, public :: use_lookup = .false.
         !> Create **and** manage! the supergroup index lookup in global_det_data.
@@ -190,11 +190,11 @@ contains
         allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
@@ -248,7 +248,7 @@ contains
 
         if (allocated(this%allowed_holes)) then
             deallocate(this%allowed_holes, this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine GAS_singles_uniform_finalize
 

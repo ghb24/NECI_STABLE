@@ -82,7 +82,7 @@ module gasci_singles_pc_weighted
             !! They are made independent of the determinant by various approximations:
             !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             !! where \(R\) runs over all orbitals instead of only the occupied.
-        class(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(SuperGroupIndexer_t), allocatable :: indexer
             !! The Supergroup indexer.
             !! This is only a pointer because components cannot be targets
             !! otherwise. :-(
@@ -220,16 +220,16 @@ contains
         integer, allocatable :: supergroups(:, :)
         integer :: n_supergroups, nBI
 
-        allocate(this%indexer, source=indexer)
+        this%indexer=indexer
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_supergroup_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
@@ -568,7 +568,7 @@ contains
             call this%I_sampler%finalize()
             call this%A_sampler%finalize()
             deallocate(this%indexer, this%weights)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_supergroup_indexer)
         end if
     end subroutine
 

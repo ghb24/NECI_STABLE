@@ -17,6 +17,7 @@ module test_guga_gas_pgens_mod
 
     use unit_test_helper_fcidumps, only: FciDumpWriter_t, RandomFciDumpWriter_t, BenzeneDimerFciDumpWriter_t
     use gasci, only: CAS_spec
+    use gasci_supergroup_index, only: get_CAS_indexer
     use orb_idx_mod, only: sum, calc_spin_raw
     use LoggingData, only: tExplicitAllRDM, tRDMonFly
     use bit_reps, only: init_bit_rep
@@ -107,7 +108,7 @@ contains
                 type(GAS_PCHB_FastFast_t) :: orbital_picker
                 type(Entry_t), allocatable :: entries(:)
 
-                call orbital_picker%init(CAS_spec(n_el, nSpatOrbs), &
+                call orbital_picker%init(get_CAS_indexer(n_el, nSpatOrbs), &
                         chosen_options%particle_selection, &
                         chosen_options%weighting, .false., .false.)
 
