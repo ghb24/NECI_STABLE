@@ -479,15 +479,18 @@ contains
         if (GAS_spec%is_connected()) then
             allowed_indices = get_allowed_composition_indices(GAS_spec)
         else
+            ! Yes this is a nonsensical number.
+            ! We treat the case of disconnected spaces in a special way.
             allowed_indices = [-1_int64]
         end if
 
-
-        allocate(idxer%GAS_spec, source=GAS_spec)
-        allocate(idxer%allowed_composition_indices, source=allowed_indices)
-        idxer%prop_vec_sum_ = GAS_spec%nEl()
-        idxer%n_spin_orbs_ = GAS_spec%n_spin_orbs()
-        idxer%prop_vec_dim_ = GAS_spec%nGAS()
+        idxer = GAS_SuperGroupIndexer_t(&
+            GAS_spec=GAS_spec, &
+            allowed_composition_indices=allowed_indices, &
+            prop_vec_sum_=GAS_spec%nEl(), &
+            n_spin_orbs_=GAS_spec%n_spin_orbs(), &
+            prop_vec_dim_=GAS_spec%nGAS() &
+        )
     end function
 
     pure function indexer_get_supergroups(this) result(res)
