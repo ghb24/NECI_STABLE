@@ -348,7 +348,9 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
-    use gasci, only: tSD_GAS, tGAS, finalize_GAS
+    use gasci, only: tSD_GAS, tGAS, finalize_GAS, GAS_specification
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use property_vector_index, only: indexer
     use property_vector_index, only: lookup_property_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -1258,6 +1260,8 @@ contains
         if (.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
         initsPerExlvl = 0
         allInitsPerExLvl = 0
+
+        if (tGAS) indexer = GAS_SuperGroupIndexer_t(GAS_specification)
 
         IF (tHistSpawn .or. (tCalcFCIMCPsi .and. tFCIMC)) THEN
             allocate(HistMinInd(NEl))
