@@ -129,14 +129,14 @@ module property_vector_index
             import :: PropertyIndexer_t
             class(PropertyIndexer_t), intent(in) :: this
             integer, intent(in) :: nI(:)
-            integer :: prop_vec(this%prop_vec_dim())
+            integer :: prop_vec(this%prop_vec_dim_)
         end function
 
         pure function to_prop_vec_csf_t(this, csf_i) result(prop_vec)
             import :: AlsoGUGA_PropertyIndexer_t, CSF_Info_t
             class(AlsoGUGA_PropertyIndexer_t), intent(in) :: this
             type(CSF_Info_t), intent(in) :: csf_i
-            integer :: prop_vec(this%prop_vec_dim())
+            integer :: prop_vec(this%prop_vec_dim_)
         end function
 
     end interface
