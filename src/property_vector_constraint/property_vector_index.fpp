@@ -194,7 +194,7 @@ contains
     pure function idx_prop_vec(this, prop_vec) result(idx)
         !! Get the index of a property vector.
         !!
-        !! Corresponds to the prop_vec index for GAS.
+        !! Corresponds to the supergroup index for GAS.
         class(PropertyIndexer_t), intent(in) :: this
         integer, intent(in) :: prop_vec(:)
         integer :: idx
