@@ -70,8 +70,6 @@ module gasci_singles_main
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
 
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
         class(PropertyIndexer_t), allocatable :: indexer
         !> Use a lookup for the prop_vec index in global_det_data.
         logical, public :: use_lookup = .false.
