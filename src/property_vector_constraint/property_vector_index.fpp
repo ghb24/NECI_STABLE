@@ -202,6 +202,7 @@ contains
 
         ! These ASSERTs are crucial for the index lookup via compositions.
         ! Otherwise the calculation of the composition index does not make sense.
+        @:pure_ASSERT(all(prop_vec >= 0))
         @:pure_ASSERT(sum(prop_vec) == this%prop_vec_sum())
         @:pure_ASSERT(size(prop_vec) == this%prop_vec_dim())
 
