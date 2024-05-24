@@ -200,6 +200,11 @@ contains
         integer :: idx
         debug_function_name('idx_prop_vec')
 
+        ! These ASSERTs are crucial for the index lookup via compositions.
+        ! Otherwise the calculation of the composition index does not make sense.
+        @:pure_ASSERT(sum(prop_vec) == this%prop_vec_sum())
+        @:pure_ASSERT(size(prop_vec) == this%prop_vec_dim())
+
         if (this%n_prop_vecs() > 1) then
             idx = int(binary_search_first_ge(this%allowed_composition_indices, composition_idx(prop_vec)))
         else
