@@ -46,7 +46,11 @@ module property_vector_index
             !! The dimension of the property vector
             !!   (corresponds to number of GAS spaces for pure GAS)
     contains
+#ifndef IFORT_
+        ! Stupid Ifort has problems with overwriting private methods.
+        ! https://gitlab.mpcdf.mpg.de/elpa/elpa/-/issues/54
         private
+#endif
         procedure, public :: idx_prop_vec
         procedure, public :: idx_nI => get_idx_prop_vec_det
         generic, public :: lookup_prop_vec_idx => lookup_prop_vec_idx_nI
@@ -69,7 +73,11 @@ module property_vector_index
 
     type, abstract, extends(PropertyIndexer_t) :: AlsoGUGA_PropertyIndexer_t
     contains
+#ifndef IFORT_
+        ! Stupid Ifort has problems with overwriting private methods.
+        ! https://gitlab.mpcdf.mpg.de/elpa/elpa/-/issues/54
         private
+#endif
         procedure, public :: idx_csf => get_prop_vec_idx_csf
         generic, public :: lookup_prop_vec_idx => lookup_prop_vec_idx_CSF
         procedure :: lookup_prop_vec_idx_CSF
@@ -129,14 +137,28 @@ module property_vector_index
             import :: PropertyIndexer_t
             class(PropertyIndexer_t), intent(in) :: this
             integer, intent(in) :: nI(:)
-            integer :: prop_vec(this%prop_vec_dim_)
+#ifndef IFORT_
+            ! Stupid Ifort has problems with defining abstract interfaces
+            ! using stack arrays like this.
+            ! The abstract interfaces are necessary for defining the deferred method.
+            integer :: prop_vec(this%prop_vec_dim())
+#else
+            integer, allocatable :: prop_vec(:)
+#endif
         end function
 
         pure function to_prop_vec_csf_t(this, csf_i) result(prop_vec)
             import :: AlsoGUGA_PropertyIndexer_t, CSF_Info_t
             class(AlsoGUGA_PropertyIndexer_t), intent(in) :: this
             type(CSF_Info_t), intent(in) :: csf_i
-            integer :: prop_vec(this%prop_vec_dim_)
+#ifndef IFORT_
+            ! Stupid Ifort has problems with defining abstract interfaces
+            ! using stack arrays like this.
+            ! The abstract interfaces are necessary for defining the deferred method.
+            integer :: prop_vec(this%prop_vec_dim())
+#else
+            integer, allocatable :: prop_vec(:)
+#endif
         end function
 
     end interface

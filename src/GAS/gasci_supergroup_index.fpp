@@ -76,7 +76,11 @@ module gasci_supergroup_index
     type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
     contains
+#ifndef IFORT_
+        ! Stupid Ifort has problems with overwriting private methods.
+        ! https://gitlab.mpcdf.mpg.de/elpa/elpa/-/issues/54
         private
+#endif
         procedure, public :: get_prop_vecs => indexer_get_supergroups
             !! We overwrite the `get_supergroups` method of the generalized indexer
             !! because this allows us a much larger number of GAS spaces
@@ -582,14 +586,28 @@ contains
     pure function to_supergroup_nI(this, nI) result(supergroup)
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, intent(in) :: nI(:)
+#ifndef IFORT_
+        ! Stupid Ifort has problems with defining abstract interfaces
+        ! using stack arrays like this.
+        ! The abstract interfaces are necessary for defining the deferred method.
         integer :: supergroup(this%prop_vec_dim())
+#else
+        integer, allocatable :: supergroup(:)
+#endif
         supergroup = this%GAS_spec%count_per_GAS(nI)
     end function
 
     pure function to_supergroup_csf(this, csf_i) result(supergroup)
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
+#ifndef IFORT_
+        ! Stupid Ifort has problems with defining abstract interfaces
+        ! using stack arrays like this.
+        ! The abstract interfaces are necessary for defining the deferred method.
         integer :: supergroup(this%prop_vec_dim())
+#else
+        integer, allocatable :: supergroup(:)
+#endif
         supergroup = this%GAS_spec%count_per_GAS(csf_i)
     end function
 
