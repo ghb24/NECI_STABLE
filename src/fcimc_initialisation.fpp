@@ -1261,8 +1261,6 @@ contains
         initsPerExlvl = 0
         allInitsPerExLvl = 0
 
-        if (tGAS) indexer = GAS_SuperGroupIndexer_t(GAS_specification)
-
         IF (tHistSpawn .or. (tCalcFCIMCPsi .and. tFCIMC)) THEN
             allocate(HistMinInd(NEl))
             allocate(HistMinInd2(NEl))

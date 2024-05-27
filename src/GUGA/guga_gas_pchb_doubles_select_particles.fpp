@@ -24,8 +24,6 @@ module guga_gas_pchb_doubles_select_particles
         UniformParticles_t, PCHB_ParticleSelection_t, allocate_and_init, &
         PCHB_ParticleSelection_vals_t, PCHB_particle_selection_vals
 
-
-
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
         private
         character(20) :: str
@@ -119,9 +117,7 @@ module guga_gas_pchb_doubles_select_particles
         type(AliasSampler_2D_t) :: j_sampler
             !! The shape is (number_of_spat_orbs, n_prop_vec) -> number_of_spat_orbs
 
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        class(AlsoGUGA_PropertyIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
             !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -283,10 +279,10 @@ contains
         integer, allocatable :: prop_vecs(:, :)
         integer :: i_sg, nBi
 
+        allocate(this%indexer, source=indexer)
         nBi = this%indexer%n_spin_orbs()
         @:ASSERT(2 * nSpatOrbs == nBi)
 
-        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -345,7 +341,7 @@ contains
     subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_Particles_t), intent(inout) :: this
 
-        if (associated(this%indexer)) then
+        if (allocated(this%indexer)) then
             ! Yes, we assume, that either all or none are allocated
             call this%I_sampler%finalize()
             call this%j_sampler%finalize()

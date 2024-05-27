@@ -61,9 +61,7 @@ module guga_gas_pchb_singles_main
     !> The precomputed GAS uniform excitation generator
     type, extends(SinglesGUGABase_t) :: GAS_UniformExcGenerator_t
         private
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        class(AlsoGUGA_PropertyIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
             !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -88,9 +86,7 @@ module guga_gas_pchb_singles_main
     !> The precomputed GAS uniform excitation generator
     type, extends(SinglesGUGABase_t) :: GAS_Weighted_t
         private
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        class(AlsoGUGA_PropertyIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
             !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
@@ -384,9 +380,9 @@ contains
         integer :: i_sg, src, tgt, nBi
         real(dp), allocatable :: I_weights(:), A_weights(:)
 
+        allocate(this%indexer, source=indexer)
         nBi = this%indexer%n_spin_orbs()
         @:ASSERT(nBi == 2 * nSpatOrbs)
-        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (allocated(lookup_property_indexer)) then
@@ -443,7 +439,7 @@ contains
 
     subroutine finalize_GAS_Weighted_t(this)
         class(GAS_Weighted_t), intent(inout) :: this
-        if (associated(this%indexer)) then
+        if (allocated(this%indexer)) then
             ! Yes I assume that either all or none are allocated
             call this%I_sampler%finalize()
             call this%A_sampler%finalize()

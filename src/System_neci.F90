@@ -52,6 +52,8 @@ MODULE System
          CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS
     use gasci_util, only: t_output_GAS_sizes
     use property_vector_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use property_vector_index, only: indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
@@ -2012,6 +2014,7 @@ contains
                     class default
                         call stop_all(t_r, "Invalid type for GAS specification.")
                     end select
+                    indexer = GAS_SuperGroupIndexer_t(GAS_specification)
 
                 end block
 
