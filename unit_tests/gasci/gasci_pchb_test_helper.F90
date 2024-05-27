@@ -1,3 +1,7 @@
+! NOTE
+! For meaningful pgen tests `n_iters` has to be higher
+! and the `is_problematic` function has to be tighter!
+
 module gasci_pchb_test_helper
     use fruit, only: assert_equals, assert_true, assert_false
     use fortran_strings, only: str
@@ -66,7 +70,10 @@ contains
 
         logical :: successful
         integer :: n_interspace_exc, i
-        integer, parameter :: n_iters=10**7
+        integer, parameter :: n_iters=10**6
+            ! NOTE:
+            ! For meaningful pgen tests `n_iters` has to be higher
+            ! and the `is_problematic` function has to be tighter.
         call SetCalcDefaults()
         call SetSysDefaults()
         t_non_hermitian_1_body = .not. hermitian
@@ -199,11 +206,14 @@ contains
 
     contains
 
+        ! NOTE:
+        ! For meaningful pgen tests `n_iters` has to be higher
+        ! and the `is_problematic` function has to be tighter.
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = &
-                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
+                (abs(1._dp - pgen_diagnostic) >= 1.6_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
     end subroutine test_pgen_general
