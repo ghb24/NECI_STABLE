@@ -30,7 +30,7 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec, finalize_GAS
+        CAS_spec, finalize_GAS, P_specification
 
     logical :: tGAS = .false.
         !! Are we restricting excitations
@@ -230,6 +230,8 @@ module gasci
     end interface
 
     class(GASSpec_t), allocatable :: GAS_specification
+
+    class(GASSpec_t), allocatable :: P_specification
 
 contains
 
