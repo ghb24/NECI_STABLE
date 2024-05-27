@@ -53,7 +53,7 @@ MODULE System
     use gasci_util, only: t_output_GAS_sizes
     use property_vector_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
-    use property_vector_index, only: indexer, P_indexer
+    use property_vector_index, only: indexer, P_indexer, total_indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
@@ -247,6 +247,7 @@ contains
         ! GAS options
         tGAS = .false.
         tAnderson = .false.
+        tPQ = .false.
 
 #ifdef PROG_NUMRUNS_
         ! by default, excitation generation already creates matrix elements
@@ -1945,81 +1946,18 @@ contains
                 end do
                 call load_orb_perm(buf(1:n_orb))
 
-            case ("GAS-SPEC")
-
-                tGAS = .true.
-                block
-                    logical :: recoupling
-                    integer :: nGAS, iGAS, i_sg, n_sg
-                    integer :: i_orb
-                    ! n_orbs are the number of spatial orbitals per GAS space
-                    ! cn_min, cn_max are cumulated particle numbers per GAS space
-                    integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
-                                            spat_GAS_orbs(:), beta_orbs(:), supergroups(:, :)
-                    w = to_upper(tokens%next())
-                    if (w == 'LOCAL') then
-                        allocate(LocalGASSpec_t :: GAS_specification)
-                    else if (w == 'CUMULATIVE') then
-                        allocate(CumulGASSpec_t :: GAS_specification)
-                    else if (w == 'FLEXIBLE') then
-                        allocate(FlexibleGASSpec_t :: GAS_specification)
-                    else
-                        call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
-                    end if
-
-                    select type(GAS_specification)
-                    type is (FlexibleGASSpec_t)
-                        nGAS = to_int(tokens%next())
-                        n_sg = to_int(tokens%next())
-                        allocate(supergroups(nGAS, n_sg), source=0)
-                        do i_sg = 1, n_sg
-                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                                do iGAS = 1, nGAS
-                                    supergroups(iGAS, i_sg) = to_int(tokens%next())
-                                end do
-                            else
-                                call stop_all(t_r, 'Error in GAS spec.')
-                            end if
-                        end do
-                    class default
-                        nGAS = to_int(tokens%next())
-                        allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
-                        do iGAS = 1, nGAS
-                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                                n_orbs(iGAS) = to_int(tokens%next())
-                                cn_min(iGAS) = to_int(tokens%next())
-                                cn_max(iGAS) = to_int(tokens%next())
-                            else
-                                call stop_all(t_r, 'Error in GAS spec.')
-                            end if
-                        end do
-                    end select
-
-
-                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
-                        call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
-                    else
-                        call stop_all(t_r, 'Error in GAS spec.')
-                    end if
-
-                    if (nEl == 0) call stop_all(this_routine, "Please specify electrons first.")
-                    select type(GAS_specification)
-                    type is(CumulGASSpec_t)
-                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                    type is(LocalGASSpec_t)
-                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                    type is(FlexibleGASSpec_t)
-                        GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
-                        call GAS_specification%write_to(stdout)
-                    class default
-                        call stop_all(t_r, "Invalid type for GAS specification.")
-                    end select
-                    indexer = GAS_SuperGroupIndexer_t(GAS_specification)
-
-                end block
-
             case("GAS-PQ-TRUNCATION")
+
+                tPQ = .true.
+                
+                !We currently need to define the P space before the GAS space
+                !There is probably a smarter way to do this :/
                 if (tGAS) then
+                    call stop_all(t_r, "P space currently needs to be defined prior to GAS constraints")
+                else
+                    tGas = .true.
+                end if
+
                     block
                         logical :: recoupling
                         integer :: nGAS, iGAS, i_sg, n_sg
@@ -2088,12 +2026,93 @@ contains
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select
                         P_indexer = GAS_SuperGroupIndexer_t(P_specification)
-                        !TODO: Pass both the indexer (total space) and P_indexer to PQ_SuperGroupIndxer_t
                     end block
-                else
-                    call stop_all(t_r, "A GAS specification is required for PQ Truncation")
-                end if
 
+            case ("GAS-SPEC")
+
+                tGAS = .true.
+                block
+                    logical :: recoupling
+                    integer :: nGAS, iGAS, i_sg, n_sg
+                    integer :: i_orb
+                    ! n_orbs are the number of spatial orbitals per GAS space
+                    ! cn_min, cn_max are cumulated particle numbers per GAS space
+                    integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
+                                            spat_GAS_orbs(:), beta_orbs(:), supergroups(:, :)
+                    w = to_upper(tokens%next())
+                    if (w == 'LOCAL') then
+                        allocate(LocalGASSpec_t :: GAS_specification)
+                    else if (w == 'CUMULATIVE') then
+                        allocate(CumulGASSpec_t :: GAS_specification)
+                    else if (w == 'FLEXIBLE') then
+                        allocate(FlexibleGASSpec_t :: GAS_specification)
+                    else
+                        call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
+                    end if
+
+                    select type(GAS_specification)
+                    type is (FlexibleGASSpec_t)
+                        nGAS = to_int(tokens%next())
+                        n_sg = to_int(tokens%next())
+                        allocate(supergroups(nGAS, n_sg), source=0)
+                        do i_sg = 1, n_sg
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                do iGAS = 1, nGAS
+                                    supergroups(iGAS, i_sg) = to_int(tokens%next())
+                                end do
+                            else
+                                call stop_all(t_r, 'Error in GAS spec.')
+                            end if
+                        end do
+                    class default
+                        nGAS = to_int(tokens%next())
+                        allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
+                        do iGAS = 1, nGAS
+                            if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                                n_orbs(iGAS) = to_int(tokens%next())
+                                cn_min(iGAS) = to_int(tokens%next())
+                                cn_max(iGAS) = to_int(tokens%next())
+                            else
+                                call stop_all(t_r, 'Error in GAS spec.')
+                            end if
+                        end do
+                    end select
+
+
+                    if (file_reader%nextline(tokens, skip_empty=.false.)) then
+                        call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
+                    else
+                        call stop_all(t_r, 'Error in GAS spec.')
+                    end if
+
+                    if (nEl == 0) call stop_all(this_routine, "Please specify electrons first.")
+                    select type(GAS_specification)
+                    type is(CumulGASSpec_t)
+                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
+                    type is(LocalGASSpec_t)
+                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
+                    type is(FlexibleGASSpec_t)
+                        GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
+                        call GAS_specification%write_to(stdout)
+                    class default
+                       call stop_all(t_r, "Invalid type for GAS specification.")
+                    end select
+                    
+                    !Check if PQ truncation, otherwise only use GAS
+                    if (tPQ) then
+                        total_indexer = GAS_SuperGroupIndexer_t(GAS_specification)
+                        P_indexer = GAS_SuperGroupIndexer_t(P_specification)
+                        !TODO: Pass both the indexer (total space) and P_indexer to PQ_SuperGroupIndxer_t
+                        !indexer = PQ_SuperGroupIndxer_t(total = total_indexer, P = P_indexer)
+                        write(stdout, *) "PQ Truncation would've been activated but is not implemented yet"
+                        write(stdout, *) "Using regular GAS constraints instead"
+                        indexer = GAS_SuperGroupIndexer_t(GAS_specification)
+                    else
+                        indexer = GAS_SuperGroupIndexer_t(GAS_specification)
+                    end if
+
+                end block
+            
             case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
                 t_output_GAS_sizes = .true.
 

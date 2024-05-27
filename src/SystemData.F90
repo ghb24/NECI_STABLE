@@ -447,6 +447,9 @@ module SystemData
     ! The inputted m_s value of spin-restrict
     integer, allocatable :: user_input_m_s
 
+    ! Activates the PQ truncation
+    logical :: tPQ
+
 contains
     ! Operations on type(symmetry)
     elemental subroutine SymAssign(lhs, rhs)
