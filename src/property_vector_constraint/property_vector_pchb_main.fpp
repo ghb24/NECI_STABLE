@@ -121,7 +121,7 @@ contains
 
         call options%assert_validity()
 
-        write(stdout, '(A)') 'GAS PCHB with' // options%to_str() // 'is used'
+        write(stdout, '(A)') 'GAS PCHB with ' // options%to_str() // ' is used'
         call singles_allocate_and_init(indexer, options%singles, options%use_lookup, this%singles_generator)
         call doubles_allocate_and_init(indexer, options%doubles, options%use_lookup, this%doubles_generator)
 
