@@ -1,11 +1,12 @@
 #include "macros.h"
 
 module display_matrices
-    use constants, only: dp, stdout
-    use util_mod, only: get_free_unit
+    use constants, only: dp, stdout, n_int, bits_n_int
+    use util_mod, only: get_free_unit, operator(.div.), stop_all
+    use fortran_strings, only: str
     implicit none
     private
-    public :: write_matrix
+    public :: write_matrix, write_bitmask
 
     interface write_matrix
         module procedure write_matrix_1D, write_matrix_2D, write_matrix_1D_int, write_matrix_2D_int
@@ -14,8 +15,6 @@ module display_matrices
 contains
 
     subroutine write_matrix_2D(M, dec_places, unit_id, advance)
-        use fortran_strings, only: str
-        implicit none
         real(dp), intent(in) :: M(:, :)
         integer, intent(in), optional :: dec_places, unit_id
         logical, intent(in), optional :: advance
@@ -38,8 +37,6 @@ contains
     end subroutine
 
     subroutine write_matrix_1D(M, dec_places, unit_id, advance)
-        use fortran_strings, only: str
-        implicit none
         real(dp), intent(in) :: M(:)
         integer, intent(in), optional :: dec_places, unit_id
         logical, intent(in), optional :: advance
@@ -65,8 +62,6 @@ contains
     end subroutine
 
     subroutine write_matrix_2D_int(M, unit_id, advance)
-        use fortran_strings, only: str
-        implicit none
         integer, intent(in) :: M(:, :)
         integer, intent(in), optional :: unit_id
         logical, intent(in), optional :: advance
@@ -89,8 +84,6 @@ contains
     end subroutine
 
     subroutine write_matrix_1D_int(M, unit_id, advance)
-        use fortran_strings, only: str
-        implicit none
         integer, intent(in) :: M(:)
         integer, intent(in), optional :: unit_id
         logical, intent(in), optional :: advance
@@ -111,6 +104,32 @@ contains
             write(unit_id_, fmter, advance='no') M(i), ', '
         end do
         write(unit_id_, fmter_no_comma, advance='no') M(size(M))
+        write(unit_id_, '(A)', advance=merge('yes', 'no ', advance_)) ']'
+    end subroutine
+
+    subroutine write_bitmask(vec, L, unit_id, advance)
+        integer(n_int), intent(in) :: vec(0:)
+        integer, intent(in) :: L
+        debug_function_name("write_bitmask")
+        integer, intent(in), optional :: unit_id
+        logical, intent(in), optional :: advance
+
+        integer :: unit_id_
+        logical :: advance_
+        integer :: i
+
+        def_default(unit_id_, unit_id, stdout)
+        def_default(advance_, advance, .true.)
+
+        ASSERT(L <= size(vec) * bits_n_int)
+        write(unit_id_, '(A)', advance='no') '['
+        do i = 1, L
+            if (IsOcc(vec, i)) then
+                write(unit_id_, '(A)', advance='no') '1'
+            else
+                write(unit_id_, '(A)', advance='no') '0'
+            end if
+        end do
         write(unit_id_, '(A)', advance=merge('yes', 'no ', advance_)) ']'
     end subroutine
 
