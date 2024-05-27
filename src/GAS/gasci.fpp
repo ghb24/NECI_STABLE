@@ -111,6 +111,10 @@ module gasci
         procedure, private :: is_allowed_double
         procedure, private :: is_allowed_distinct_double
         generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
+        
+        procedure, private :: excite_single
+        procedure, private :: excite_double
+        generic :: excite => excite_single, excite_double
 
         procedure :: get_available_singles
         procedure :: get_available_doubles
@@ -403,6 +407,48 @@ contains
         end if
     end function
 
+    !Query the supergroup after a single excitation
+    pure function excite_single(this, exc, supergroup) result(excited_supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+        
+        integer :: src_space, tgt_space
+        integer :: excited_supergroup(size(supergroup))
+        
+        !get source and target space
+        src_space = this%get_iGAS(exc%val(1, 1))
+        tgt_space = this%get_iGAS(exc%val(2, 1))
+        
+        excited_supergroup = supergroup
+        !Remove particle in source space
+        excited_supergroup(src_space) = supergroup(src_space) - 1
+        !Add particle in target space
+        excited_supergroup(tgt_space) = supergroup(tgt_space) + 1
+
+    end function
+
+    !Query the supergroup after a double excitation
+    pure function excite_double(this, exc, supergroup) result(excited_supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_spaces(2), tgt_spaces(2)
+
+        src_spaces(1) = this%get_iGAS(exc%val(1, 1))
+        src_spaces(2) = this%get_iGAS(exc%val(1, 2))
+        tgt_spaces = this%get_iGAS(exc%val(2, :))
+
+        excited_supergroup = supergroup
+        !Remove particles form src_spaces
+        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
+        !Add particles to tgt_spaces
+        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+        
+    end function
+
     !> Check if a single excitation is allowed.
     !>
     !> Is called once at initialization, so it does not have to be super fast.
@@ -414,6 +460,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_space, tgt_space
 
+        !Keep this for following if-statement
         src_space = this%get_iGAS(exc%val(1, 1))
         tgt_space = this%get_iGAS(exc%val(2, 1))
 
@@ -423,9 +470,7 @@ contains
             is_allowed_single = .true.
         else
             ! Ensure that GAS specifications contain supergroup **after** excitation.
-            excited_supergroup = supergroup
-            excited_supergroup(src_space) = excited_supergroup(src_space) - 1
-            excited_supergroup(tgt_space) = excited_supergroup(tgt_space) + 1
+            excited_supergroup = this%excite_single(exc, supergroup)
 
             is_allowed_single = this%contains_supergroup(excited_supergroup)
         end if
@@ -444,7 +489,8 @@ contains
 
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
-
+        
+        !Keep for if-statement
         src_spaces(1) = this%get_iGAS(exc%val(1, 1))
         src_spaces(2) = this%get_iGAS(exc%val(1, 2))
         tgt_spaces = this%get_iGAS(exc%val(2, :))
@@ -455,9 +501,7 @@ contains
             is_allowed_double = .true.
         else
             ! Ensure that GAS specifications contain supergroup **after** excitation.
-            excited_supergroup = supergroup
-            excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-            excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+            excited_supergroup = this%excite_double(exc, supergroup)
 
             is_allowed_double = this%contains_supergroup(excited_supergroup)
 
