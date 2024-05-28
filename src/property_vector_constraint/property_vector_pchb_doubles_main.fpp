@@ -9,9 +9,9 @@ module property_vector_pchb_doubles_main
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
     use property_vector_index, only: PropertyIndexer_t
-    use property_vector_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
-    use property_vector_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
-    use property_vector_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
+    use property_vector_pchb_doubles_spatorb_fastweighted, only: PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t
+    use property_vector_pchb_doubles_spinorb_fullyweighted, only: PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t
+    use property_vector_pchb_doubles_spinorb_fastweighted, only: PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t
     use property_vector_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
     better_implicit_none
@@ -70,27 +70,27 @@ contains
 
         if (options%spin_orb_resolved) then
             if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
-                allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t :: generator)
             else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
-                allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t :: generator)
             end if
         else
             if (tUHF) call stop_all(this_routine, "spatial-orbital-resolved PCHB generator not compatible with UHF FCIDUMP.")
             if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
-                allocate(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t :: generator)
             else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
                 call stop_all(this_routine, "PCHB spatorb-resolved fully weighted hole selection not implemented.")
             end if
         end if
 
         select type(generator)
-        type is(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t)
+        type is(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t)
             call generator%init(&
                 indexer, use_lookup, use_lookup, options%particle_selection)
-        type is(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t)
+        type is(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t)
             call generator%init(&
                 indexer, use_lookup, use_lookup, options%particle_selection)
-        type is(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t)
+        type is(PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t)
             call generator%init(&
                 indexer, use_lookup, use_lookup, options%particle_selection)
         class default
@@ -110,7 +110,7 @@ contains
         case(doubles_options_vals%hole_selection%FULL_FULL%str)
             res = doubles_options_vals%hole_selection%FULL_FULL
         case default
-            call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
+            call stop_all(this_routine, trim(w)//" not a valid hole selection for PropVec PCHB.")
         end select
     end function
 

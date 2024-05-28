@@ -12,7 +12,7 @@ module gasci_singles_main
     use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_types, only: Excite_1_t, spin_allowed
-    use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
+    use FciMCData, only: excit_gen_store_type
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
@@ -26,7 +26,7 @@ module gasci_singles_main
     public :: GAS_PCHB_SinglesAlgorithm_t, &
         GAS_singles_PC_uniform_ExcGenerator_t, &
         GAS_singles_heat_bath_ExcGen_t, allocate_and_init, &
-        GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals
+        PropVec_PCHB_SinglesOptions_t, PropVec_PCHB_SinglesOptions_vals_t, PropVec_PCHB_singles_options_vals
     ! Reexpose the stuff from gasci_singles_pc_weighted
     public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
         print_options
@@ -44,19 +44,19 @@ module gasci_singles_main
 
     type(GAS_PCHB_SinglesAlgorithm_vals_t), parameter :: GAS_used_singles_vals = GAS_PCHB_SinglesAlgorithm_vals_t()
 
-    type :: GAS_PCHB_SinglesOptions_vals_t
+    type :: PropVec_PCHB_SinglesOptions_vals_t
         type(GAS_PCHB_SinglesAlgorithm_vals_t) :: algorithm = GAS_PCHB_SinglesAlgorithm_vals_t()
         type(PC_WeightedSinglesOptions_vals_t) :: PC_weighted = PC_WeightedSinglesOptions_vals_t()
         contains
             procedure, nopass :: from_str => singles_from_keyword
     end type
 
-    type(GAS_PCHB_SinglesOptions_vals_t), parameter :: GAS_PCHB_singles_options_vals = GAS_PCHB_SinglesOptions_vals_t()
+    type(PropVec_PCHB_SinglesOptions_vals_t), parameter :: PropVec_PCHB_singles_options_vals = PropVec_PCHB_SinglesOptions_vals_t()
 
-    type :: GAS_PCHB_SinglesOptions_t
+    type :: PropVec_PCHB_SinglesOptions_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
-            GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+            PropVec_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     contains
         procedure :: to_str
     end type
@@ -92,7 +92,7 @@ contains
 
     subroutine allocate_and_init(indexer, options, use_lookup, generator)
         class(PropertyIndexer_t), intent(in) :: indexer
-        type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+        type(PropVec_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the prop_vec lookup
         class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
@@ -138,18 +138,18 @@ contains
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(GAS_PCHB_SinglesOptions_t) :: res
+        type(PropVec_PCHB_SinglesOptions_t) :: res
         routine_name("singles_from_keyword")
         character(:), allocatable :: up_w
         up_w = to_upper(w)
-        associate(vals => GAS_PCHB_singles_options_vals)
+        associate(vals => PropVec_PCHB_singles_options_vals)
         select case(up_w)
         case('UNIFORM', 'UNIF:UNIF')
-            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%BITMASK_UNIFORM)
+            res = PropVec_PCHB_SinglesOptions_t(vals%algorithm%BITMASK_UNIFORM)
         case('ON-THE-FLY-HEAT-BATH')
-            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
+            res = PropVec_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
         case('UNIF:FAST', 'UNIF:FULL', 'FULL:FULL')
-            res = GAS_PCHB_SinglesOptions_t(&
+            res = PropVec_PCHB_SinglesOptions_t(&
                     vals%algorithm%PC_WEIGHTED, &
                     PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
             )
@@ -160,10 +160,10 @@ contains
     end function
 
     pure function to_str(options) result(res)
-        class(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+        class(PropVec_PCHB_SinglesOptions_t), intent(in) :: options
         routine_name("to_str")
         character(:), allocatable :: res
-        associate(vals => GAS_PCHB_singles_options_vals)
+        associate(vals => PropVec_PCHB_singles_options_vals)
         if (options%algorithm == vals%algorithm%BITMASK_UNIFORM) then
             res = 'UNIF:UNIF'
         else if (options%algorithm == vals%algorithm%ON_FLY_HEAT_BATH) then

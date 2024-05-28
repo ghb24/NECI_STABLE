@@ -3,7 +3,7 @@
 #:include "../algorithms.fpph"
 
 module property_vector_pchb_doubles_spatorb_fastweighted
-    !! precomputed heat bath implementation for GASCI using spatial orbitals
+    !! precomputed heat bath implementation for PropVecCI using spatial orbitals
     use constants, only: n_int, dp, int64, maxExcit, stdout
     use util_mod, only: getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), stop_all
@@ -27,7 +27,7 @@ module property_vector_pchb_doubles_spatorb_fastweighted
     better_implicit_none
 
     private
-    public :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
+    public :: PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t
 
     ! there are three pchb_samplers for each prop_vec:
     ! 1 - same-spin case
@@ -35,8 +35,8 @@ module property_vector_pchb_doubles_spatorb_fastweighted
     ! 3 - opp spin case with exchange
     integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
 
-    !> The GAS PCHB excitation generator for doubles
-    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
+    !> The PropVec PCHB excitation generator for doubles
+    type, extends(DoubleExcitationGenerator_t) :: PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t
         private
         !> Use a lookup for the prop_vec index in global_det_data
         logical, public :: use_lookup = .false.
@@ -52,14 +52,14 @@ module property_vector_pchb_doubles_spatorb_fastweighted
         integer, allocatable :: tgtOrbs(:, :)
     contains
         private
-        procedure, public :: init => GAS_doubles_PCHB_init
-        procedure, public :: finalize => GAS_doubles_PCHB_finalize
-        procedure, public :: gen_exc => GAS_doubles_PCHB_gen_exc
-        procedure, public :: get_pgen => GAS_doubles_PCHB_get_pgen
-        procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
+        procedure, public :: init => PropVec_doubles_PCHB_init
+        procedure, public :: finalize => PropVec_doubles_PCHB_finalize
+        procedure, public :: gen_exc => PropVec_doubles_PCHB_gen_exc
+        procedure, public :: get_pgen => PropVec_doubles_PCHB_get_pgen
+        procedure, public :: gen_all_excits => PropVec_doubles_PCHB_gen_all_excits
 
-        procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
-    end type GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
+        procedure :: compute_samplers => PropVec_doubles_PCHB_compute_samplers
+    end type PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t
 
 contains
 
@@ -71,13 +71,13 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, indexer, &
+    subroutine PropVec_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(inout) :: this
         class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
         integer :: nBI
@@ -90,11 +90,11 @@ contains
             if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the prop_vec lookup'
+                write(stdout, *) 'PropVec PCHB (RHF) doubles is creating and managing the prop_vec lookup'
                 allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the prop_vec lookup'
+        if (this%use_lookup) write(stdout, *) 'PropVec PCHB doubles is using the prop_vec lookup'
 
         write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
@@ -117,13 +117,13 @@ contains
 
         ! this is some bias used internally by CreateSingleExcit - not used here
         pDoubNew = 0.0
-    end subroutine GAS_doubles_PCHB_init
+    end subroutine PropVec_doubles_PCHB_init
 
 
     !>  @brief
     !>  Deallocate the sampler and the mapping ab -> (a,b)
-    subroutine GAS_doubles_PCHB_finalize(this)
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
+    subroutine PropVec_doubles_PCHB_finalize(this)
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
             call this%pchb_samplers%finalize()
@@ -134,7 +134,7 @@ contains
                 deallocate(lookup_property_indexer)
             end if
         end if
-    end subroutine GAS_doubles_PCHB_finalize
+    end subroutine PropVec_doubles_PCHB_finalize
 
 
     !>  @brief
@@ -149,10 +149,10 @@ contains
     !> @param[out] tParity  on return, the parity of the excitation nI -> nJ
     !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ
     !> @param[in] idet Optional index of determinant in the CurrentDets array.
-    subroutine GAS_doubles_PCHB_gen_exc(&
+    subroutine PropVec_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -162,7 +162,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_gen_exc'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_gen_exc'
 
         integer :: elecs(2), src(2), ij
         integer :: orbs(2), ab
@@ -271,7 +271,7 @@ contains
             ex(1, 1 : 2) = src
             ex(2, 1 : 2) = orbs
         end subroutine invalidate
-    end subroutine GAS_doubles_PCHB_gen_exc
+    end subroutine PropVec_doubles_PCHB_gen_exc
 
 
     !>  @brief
@@ -280,14 +280,14 @@ contains
     !>  @param[in] ex  2x2 excitation matrix
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
-    function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
+    function PropVec_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         real(dp) :: pgen
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_get_pgen'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_get_pgen'
 
         integer :: ab, ij, nex(2, 2), samplerIndex, i_sg
 
@@ -320,12 +320,12 @@ contains
         end if
 
         pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
-    end function GAS_doubles_PCHB_get_pgen
+    end function PropVec_doubles_PCHB_get_pgen
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
+    subroutine PropVec_doubles_PCHB_compute_samplers(this, nBI, PCHB_particle_selection)
         !! computes and stores values for the alias sampling table
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(inout) :: this
         integer, intent(in) :: nBI
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: i, j, ij, ijMax
@@ -439,16 +439,16 @@ contains
 
             sorb = merge(2 * orb, 2 * orb - 1, is_alpha)
         end function to_spin_orb
-    end subroutine GAS_doubles_PCHB_compute_samplers
+    end subroutine PropVec_doubles_PCHB_compute_samplers
 
 
-    subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t), intent(in) :: this
+    subroutine PropVec_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+        class(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
         call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
-    end subroutine GAS_doubles_PCHB_gen_all_excits
+    end subroutine PropVec_doubles_PCHB_gen_all_excits
 
 end module property_vector_pchb_doubles_spatorb_fastweighted

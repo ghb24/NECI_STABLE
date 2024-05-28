@@ -14,10 +14,10 @@ module gasci_pchb_test_helper
 
     use gasci, only: LocalGASSpec_t
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
-    use property_vector_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
-        GAS_PCHB_options_vals
+    use property_vector_pchb_main, only: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, &
+        PropVec_PCHB_options_vals
     use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t
-    use gasci_singles_main, only: GAS_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
+    use gasci_singles_main, only: PropVec_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
 
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -62,10 +62,10 @@ contains
         use System, only: SetSysDefaults
         use Calc, only: SetCalcDefaults
         logical, intent(in) :: UHF, hermitian
-        type(GAS_PCHB_ExcGenerator_t) :: exc_generator
+        type(PropVec_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
         type(GAS_SuperGroupIndexer_t) :: indexer
-        type(GAS_PCHB_options_t), allocatable :: settings(:)
+        type(PropVec_PCHB_options_t), allocatable :: settings(:)
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
@@ -87,41 +87,41 @@ contains
 
         if (UHF) then ! UHF cannot use spatorbs
             settings = [&
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
@@ -129,41 +129,41 @@ contains
             ]
         else
             settings = [&
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
                             spin_orb_resolved=.false. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
