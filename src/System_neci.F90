@@ -1952,7 +1952,7 @@ contains
                 
                 !We currently need to define the P space before the GAS space
                 !There is probably a smarter way to do this :/
-                if (tGAS) then
+                if (.not. tGAS) then
                     call stop_all(t_r, "P space currently needs to be defined prior to GAS constraints")
                 else
                     tGas = .true.

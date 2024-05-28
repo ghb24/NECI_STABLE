@@ -28,11 +28,11 @@ module property_vector_index
     use excitation_types, only: Excite_1_t, Excite_2_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
-
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     better_implicit_none
 
     private
-    public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t, &
+    public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t, PQ_indexer_t,&
          indexer, lookup_property_indexer, &
          total_indexer, lookup_property_total_indexer, P_indexer, lookup_property_P_indexer
 
@@ -163,6 +163,32 @@ module property_vector_index
         end function
 
     end interface
+
+    type, extends(AlsoGUGA_PropertyIndexer_t) :: PQ_indexer_t
+        class(GAS_SuperGroupIndexer_t), allocatable :: total_space, P_space
+        logical, allocatable :: contained_in_P(:)
+
+    contains
+        procedure :: get_contained_in_P
+        procedure :: is_allowed_single => PQ_is_allowed_single
+        procedure :: is_allowed_double => PQ_is_allowed_double
+        procedure :: is_allowed_distinct_double => PQ_is_allowed_distinct_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
+
+        procedure :: excite_single => PQ_excite_single
+        procedure :: excite_double => PQ_excite_double
+        generic :: excite => excite_single, excite_double
+
+        procedure :: gen_all_excits => PQ_gen_all_excits 
+
+        procedure :: to_prop_vec_csf => PQ_to_prop_vec_csf
+        procedure :: to_prop_vec_ni => PQ_to_prop_vec_ni
+    end type
+
+    !interface
+    !    module procedure construct_PQ_indexer
+    !end interface
+
 
     class(PropertyIndexer_t), allocatable :: indexer, lookup_property_indexer
     
@@ -313,4 +339,114 @@ contains
         end if
     end function
 
+    logical pure function get_contained_in_PQ(this) result(contained_in_P)
+        class(PQ_indexer_t), intent(in) :: this
+        logical, allocatable :: contained_in_P(:)
+        integer :: i
+        
+        allocate(contained_in_P(size(this%total_space%allowed_composition_indices)))
+
+        !TODO Loop through entries of total space and check if they are contained in P
+        !do i=1,size(contained_in_P)
+        !    contained_in_P(i) = .true.
+        !end do
+    end function
+    
+    pure function PQ_excite_single(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
+
+        res = this%total_space%excite_single(exc, prop_vec)
+    end function
+
+    pure function PQ_excite_double(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(prop_vec())
+
+        res = this%total_space%excite_double(exc, prop_vec)
+    end function
+
+    logical pure function PQ_is_allowed_single(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
+        (this%contained_in_P(this%prop_vec_idx(prop_vec)) .or. &
+         this%contained_in_P(this%prop_vec_idx(this%excite(exc, prop_vec)))) &
+        .and. this%total_space%is_allowed(exc, prop_vec)
+    end function
+    
+    logical pure function PQ_is_allowed_double(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
+        (this%contained_in_P(this%prop_vec_idx(prop_vec)) .or. &
+         this%contained_in_P(this%prop_vec_idx(this%excite(exc, prop_vec)))) &
+        .and. this%total_space%is_allowed(exc, prop_vec)
+    end function
+    
+    logical pure function PQ_is_allowed_distinct_double(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(DistinctDouble_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        integer :: i, j, a, b
+        call exc%idx%extract_ijkl(a, i, b, j)
+
+        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
+        (this%contained_in_P(this%prop_vec_idx(prop_vec)) .or. &
+         this%contained_in_P(this%prop_vec_idx(this%excite(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b), prop_vec)))) &
+        .and. this%total_space%is_allowed_distinct_double(Excite_2_t(2 * i, 2 * a, 2 * j, 2 * b)c prop_vec)
+    end function
+
+    subroutine PQ_gen_all_excits(this, nI, n_excits, det_list, ic)
+        class(PQ_indexer_t), intent(in) :: this
+        integer, intent(in) :: nI(:)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer, intent(in), optional :: ic
+
+        call this%total_space%gen_all_excits(nI, n_excits, det_list, ic)
+    end subroutine
+    
+    pure function PQ_to_prop_vec_csf(this, csf_i) result(supergroup)
+        class(PQ_indexer_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_i
+        !integer :: supergroup(total_space%prop_vec_dim())
+        integer, allocatable(:) :: supergroup
+
+        supergroup = this%total_space%to_prop_vec_csf(csf_i)
+        
+    end function
+
+    pure function PQ_to_prop_vec_ni(this, nI) result(supergroup)
+        class(PQ_indexer_t), intent(in) :: this
+        integer, intent(in) :: nI(:)
+        !integer :: supergroup(total_space%prop_vec_dim())
+        integer, allocatable(:) :: supergroup
+
+        supergroup = this%total_space%to_prop_vec_ni(nI)
+        
+    end function
+!    pure function construct_PQ_indexer_t(P_indexer, total_indexer) result(idxer)
+!        class(GAS_SuperGroupIndexer_t) :: P_indexer
+!        class(GAS_SuperGroupIndexer_t) :: total_indexer
+!        type(PQ_indexer_t) :: idxer
+!        integer(int64), allocatable :: allowed_indices(:)
+!        character(*), parameter :. this_routine = 'construct_PQ_indexer_t'
+!        
+!        if (.not. total_indexer%GAS_spec%is_connected()) then
+!            stop_all(t_r, "GAS Space cannot be disconnected")
+!        end if
+!        
+!        idxer%contained_in_P
+!    end function
+        
 end module
