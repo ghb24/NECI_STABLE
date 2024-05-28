@@ -4,18 +4,18 @@
 
 
 module property_vector_index
-    !! This module generalizes the "supergroup" concept of GAS to arbitrary property vectors.
+    !! This module generalizes the "supergroup" concept of PropVec to arbitrary property vectors.
     !! This allows more general constraints such as Löwdin's perturbation theory via PQ space folding
     !!  or constraints that use e.g. the spin projection.
     !!
     !! A property vector is a vector of integers where each element encodes a property of a sub-space.
-    !! In traditional GAS the property is just the particle number, while in general these can be e.g.
+    !! In traditional PropVec the property is just the particle number, while in general these can be e.g.
     !! `[N_1, Sz_1, N_2, Sz_2]`
     !! where `N_i` is the particle number in the i-th sub-space and `Sz_i` is the spin projection
     !! in the i-th sub-space (encoded as integer).
     !! The only assumed constraint of the property vectors is that the sum over them is preserved.
     !!
-    !! The algorithm follows the ideas of stochastic GAS (https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00936),
+    !! The algorithm follows the ideas of stochastic PropVec (https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00936),
     !! i.e. the property vectors are indexed by calculating the corresponding composition index.
     use constants, only: int64, n_int
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
@@ -41,10 +41,10 @@ module property_vector_index
             !! The number of spin orbitals of underlying determinants.
         integer :: prop_vec_sum_
             !! The sum of the property vectors.
-            !! In the case of GAS this is the particle number.
+            !! In the case of PropVec this is the particle number.
         integer :: prop_vec_dim_
             !! The dimension of the property vector
-            !!   (corresponds to number of GAS spaces for pure GAS)
+            !!   (corresponds to number of PropVec spaces for pure PropVec)
     contains
 #ifndef IFORT_
         ! Stupid Ifort has problems with overwriting private methods.
@@ -120,7 +120,7 @@ module property_vector_index
         subroutine idxer_gen_all_excits_t(this, nI, n_excits, det_list, ic)
             import :: PropertyIndexer_t, n_int
             !!  Get all excitated determinants from
-            !!  det_I that are allowed under GAS constraints.
+            !!  det_I that are allowed under PropVec constraints.
             class(PropertyIndexer_t), intent(in) :: this
             integer, intent(in) :: nI(:)
                 !!  Starting determinant
@@ -194,7 +194,7 @@ contains
     pure function idx_prop_vec(this, prop_vec) result(idx)
         !! Get the index of a property vector.
         !!
-        !! Corresponds to the supergroup index for GAS.
+        !! Corresponds to the supergroup index for PropVec.
         class(PropertyIndexer_t), intent(in) :: this
         integer, intent(in) :: prop_vec(:)
         integer :: idx
@@ -233,7 +233,7 @@ contains
     pure function get_n_prop_vecs(this) result(res)
         !! Get the number of possible prop_vecs.
         !!
-        !! GAS allowed compositions are called prop_vecs.
+        !! PropVec allowed compositions are called prop_vecs.
         class(PropertyIndexer_t), intent(in) :: this
         integer :: res
         res = size(this%allowed_composition_indices)
@@ -243,7 +243,7 @@ contains
         !! Get the ordered compositions of n into k summands
         !!  constrained by cumulative minima and maxima.
         !!
-        !! GAS allowed compositions are called prop_vecs.
+        !! PropVec allowed compositions are called prop_vecs.
         class(PropertyIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
         integer(int64) :: i

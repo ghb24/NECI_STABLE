@@ -51,7 +51,7 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
          CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS
     use gasci_util, only: t_output_GAS_sizes
-    use property_vector_pchb_main, only: GAS_PCHB_user_input, GAS_PCHB_user_input_vals
+    use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use property_vector_index, only: indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
@@ -1742,28 +1742,28 @@ contains
                             GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
                         case ('PCHB')
                             GAS_exc_gen = possible_GAS_exc_gen%PCHB
-                            if (allocated(GAS_PCHB_user_input)) deallocate(GAS_PCHB_user_input)
-                            allocate(GAS_PCHB_user_input)
+                            if (allocated(PropVec_PCHB_user_input)) deallocate(PropVec_PCHB_user_input)
+                            allocate(PropVec_PCHB_user_input)
                             if (tokens%remaining_items() == 0) then
                                 call stop_all(t_r, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
                             end if
                             select case (to_upper(tokens%next()))
                             case ("LOCALISED")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%LOCALISED
+                                PropVec_PCHB_user_input%option_selection = PropVec_PCHB_user_input_vals%option_selection%LOCALISED
                             case ("DELOCALISED")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%DELOCALISED
+                                PropVec_PCHB_user_input%option_selection = PropVec_PCHB_user_input_vals%option_selection%DELOCALISED
                             case ("MANUAL")
-                                GAS_PCHB_user_input%option_selection = GAS_PCHB_user_input_vals%option_selection%MANUAL
-                                allocate(GAS_PCHB_user_input%options)
-                                GAS_PCHB_user_input%options%use_lookup = .true.
-                                GAS_PCHB_user_input%options%singles = GAS_PCHB_user_input_vals%options%singles%from_str(tokens%next())
-                                GAS_PCHB_user_input%options%doubles = GAS_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
+                                PropVec_PCHB_user_input%option_selection = PropVec_PCHB_user_input_vals%option_selection%MANUAL
+                                allocate(PropVec_PCHB_user_input%options)
+                                PropVec_PCHB_user_input%options%use_lookup = .true.
+                                PropVec_PCHB_user_input%options%singles = PropVec_PCHB_user_input_vals%options%singles%from_str(tokens%next())
+                                PropVec_PCHB_user_input%options%doubles = PropVec_PCHB_user_input_vals%options%doubles%from_str(tokens%next())
                                 if (tokens%remaining_items() == 1) then
                                     select case (to_upper(tokens%next()))
                                     case("SPIN-ORB-RESOLVED")
-                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
+                                        PropVec_PCHB_user_input%options%doubles%spin_orb_resolved = .true.
                                     case("NO-SPIN-ORB-RESOLVED")
-                                        GAS_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
+                                        PropVec_PCHB_user_input%options%doubles%spin_orb_resolved = .false.
                                     case default
                                         call stop_all(t_r, "Should not be here.")
                                     end select

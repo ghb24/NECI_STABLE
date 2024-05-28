@@ -3,7 +3,7 @@
 #:include "../algorithms.fpph"
 
 module property_vector_pchb_doubles_spinorb_fullyweighted
-    !! precomputed heat bath implementation for GASCI using spin orbitals and full weighting
+    !! precomputed heat bath implementation for PropVecCI using spin orbitals and full weighting
     use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int
     use util_mod, only: getSpinIndex, near_zero, swap, &
         operator(.implies.), operator(.isclose.), isclose, stop_all
@@ -27,10 +27,10 @@ module property_vector_pchb_doubles_spinorb_fullyweighted
     better_implicit_none
 
     private
-    public :: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
+    public :: PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t
 
-    type, extends(DoubleExcitationGenerator_t) :: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
-        !! The GAS PCHB excitation generator for doubles using spin orbitals
+    type, extends(DoubleExcitationGenerator_t) :: PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t
+        !! The PropVec PCHB excitation generator for doubles using spin orbitals
         !! and doing full weighting.
         !! This means that first a hole is chosen via \( p( A | I J) |_{A \notin D_i} )\
         !! then a second hole is chosen via \( p( B | I J A) |_{B \notin D_i} )\.
@@ -60,15 +60,15 @@ module property_vector_pchb_doubles_spinorb_fullyweighted
             !! could be occupied in the last element, and 0 otherwise.
     contains
         private
-        procedure, public :: init => GAS_doubles_PCHB_init
-        procedure, public :: finalize => GAS_doubles_PCHB_finalize
-        procedure, public :: gen_exc => GAS_doubles_PCHB_gen_exc
-        procedure, public :: get_pgen => GAS_doubles_PCHB_get_pgen
-        procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
+        procedure, public :: init => PropVec_doubles_PCHB_init
+        procedure, public :: finalize => PropVec_doubles_PCHB_finalize
+        procedure, public :: gen_exc => PropVec_doubles_PCHB_gen_exc
+        procedure, public :: get_pgen => PropVec_doubles_PCHB_get_pgen
+        procedure, public :: gen_all_excits => PropVec_doubles_PCHB_gen_all_excits
 
-        procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
+        procedure :: compute_samplers => PropVec_doubles_PCHB_compute_samplers
         procedure :: get_unoccupied
-    end type GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
+    end type PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t
 
 contains
 
@@ -80,13 +80,13 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, indexer, &
+    subroutine PropVec_doubles_PCHB_init(this, indexer, &
             use_lookup, create_lookup, PCHB_particle_selection)
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(inout) :: this
         class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_init'
 
         allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
@@ -96,11 +96,11 @@ contains
             if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the property vector lookup.')
             else
-                write(stdout, *) 'GAS PCHB (RHF) doubles is creating and managing the property vector lookup'
+                write(stdout, *) 'PropVec PCHB (RHF) doubles is creating and managing the property vector lookup'
                 allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the property vector lookup'
+        if (this%use_lookup) write(stdout, *) 'PropVec PCHB doubles is using the property vector lookup'
 
         this%last_possible_occupied = 0_n_int
         block
@@ -113,12 +113,12 @@ contains
         call this%compute_samplers(PCHB_particle_selection)
 
         write(stdout, *) "Finished excitation generator initialization"
-    end subroutine GAS_doubles_PCHB_init
+    end subroutine PropVec_doubles_PCHB_init
 
 
-    subroutine GAS_doubles_PCHB_finalize(this)
+    subroutine PropVec_doubles_PCHB_finalize(this)
         !! Finalize everything
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(inout) :: this
 
         if (allocated(this%particle_selector)) then
             ! Yes, we assume, that either all or none are allocated
@@ -129,15 +129,15 @@ contains
             if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
 
-    end subroutine GAS_doubles_PCHB_finalize
+    end subroutine PropVec_doubles_PCHB_finalize
 
 
-    subroutine GAS_doubles_PCHB_gen_exc(&
+    subroutine PropVec_doubles_PCHB_gen_exc(&
                     this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
         !! Given the initial determinant (both as nI and ilut), create a random
         !! double excitation using the hamiltonian matrix elements as weights
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -147,7 +147,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_gen_exc'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_gen_exc'
 
         integer :: elecs(2), src(2), tgt(2), IJ
         real(dp) :: p_IJ, p_first(2), p_second(2), renorm_first, renorm_second(2)
@@ -245,7 +245,7 @@ contains
             ex(1, 1 : 2) = src
             ex(2, 1 : 2) = tgt
         end subroutine invalidate
-    end subroutine GAS_doubles_PCHB_gen_exc
+    end subroutine PropVec_doubles_PCHB_gen_exc
 
 
     !>  @brief
@@ -254,15 +254,15 @@ contains
     !>  @param[in] ex  2x2 excitation matrix
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
-    function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
+    function PropVec_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         real(dp) :: pgen
         real(dp) :: pgen_particle
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_get_pgen'
+        character(*), parameter :: this_routine = 'PropVec_doubles_PCHB_get_pgen'
 
         integer :: IJ, i_sg
         integer :: unoccupied(nBasis - nEl)
@@ -307,12 +307,12 @@ contains
 
         pgen = pgen_particle * sum(p_first * p_second)
 
-    end function GAS_doubles_PCHB_get_pgen
+    end function PropVec_doubles_PCHB_get_pgen
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, PCHB_particle_selection)
+    subroutine PropVec_doubles_PCHB_compute_samplers(this, PCHB_particle_selection)
         !! computes and stores values for the alias sampling table
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(inout) :: this
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
         integer :: I, J, IJ, IJ_max, A, B ! Uppercase because they are indexing spin orbitals
         integer(int64) :: memCost
@@ -384,22 +384,22 @@ contains
         call allocate_and_init(PCHB_particle_selection, this%indexer, &
             IJ_weights, root, this%use_lookup, this%particle_selector)
 
-    end subroutine GAS_doubles_PCHB_compute_samplers
+    end subroutine PropVec_doubles_PCHB_compute_samplers
 
 
-    subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(in) :: this
+    subroutine PropVec_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
         call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=2)
-    end subroutine GAS_doubles_PCHB_gen_all_excits
+    end subroutine PropVec_doubles_PCHB_gen_all_excits
 
 
     pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
         !! Return a bitmask and enumeration of the unoccupied spin orbitals.
-        class(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t), intent(in) :: this
+        class(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t), intent(in) :: this
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
         integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
         integer, intent(out) :: unoccupied(nBasis - nEl)
