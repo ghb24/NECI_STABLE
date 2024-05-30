@@ -53,6 +53,7 @@ MODULE System
     use gasci_util, only: t_output_GAS_sizes
     use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use pq_property_index, only: PQ_indexer_t
     use property_vector_index, only: indexer, P_indexer, total_indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
@@ -1952,7 +1953,7 @@ contains
                 
                 !We currently need to define the P space before the GAS space
                 !There is probably a smarter way to do this :/
-                if (.not. tGAS) then
+                if (tGAS) then
                     call stop_all(t_r, "P space currently needs to be defined prior to GAS constraints")
                 else
                     tGas = .true.
@@ -2100,13 +2101,14 @@ contains
                     
                     !Check if PQ truncation, otherwise only use GAS
                     if (tPQ) then
-                        total_indexer = GAS_SuperGroupIndexer_t(GAS_specification)
-                        P_indexer = GAS_SuperGroupIndexer_t(P_specification)
+                        !total_indexer = GAS_SuperGroupIndexer_t(GAS_specification)
+                        !P_indexer = GAS_SuperGroupIndexer_t(P_specification)
                         !TODO: Pass both the indexer (total space) and P_indexer to PQ_SuperGroupIndxer_t
                         !indexer = PQ_SuperGroupIndxer_t(total = total_indexer, P = P_indexer)
-                        write(stdout, *) "PQ Truncation would've been activated but is not implemented yet"
-                        write(stdout, *) "Using regular GAS constraints instead"
-                        indexer = GAS_SuperGroupIndexer_t(GAS_specification)
+                        !write(stdout, *) "PQ Truncation would've been activated but is not implemented yet"
+                        !write(stdout, *) "Using regular GAS constraints instead"
+                        write(stdout, *) "Using PQ_indexer"
+                        indexer = PQ_indexer_t(P_spec=P_specification, GAS_spec=GAS_specification)
                     else
                         indexer = GAS_SuperGroupIndexer_t(GAS_specification)
                     end if

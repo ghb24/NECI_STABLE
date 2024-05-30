@@ -95,7 +95,7 @@ module gasci_supergroup_index
         
         procedure :: excite_single
         procedure :: excite_double
-        generic :: excite => excite_single, excite_double
+        generic, public :: excite => excite_single, excite_double
 
         procedure, public :: gen_all_excits => idxer_gen_all_excits
     end type
@@ -554,19 +554,19 @@ contains
         integer, intent(in) :: prop_vec(:)
         integer :: res(size(prop_vec))
 
-        res = this%GAS_spec%excite_single(exc, prop_vec)
+        res = this%GAS_spec%excite(exc, prop_vec)
     end function
 
-
-    logical pure function excite_double(this, exc, prop_vec)
+    pure function excite_double(this, exc, prop_vec) result(res)
         !! Check if a double excitation is allowed.
         !!
         !! Is called once at initialization, so it does not have to be super fast.
         class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
 
-        excite_double = this%GAS_spec%excite_double(exc, prop_vec)
+        res = this%GAS_spec%excite(exc, prop_vec)
     end function
 
     logical pure function is_allowed_single(this, exc, prop_vec)
