@@ -6,6 +6,7 @@ module pq_property_index
 
     use constants, only: int64, n_int
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
+    use sets_mod, only: subset
     use bit_rep_data, only: nIfD
     use hash, only: hash_table_lookup
     use guga_bitRepOps, only: CSF_Info_t
@@ -51,12 +52,12 @@ contains
     pure function get_contained_in_P(this) result(contained_in_P)
         class(PQ_indexer_t), intent(in) :: this
         integer :: i
-        logical :: contained_in_P(this%total_space%n_prop_vecs())
+        logical :: contained_in_P(size(this%total_space%allowed_composition_indices))
 
         !TODO Loop through entries of total space and check if they are contained in P
         !Currently set to true to test constructor (everything is P space -> normal GAS)
         do i = 1, size(contained_in_P)
-            contained_in_P(i) = .true.
+            contained_in_P(i) = any(this%total_space%allowed_composition_indices(i) == this%P_space%allowed_composition_indices)
         end do
         !Just compare composition indices?
     end function
@@ -168,6 +169,7 @@ contains
     end function
 
     pure function construct_PQ_indexer_t(P_spec, GAS_spec) result(idxer)
+        use gasci_supergroup_index, only: get_allowed_composition_indices
         class(GASSpec_t), intent(in) :: P_spec, GAS_spec
         type(PQ_indexer_t) :: idxer
         integer(int64), allocatable :: allowed_indices(:)
@@ -187,16 +189,29 @@ contains
         else
             call stop_all(this_routine, "GAS Space cannot be disconnected")
         end if
+        
+        !idxer%P_space%allowed_composition_indices = [-1] for a disconnected P_specification
+        !Overwrite it with the composition_idx of the single property_vector
+        !Otherwise P_space can't be subset of total_space
+
+        if (.not. P_spec%is_connected()) then
+            idxer%P_space%allowed_composition_indices = get_allowed_composition_indices(P_spec)
+        end if
+        
+        !Assert if P is subset of total
+        @:pure_ASSERT(subset(idxer%P_space%allowed_composition_indices,&
+                             idxer%total_space%allowed_composition_indices))
 
         idxer%prop_vec_sum_ = idxer%total_space%prop_vec_sum()
         idxer%n_spin_orbs_ = idxer%total_space%n_spin_orbs()
         idxer%prop_vec_dim_ = idxer%total_space%prop_vec_dim()
-        idxer%contained_in_P = get_contained_in_P(idxer)
-        allocate (idxer%allowed_composition_indices, source=allowed_indices)
+        idxer%contained_in_P = idxer%get_contained_in_P()
+        allocate(idxer%allowed_composition_indices, source=allowed_indices)
 
         @:pure_ASSERT(idxer%prop_vec_sum_ == GAS_spec%nEl())
         @:pure_ASSERT(idxer%n_spin_orbs_ == GAS_spec%n_spin_orbs())
         @:pure_ASSERT(idxer%prop_vec_dim_ == GAS_spec%nGAS())
         @:pure_ASSERT(size(idxer%contained_in_P) == size(idxer%total_space%allowed_composition_indices))
+        @:pure_ASSERT(count(idxer%contained_in_P) == size(idxer%P_space%allowed_composition_indices))
     end function
 end module pq_property_index

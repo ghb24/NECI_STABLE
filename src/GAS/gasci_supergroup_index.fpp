@@ -71,7 +71,7 @@ module gasci_supergroup_index
     private
 
     public :: GAS_SuperGroupIndexer_t, get_CAS_indexer
-    public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
+    public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup, get_allowed_composition_indices
 
     type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
