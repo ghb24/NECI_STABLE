@@ -248,7 +248,6 @@ contains
         ! GAS options
         tGAS = .false.
         tAnderson = .false.
-        tPQ = .false.
 
 #ifdef PROG_NUMRUNS_
         ! by default, excitation generation already creates matrix elements
@@ -1949,16 +1948,8 @@ contains
 
             case("GAS-PQ-TRUNCATION")
 
-                tPQ = .true.
-                
-                !We currently need to define the P space before the GAS space
-                !There is probably a smarter way to do this :/
-                if (tGAS) then
-                    call stop_all(t_r, "P space currently needs to be defined prior to GAS constraints")
-                else
-                    tGas = .true.
-                end if
-
+                if (allocated(indexer) .and. allocated(GAS_specification)) then
+                    deallocate(indexer)
                     block
                         logical :: recoupling
                         integer :: nGAS, iGAS, i_sg, n_sg
@@ -2026,8 +2017,11 @@ contains
                                 class default
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select
-                        !P_indexer = GAS_SuperGroupIndexer_t(P_specification)
+                            indexer = PQ_indexer_t(P_spec=P_specification, GAS_spec=GAS_specification)
                     end block
+                else
+                    call stop_all(t_r, "There is no GAS spec")
+                end if
 
             case ("GAS-SPEC")
 
@@ -2099,19 +2093,7 @@ contains
                        call stop_all(t_r, "Invalid type for GAS specification.")
                     end select
                     
-                    !Check if PQ truncation, otherwise only use GAS
-                    if (tPQ) then
-                        !total_indexer = GAS_SuperGroupIndexer_t(GAS_specification)
-                        !P_indexer = GAS_SuperGroupIndexer_t(P_specification)
-                        !TODO: Pass both the indexer (total space) and P_indexer to PQ_SuperGroupIndxer_t
-                        !indexer = PQ_SuperGroupIndxer_t(total = total_indexer, P = P_indexer)
-                        !write(stdout, *) "PQ Truncation would've been activated but is not implemented yet"
-                        !write(stdout, *) "Using regular GAS constraints instead"
-                        write(stdout, *) "Using PQ_indexer"
-                        indexer = PQ_indexer_t(P_spec=P_specification, GAS_spec=GAS_specification)
-                    else
-                        indexer = GAS_SuperGroupIndexer_t(GAS_specification)
-                    end if
+                    indexer = GAS_SuperGroupIndexer_t(GAS_specification)
 
                 end block
             

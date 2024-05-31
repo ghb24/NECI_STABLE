@@ -84,63 +84,58 @@ contains
         type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         logical :: valid_excitation
-        character(*), parameter :: this_routine = 'is_allowed_single'
 
-        !I think:
-        !We have to check if excitation is even valid first otherweise assert for idx_prop_vec fails
-        !Since we can theoretically generate property vectors that aren't even allowed
+        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
         valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
-        @:pure_ASSERT(size(this%excite(exc,prop_vec)) == size(prop_vec))
-        @:pure_ASSERT(all(this%excite(exc,prop_vec) == this%total_space%excite(exc,prop_vec)))
-        @:pure_ASSERT(this%idx_prop_vec(this%total_space%excite(exc,prop_vec)) > 0 )
-
         if (valid_excitation) then
-            is_allowed_single = (this%contained_in_P(this%idx_prop_vec(prop_vec))) !.or. &
-            !doesn't work :/ fails prop vec asserts, but it's allowed?
-            !this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))))
+            is_allowed_single = (&
+                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
+                                 this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
+                                )
         else
             is_allowed_single = .false.
         end if
-        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
-        !is_allowed_single = (&
-        !                        (this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
-        !there is some issue with excite
-        !                        this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
-        !                        ) .and. &
-        !                        this%total_space%is_allowed(exc, prop_vec) &
-        !                    )
     end function
 
     logical pure function is_allowed_double(this, exc, prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
+        logical :: valid_excitation
 
-        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
-        is_allowed_double = ( &
-                            (this%contained_in_P(this%idx_prop_vec(prop_vec)) & !.or. &
-                             !this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
-                             ) .and. &
-                            this%total_space%is_allowed(exc, prop_vec) &
-                            )
+        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
+        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
+
+        if (valid_excitation) then
+            is_allowed_double = (&
+                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
+                                 this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
+                                )
+        else
+            is_allowed_double = .false.
+        end if
     end function
 
     logical pure function is_allowed_distinct_double(this, exc, prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         type(DistinctDouble_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
-
+        logical :: valid_excitation
         integer :: i, j, a, b
         call exc%idx%extract_ijkl(a, i, b, j)
 
-        !Query wether we have a P->P, P->Q, Q->P or Q->Q transition
-        is_allowed_distinct_double = ( &
-                                     (this%contained_in_P(this%idx_prop_vec(prop_vec)) & !.or. &
-                                      !this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
-                                      ) .and. &
-                                     this%total_space%is_allowed(Excite_2_t(2*i, 2*a, 2*j, 2*b), prop_vec) &
-                                     )
+        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
+        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
+
+        if (valid_excitation) then
+            is_allowed_distinct_double = (&
+                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
+                                 this%contained_in_P(this%idx_prop_vec(this%excite(Excite_2_t(2*i, 2*a, 2*j, 2*b),prop_vec))) &
+                                )
+        else
+            is_allowed_distinct_double = .false.
+        end if
     end function
 
     subroutine PQ_gen_all_excits(this, nI, n_excits, det_list, ic)
