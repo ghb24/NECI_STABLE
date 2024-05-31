@@ -148,10 +148,15 @@ contains
         P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
         indexer = PQ_indexer_t(P_spec, GAS_spec)
 
-        call assert_true(all([1,3] == indexer%excite(Excite_1_t(1, 5), [2,2])))
+        call assert_true(all([1, 3] == indexer%excite(Excite_1_t(1, 5), [2, 2])))
 
-        call assert_true(all([1,3] == indexer%total_space%excite(Excite_1_t(1, 5), [2,2])))
+        call assert_true(all([1, 3] == indexer%total_space%excite(Excite_1_t(1, 5), [2, 2])))
 
+        GAS_spec = LocalGASSpec_t(n_min=[3, 7], n_max=[5, 9], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+        P_spec = LocalGASSpec_t(n_min=[3, 8], n_max=[4, 8], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+        indexer = PQ_indexer_t(P_spec, GAS_spec)
+
+        call assert_true(all([5, 7] == indexer%excite(Excite_1_t(1, 3), [5, 7])))
     end subroutine
 end module test_gasci_mod
 

@@ -20,6 +20,8 @@ module hilbert_space_size
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
     use fcimcdata, only: ilutRef
     use sym_mod, only: SymProd
+    use LoggingData, only: HilbSpaceSamples
+    use sort_mod, only: sort
 
     better_implicit_none
     private
@@ -1129,9 +1131,6 @@ contains
     subroutine FindHilbSizeTruncHubb()
         use fcimc_helper, only: IsTruncated
         use SystemData, only: nbasis, nel, nOccAlpha, nOccBeta
-        use LoggingData, only: HilbSpaceSamples
-        use Parallel_neci
-        use sort_mod
 
         integer :: i, nI(nel), Attempts, AttemptsTotal, &
             Fails, FailsTotal, FullSpace

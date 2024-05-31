@@ -111,7 +111,7 @@ module gasci
         procedure, private :: is_allowed_double
         procedure, private :: is_allowed_distinct_double
         generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
-        
+
         procedure, private :: excite_single
         procedure, private :: excite_double
         generic :: excite => excite_single, excite_double
@@ -412,19 +412,17 @@ contains
         class(GASSpec_t), intent(in) :: this
         type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: supergroup(:)
-        
+
         integer :: src_space, tgt_space
         integer :: excited_supergroup(size(supergroup))
-        
+
         !get source and target space
         src_space = this%get_iGAS(exc%val(1, 1))
         tgt_space = this%get_iGAS(exc%val(2, 1))
-        
+
         excited_supergroup = supergroup
-        !Remove particle in source space
-        excited_supergroup(src_space) = supergroup(src_space) - 1
-        !Add particle in target space
-        excited_supergroup(tgt_space) = supergroup(tgt_space) + 1
+        excited_supergroup(src_space) = excited_supergroup(src_space) - 1
+        excited_supergroup(tgt_space) = excited_supergroup(tgt_space) + 1
 
     end function
 
@@ -446,7 +444,7 @@ contains
         excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
         !Add particles to tgt_spaces
         excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
-        
+
     end function
 
     !> Check if a single excitation is allowed.
@@ -489,7 +487,7 @@ contains
 
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
-        
+
         !Keep for if-statement
         src_spaces(1) = this%get_iGAS(exc%val(1, 1))
         src_spaces(2) = this%get_iGAS(exc%val(1, 2))
