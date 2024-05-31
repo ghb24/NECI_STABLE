@@ -54,7 +54,7 @@ MODULE System
     use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use pq_property_index, only: PQ_indexer_t
-    use property_vector_index, only: indexer, P_indexer, total_indexer
+    use property_vector_index, only: indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
@@ -2026,7 +2026,7 @@ contains
                                 class default
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select
-                        P_indexer = GAS_SuperGroupIndexer_t(P_specification)
+                        !P_indexer = GAS_SuperGroupIndexer_t(P_specification)
                     end block
 
             case ("GAS-SPEC")

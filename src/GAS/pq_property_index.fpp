@@ -32,7 +32,6 @@ module pq_property_index
         procedure :: is_allowed_single
         procedure :: is_allowed_double
         procedure :: is_allowed_distinct_double
-        !generic :: is_allowed => is_allowed_single, is_allowed_double!, is_allowed_distinct_double
 
         procedure :: excite_single
         procedure :: excite_double
@@ -59,8 +58,7 @@ contains
         do i = 1, size(contained_in_P)
             contained_in_P(i) = .true.
         end do
-
-        !@:pure_ASSERT(1 == 1)
+        !Just compare composition indices?
     end function
 
     pure function excite_single(this, exc, prop_vec) result(res)
@@ -86,14 +84,19 @@ contains
         type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         logical :: valid_excitation
+        character(*), parameter :: this_routine = 'is_allowed_single'
 
         !I think:
         !We have to check if excitation is even valid first otherweise assert for idx_prop_vec fails
         !Since we can theoretically generate property vectors that aren't even allowed
         valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
+        @:pure_ASSERT(size(this%excite(exc,prop_vec)) == size(prop_vec))
+        @:pure_ASSERT(all(this%excite(exc,prop_vec) == this%total_space%excite(exc,prop_vec)))
+        @:pure_ASSERT(this%idx_prop_vec(this%total_space%excite(exc,prop_vec)) > 0 )
+
         if (valid_excitation) then
-            is_allowed_single = (this%contained_in_P(this%idx_prop_vec(prop_vec)))! .or. &
+            is_allowed_single = (this%contained_in_P(this%idx_prop_vec(prop_vec))) !.or. &
             !doesn't work :/ fails prop vec asserts, but it's allowed?
             !this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))))
         else
@@ -175,8 +178,14 @@ contains
         integer(int64), allocatable :: allowed_indices(:)
         character(*), parameter :: this_routine = 'construct_PQ_indexer_t'
 
+        @:pure_ASSERT(GAS_spec%is_valid())
+        @:pure_ASSERT(P_spec%is_valid())
+
         idxer%total_space = GAS_SuperGroupIndexer_t(GAS_spec)
         idxer%P_space = GAS_SuperGroupIndexer_t(P_spec)
+
+        @:pure_ASSERT(allocated(idxer%total_space))
+        @:pure_ASSERT(allocated(idxer%P_space))
 
         if (GAS_spec%is_connected()) then
             allowed_indices = idxer%total_space%allowed_composition_indices
@@ -184,10 +193,15 @@ contains
             call stop_all(this_routine, "GAS Space cannot be disconnected")
         end if
 
-        idxer%prop_vec_sum_ = idxer%total_space%prop_vec_sum_
-        idxer%n_spin_orbs_ = idxer%total_space%n_spin_orbs_
-        idxer%prop_vec_dim_ = idxer%total_space%prop_vec_dim_
+        idxer%prop_vec_sum_ = idxer%total_space%prop_vec_sum()
+        idxer%n_spin_orbs_ = idxer%total_space%n_spin_orbs()
+        idxer%prop_vec_dim_ = idxer%total_space%prop_vec_dim()
         idxer%contained_in_P = get_contained_in_P(idxer)
         allocate (idxer%allowed_composition_indices, source=allowed_indices)
+
+        @:pure_ASSERT(idxer%prop_vec_sum_ == GAS_spec%nEl())
+        @:pure_ASSERT(idxer%n_spin_orbs_ == GAS_spec%n_spin_orbs())
+        @:pure_ASSERT(idxer%prop_vec_dim_ == GAS_spec%nGAS())
+        @:pure_ASSERT(size(idxer%contained_in_P) == size(idxer%total_space%allowed_composition_indices))
     end function
 end module pq_property_index

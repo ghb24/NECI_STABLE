@@ -33,8 +33,7 @@ module property_vector_index
 
     private
     public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t,&
-         indexer, lookup_property_indexer, &
-         total_indexer, lookup_property_total_indexer, P_indexer, lookup_property_P_indexer
+         indexer, lookup_property_indexer
 
     type, abstract :: PropertyIndexer_t
         integer(int64), allocatable :: allowed_composition_indices(:)
@@ -168,8 +167,8 @@ module property_vector_index
     
     !If we want to do the PQ Truncation we need an indexer for the P space, one for the full basis
     !And the indexer (see above) that is called by PCHB who contains both of them
-    class(PropertyIndexer_t), allocatable :: total_indexer, lookup_property_total_indexer
-    class(PropertyIndexer_t), allocatable :: P_indexer, lookup_property_P_indexer
+    !class(PropertyIndexer_t), allocatable :: total_indexer, lookup_property_total_indexer
+    !class(PropertyIndexer_t), allocatable :: P_indexer, lookup_property_P_indexer
 contains
 
     pure function lookup_prop_vec_idx_nI(this, idet, nI) result(idx)
