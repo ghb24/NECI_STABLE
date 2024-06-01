@@ -49,7 +49,8 @@ MODULE System
     use tau_main, only: tau, assign_value_to_tau
 
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
-         CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS, P_specification
+         CumulGASSpec_t, LocalGASSpec_t, FlexibleGASSpec_t, tGAS, &
+         P_specification, frequency
     use gasci_util, only: t_output_GAS_sizes
     use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
@@ -2076,8 +2077,17 @@ contains
 
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
+                        associate(calced_n_orbs => frequency(spat_GAS_orbs))
+                        if (size(calced_n_orbs) /= size(n_orbs) &
+                                .or. any(frequency(spat_GAS_orbs) /= n_orbs)) then
+                                call stop_all(t_r, 'Error in GAS spec. &
+                                            &Inconsisten number of orbitals &
+                                            &per GAS space.')
+                        end if
+                        end associate
                     else
-                        call stop_all(t_r, 'Error in GAS spec.')
+                        call stop_all(t_r, 'Error in GAS spec. &
+                                    &Assignment of orbitals to GAS spaces is missing.')
                     end if
 
                     if (nEl == 0) call stop_all(this_routine, "Please specify electrons first.")
@@ -2092,11 +2102,11 @@ contains
                     class default
                        call stop_all(t_r, "Invalid type for GAS specification.")
                     end select
-                    
+
                     indexer = GAS_SuperGroupIndexer_t(GAS_specification)
 
                 end block
-            
+
             case("OUTPUT-GAS-HILBERT-SPACE-SIZE")
                 t_output_GAS_sizes = .true.
 

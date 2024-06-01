@@ -30,7 +30,7 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec, finalize_GAS, P_specification
+        CAS_spec, finalize_GAS, P_specification, frequency
 
     logical :: tGAS = .false.
         !! Are we restricting excitations
@@ -711,19 +711,6 @@ contains
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
-        contains
-
-        pure function frequency(N) result(res)
-            integer, intent(in) :: N(:)
-            integer, allocatable :: res(:)
-            integer :: i
-            @:pure_ASSERT(minval(N) == 1)
-            allocate(res(maxval(N)), source=0)
-            do i = 1, size(N)
-                res(N(i)) = res(N(i)) + 1
-            end do
-        end function
-
     end function
 
     !>  Query wether a supergroup is contained in the GAS space.
@@ -940,19 +927,6 @@ contains
                 n_particle=nEl)
 
         @:pure_ASSERT(GAS_spec%is_valid())
-
-        contains
-
-        pure function frequency(N) result(res)
-            integer, intent(in) :: N(:)
-            integer, allocatable :: res(:)
-            integer :: i
-            @:pure_ASSERT(minval(N) == 1)
-            allocate(res(maxval(N)), source=0)
-            do i = 1, size(N)
-                res(N(i)) = res(N(i)) + 1
-            end do
-        end function
     end function
 
     !> Query wether a supergroup is contained in the GAS space.
@@ -1323,16 +1297,6 @@ contains
 
         contains
 
-            pure function frequency(N) result(res)
-                integer, intent(in) :: N(:)
-                integer, allocatable :: res(:)
-                integer :: i
-                @:pure_ASSERT(minval(N) == 1)
-                allocate(res(maxval(N)), source=0)
-                do i = 1, size(N)
-                    res(N(i)) = res(N(i)) + 1
-                end do
-            end function
     end function
 
     pure logical function tSD_GAS()
@@ -1508,5 +1472,18 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
     end subroutine gen_all_excits
+
+    pure function frequency(N) result(res)
+        !!! Count the frequency of numbers in the array.
+        integer, intent(in) :: N(:)
+        integer, allocatable :: res(:)
+        integer :: i
+        debug_function_name("gasci::frequency")
+        @:pure_ASSERT(minval(N) == 1)
+        allocate(res(maxval(N)), source=0)
+        do i = 1, size(N)
+            res(N(i)) = res(N(i)) + 1
+        end do
+    end function
 
 end module gasci

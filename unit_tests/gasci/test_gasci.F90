@@ -94,6 +94,10 @@ contains
         GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=2)
         call assert_true(GAS_spec%is_valid(n_basis=8))
 
+        GAS_spec = LocalGASSpec_t(n_min=[0, 10], n_max=[2, 14], &
+                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+        call assert_true(GAS_spec%is_valid(n_basis=18))
+
         block
             type(FlexibleGASSpec_t) :: GAS_spec
             integer :: i
