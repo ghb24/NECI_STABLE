@@ -289,7 +289,7 @@ contains
         nBi = this%GAS_spec%n_spin_orbs()
         @:ASSERT(2 * nSpatOrbs == nBi)
 
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
