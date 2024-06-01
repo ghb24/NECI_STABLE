@@ -19,6 +19,7 @@ module pq_property_index
     use property_vector_index, only: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, CAS_spec
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw
     better_implicit_none
 
     private
@@ -85,18 +86,26 @@ contains
         type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         logical :: valid_excitation
+        integer :: src_space, tgt_space, exc_prop_vec(size(prop_vec))
 
-        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
-        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
+        src_space = this%total_space%GAS_spec%get_iGAS(exc%val(1, 1))
+        tgt_space = this%total_space%GAS_spec%get_iGAS(exc%val(2, 1))
 
-        if (valid_excitation) then
-            is_allowed_single = (&
-                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
-                                 this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
-                                )
+        if (src_space == tgt_space) then
+            is_allowed_single = .true.
         else
-            is_allowed_single = .false.
+            exc_prop_vec = this%excite(exc,prop_vec)
+            valid_excitation =  this%total_space%GAS_spec%contains_supergroup(exc_prop_vec)
+            if (valid_excitation) then
+                is_allowed_single = (&
+                                     this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                     .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec)) &
+                                    )
+            else
+                is_allowed_single = .false.
+            end if
         end if
+
     end function
 
     logical pure function is_allowed_double(this, exc, prop_vec)
@@ -104,39 +113,59 @@ contains
         type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         logical :: valid_excitation
+        integer :: src_spaces(2), tgt_spaces(2), exc_prop_vec(size(prop_vec))
 
-        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
-        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
+        src_spaces(1) = this%total_space%GAS_spec%get_iGAS(exc%val(1, 1))
+        src_spaces(2) = this%total_space%GAS_spec%get_iGAS(exc%val(1, 2))
+        tgt_spaces = this%total_space%GAS_spec%get_iGAS(exc%val(2, :))
 
-        if (valid_excitation) then
-            is_allowed_double = (&
-                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
-                                 this%contained_in_P(this%idx_prop_vec(this%excite(exc,prop_vec))) &
-                                )
+        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
+            is_allowed_double = .true.
         else
-            is_allowed_double = .false.
+            exc_prop_vec = this%excite(exc,prop_vec)
+            valid_excitation =  this%total_space%GAS_spec%contains_supergroup(exc_prop_vec)
+
+            if (valid_excitation .and. .not. this%total_space%GAS_spec%recoupling()) then
+                block
+                    type(SpinProj_t) :: src_spins(2), tgt_spins(2)
+                    #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
+
+                    src_spins = calc_spin_raw(exc%val(1, :))
+                    tgt_spins = calc_spin_raw(exc%val(2, :))
+
+                    if (src_spaces(1) > src_spaces(2)) then
+                        @:spin_swap(src_spins(1), src_spins(2))
+                    end if
+
+                    if (tgt_spaces(1) > tgt_spaces(2)) then
+                        @:spin_swap(tgt_spins(1), tgt_spins(2))
+                    end if
+
+                    valid_excitation = all(src_spins == tgt_spins)
+                end block
+            end if
+
+            if (valid_excitation) then
+                is_allowed_double = (&
+                                     this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                     .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec)) &
+                                    )
+            else
+                is_allowed_double = .false.
+            end if
         end if
+
     end function
 
     logical pure function is_allowed_distinct_double(this, exc, prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         type(DistinctDouble_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
-        logical :: valid_excitation
-        integer :: i, j, a, b
+        integer ::  i, j, a, b
+
         call exc%idx%extract_ijkl(a, i, b, j)
 
-        !We check if an excitation is GAS (total space) valid, otherwise there is no entry in contained_in_P
-        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
-
-        if (valid_excitation) then
-            is_allowed_distinct_double = (&
-                                 this%contained_in_P(this%idx_prop_vec(prop_vec)) .or. &
-                                 this%contained_in_P(this%idx_prop_vec(this%excite(Excite_2_t(2*i, 2*a, 2*j, 2*b),prop_vec))) &
-                                )
-        else
-            is_allowed_distinct_double = .false.
-        end if
+        is_allowed_distinct_double = this%is_allowed_double(Excite_2_t(2*i, 2*a, 2*j, 2*b), prop_vec)
     end function
 
     subroutine PQ_gen_all_excits(this, nI, n_excits, det_list, ic)
@@ -189,7 +218,7 @@ contains
         else
             call stop_all(this_routine, "GAS Space cannot be disconnected")
         end if
-        
+
         !idxer%P_space%allowed_composition_indices = [-1] for a disconnected P_specification
         !Overwrite it with the composition_idx of the single property_vector
         !Otherwise P_space can't be subset of total_space
@@ -197,7 +226,7 @@ contains
         if (.not. P_spec%is_connected()) then
             idxer%P_space%allowed_composition_indices = get_allowed_composition_indices(P_spec)
         end if
-        
+
         !Assert if P is subset of total
         @:pure_ASSERT(subset(idxer%P_space%allowed_composition_indices,&
                              idxer%total_space%allowed_composition_indices))
