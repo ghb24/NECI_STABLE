@@ -173,7 +173,7 @@ module fcimc_initialisation
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                set_det_offdiagH, clean_global_det_data, &
                                init_global_det_data, set_spawn_rate, &
-                               store_decoding, set_supergroup_idx
+                               store_decoding, set_prop_vec_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -227,7 +227,7 @@ module fcimc_initialisation
         SemiStoch_Davidson_Time, Trial_Init_Time, InitSpace_Init_Time, kp_generate_time, Stats_Comms_Time, &
         subspace_hamil_time, exact_subspace_h_time, subspace_spin_time, var_e_time, precond_e_time, &
         proj_e_time, rescale_time, death_time, hash_test_time, hii_test_time, &
-        init_flag_time, iter_data_fciqmc, ll_node, GAS_PCHB_init_time
+        init_flag_time, iter_data_fciqmc, ll_node, PropVec_PCHB_init_time
 
     use FciMCData, only: all_norms, tDetermSpawnedTo, core_run, &
         tSinglePartPhase, VaryShiftIter, con_send_buf, &
@@ -348,8 +348,10 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
-    use gasci, only: tSD_GAS, tGAS, finalize_GAS
-    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use gasci, only: tSD_GAS, tGAS, finalize_GAS, GAS_specification
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use property_vector_index, only: indexer
+    use property_vector_index, only: lookup_property_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -452,7 +454,7 @@ contains
         hash_test_time%timer_name = 'HashTestTime'
         hii_test_time%timer_name = 'HiiTestTime'
         init_flag_time%timer_name = 'InitFlagTime'
-        GAS_PCHB_init_time%timer_name = 'GAS_PCHB_init_time'
+        PropVec_PCHB_init_time%timer_name = 'PropVec_PCHB_init_time'
 
 
         ! Initialise allocated arrays with input data
@@ -2848,8 +2850,8 @@ contains
 
             call store_decoding(1, HFDet)
 
-            if (associated(lookup_supergroup_indexer)) then
-                call set_supergroup_idx(1, lookup_supergroup_indexer%idx_nI(HFDet))
+            if (allocated(lookup_property_indexer)) then
+                call set_prop_vec_idx(1, lookup_property_indexer%idx_nI(HFDet))
             end if
 
             if (tContTimeFCIMC .and. tContTimeFull) &
@@ -2996,8 +2998,8 @@ contains
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
                 call set_det_offdiagH(site, h_cast(0_dp))
 
-                if (associated(lookup_supergroup_indexer)) then
-                    call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
+                if (allocated(lookup_property_indexer)) then
+                    call set_prop_vec_idx(site, lookup_property_indexer%idx_nI(ProjEDet(:, run)))
                 end if
 
                 ! store the determinant
@@ -3327,8 +3329,8 @@ contains
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
                     call set_det_offdiagH(DetIndex, HOffDiagtemp)
 
-                    if (associated(lookup_supergroup_indexer)) then
-                        call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
+                    if (allocated(lookup_property_indexer)) then
+                        call set_prop_vec_idx(DetIndex, lookup_property_indexer%idx_nI(nJ))
                     end if
 
                     ! store the determinant

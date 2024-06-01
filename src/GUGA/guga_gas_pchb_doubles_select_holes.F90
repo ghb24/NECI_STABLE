@@ -29,8 +29,7 @@ module guga_gas_pchb_doubles_select_holes
 
     use growing_buffers, only: buffer_int64_1D_t
 
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
 
     use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init
@@ -61,9 +60,9 @@ module guga_gas_pchb_doubles_select_holes
     type, extends(DoublesGUGABase_t), abstract :: GAS_PCHB_Doubles_t
         private
 
-        !> Use a lookup for the supergroup index in global_det_data
+        !> Use a lookup for the prop_vec index in global_det_data
         logical, public :: use_lookup = .false.
-        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        !> Create **and** manage! the prop_vec index lookup in global_det_data.
         logical, public :: create_lookup = .false.
 
         class(ParticleSelector_t), allocatable :: particle_selector
@@ -71,8 +70,7 @@ module guga_gas_pchb_doubles_select_holes
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
-        class(GASSpec_t), allocatable :: GAS_spec
+        class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         procedure(get_doubles_weight_t), pointer, nopass :: get_weight => null()
 
     contains
@@ -109,7 +107,7 @@ module guga_gas_pchb_doubles_select_holes
     type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FastFast_t
         private
 
-        !> The shape is (fused_number_of_double_excitations, n_supergroup)
+        !> The shape is (fused_number_of_double_excitations, n_prop_vec)
         type(AliasSampler_2D_t) :: alias_sampler
         integer, allocatable :: tgtOrbs(:, :)
 
@@ -169,9 +167,9 @@ contains
         call this%all_info_table%sync()
     end subroutine
 
-    subroutine init_GAS_PCHB_Doubles_t(this, GAS_spec, particle_selection, weighting_selection, use_lookup, create_lookup)
+    subroutine init_GAS_PCHB_Doubles_t(this, indexer, particle_selection, weighting_selection, use_lookup, create_lookup)
         class(GAS_PCHB_Doubles_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
         type(WeightingChoice_t), intent(in) :: weighting_selection
         logical, intent(in) :: use_lookup, create_lookup
@@ -201,19 +199,16 @@ contains
                 &on if too many blooms happen!"
         end if
 
-        ASSERT(GAS_spec%recoupling())
-
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GUGA GAS PCHB doubles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
@@ -221,7 +216,7 @@ contains
         call set_doubles_weight_pointer(weighting_selection, this%get_weight)
 
         call this%setup_pchb_sampler_conditional(root, ij_weights)
-        call particle_allocate_and_init(particle_selection, this%GAS_spec, ij_weights, root, use_lookup, this%particle_selector)
+        call particle_allocate_and_init(particle_selection, this%indexer, ij_weights, root, use_lookup, this%particle_selector)
         write(stdout, *) "Finished excitation generator initialization"
     end subroutine
 
@@ -232,8 +227,8 @@ contains
             call this%all_info_table%shared_dealloc()
             call this%finalize_pchb_sampler()
             call this%particle_selector%finalize()
-            deallocate(this%particle_selector, this%info_tables, this%GAS_spec, this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            deallocate(this%particle_selector, this%info_tables, this%indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine
 
@@ -292,11 +287,11 @@ contains
         real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
         integer :: i, j, ij, a, b, ab, i_sg
         integer(int64) :: ijMax, abMax, memCost
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         real(dp), allocatable :: w(:)
 
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
         ! initialize the mapping ab -> (a, b)
         abMax = fuse_symm_idx(nSpatOrbs, nSpatOrbs)
@@ -312,24 +307,24 @@ contains
 
 
         calculate_memory_demand: block
-            integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_supergroup
+            integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_prop_vec
             number_of_fused_indices = int(ijMax, int64)
             bytes_per_sampler = (int(abMax, int64) * 3_int64 * 8_int64)
-            n_supergroup = size(supergroups, 2, kind=int64)
-            memCost = number_of_fused_indices * bytes_per_sampler * n_supergroup
+            n_prop_vec = size(prop_vecs, 2, kind=int64)
+            memCost = number_of_fused_indices * bytes_per_sampler * n_prop_vec
         endblock calculate_memory_demand
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "The number of supergroups is", size(prop_vecs, 2)
         write(stdout, *) "Generating samplers for PCHB excitation generator"
         write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%alias_sampler%shared_alloc([int(ijMax), size(supergroups, 2)], int(abMax), 'PCHB')
+        call this%alias_sampler%shared_alloc([int(ijMax), size(prop_vecs, 2)], int(abMax), 'PCHB')
         call this%new_info_table(int(ijMax, int64), int(abMax, int64))
 
 
         if (iProcIndex_intra == rank_with_info) then
             allocate(w(abMax), source=0._dp)
-            allocate(ij_weights(nSpatOrbs, nSpatOrbs, size(supergroups, 2)), source=0._dp)
+            allocate(ij_weights(nSpatOrbs, nSpatOrbs, size(prop_vecs, 2)), source=0._dp)
         else
             allocate(w(0))
             allocate(ij_weights(0, 0, 0))
@@ -348,7 +343,7 @@ contains
             end do
         end do
 
-        do i_sg = 1, size(supergroups, 2)
+        do i_sg = 1, size(prop_vecs, 2)
             do i = 1, nSpatOrbs
                 do j = i, nSpatOrbs
                     w = 0.0_dp
@@ -358,7 +353,7 @@ contains
                             ab = fuse_symm_idx(a, b)
                             if (iProcIndex_intra == rank_with_info) then
                                 associate(exc => DistinctDouble_t(ijab_Index_t([i, j, a, b])))
-                                if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) .and. symmetry_allowed(exc)) then
+                                if (this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) .and. symmetry_allowed(exc)) then
                                     w(ab) = this%get_weight(exc)
                                 end if
                                 end associate
@@ -396,7 +391,7 @@ contains
         routine_name("pickOrbitals")
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+            i_sg = this%indexer%lookup_prop_vec_idx(csf_I)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -489,7 +484,7 @@ contains
         real(dp) :: p_gen
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+            i_sg = this%indexer%lookup_prop_vec_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -513,7 +508,7 @@ contains
         integer :: i, j, ij, ab, i_sg
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+            i_sg = this%indexer%lookup_prop_vec_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -541,7 +536,7 @@ contains
         integer :: i, j, ij, ab, i_sg
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(csf_I)
+            i_sg = this%indexer%lookup_prop_vec_idx(csf_I)
         else
             i_sg = this%indexer%idx_csf(csf_i)
         end if
@@ -596,7 +591,7 @@ contains
                         idx = idx%normalize()
                         exc = DistinctDouble_t(idx)
                         if (exc%typ == distinct_doubles%invalid &
-                            .or. .not. this%GAS_spec%is_allowed(exc, this%GAS_spec%count_per_GAS(csf_i))) then
+                            .or. .not. this%indexer%is_allowed(exc, this%indexer%to_prop_vec(csf_i))) then
                             cycle
                         end if
                         call buffer%push_back(exc%fuse())

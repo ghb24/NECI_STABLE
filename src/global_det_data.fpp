@@ -34,7 +34,7 @@ module global_det_data
         replica_est_len, get_spawn_rate, reset_tau_int, get_all_spawn_pops, &
         reset_shift_int, update_shift_int, update_tau_int, set_spawn_pop, &
         update_pops_sum_all, get_pops_iter, get_max_ratio, update_max_ratio, &
-        set_supergroup_idx, get_supergroup_idx, update_iea, get_iea, reset_iea_all, &
+        set_prop_vec_idx, get_prop_vec_idx, update_iea, get_iea, reset_iea_all, &
         reset_corr_pop, scale_corr_pop, add_corr_pop, get_corr_pop, death_corr_pop
 #ifdef USE_HDF_
     public :: set_max_ratio_hdf5Int, write_max_ratio_as_int
@@ -57,7 +57,7 @@ module global_det_data
     ! The off-diagonal matrix element <D0|H|D>.
     integer :: pos_hel_off, len_hel_off
 
-    ! The supergroup_idx is always an int64 and should have the same length
+    ! The prop_vec_idx is always an int64 and should have the same length
     ! as real64
     integer :: pos_sg_idx
     integer, parameter :: len_sg_idx = 1
@@ -438,8 +438,8 @@ contains
 
     end function
 
-    ! Store the supergroup index for a given determinant.
-    subroutine set_supergroup_idx(j, sg_idx)
+    ! Store the prop_vec index for a given determinant.
+    subroutine set_prop_vec_idx(j, sg_idx)
 
         integer, intent(in) :: j
         integer, intent(in) :: sg_idx
@@ -448,7 +448,7 @@ contains
 
     end subroutine
 
-    pure function get_supergroup_idx(j) result(sg_idx)
+    pure function get_prop_vec_idx(j) result(sg_idx)
 
         integer, intent(in) :: j
         integer :: sg_idx

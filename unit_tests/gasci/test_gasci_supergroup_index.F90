@@ -5,7 +5,7 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: factrl, swap, cumsum, custom_findloc
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t,  &
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t,  &
         get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
     use composition_utils, only: composition_idx, get_compositions, composition_from_idx
 
@@ -72,7 +72,7 @@ contains
     subroutine test_supergroup_indexer_class()
         block
             type(LocalGASSpec_t) :: GAS_spec
-            type(SuperGroupIndexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: indexer
             integer :: i, j
             integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
                 !! The supergroups as calculated by the indexer and by the free function
@@ -85,13 +85,13 @@ contains
                 nEl=30)
             call assert_true(GAS_spec%is_valid())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -101,7 +101,7 @@ contains
 
         block
             type(LocalGASSpec_t) :: GAS_spec
-            type(SuperGroupIndexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: indexer
             integer :: i
             integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
                 !! The supergroups as calculated by the indexer and by the free function
@@ -119,13 +119,13 @@ contains
             call assert_true(GAS_spec%is_valid())
             call assert_false(GAS_spec%is_connected())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -135,7 +135,7 @@ contains
 
         block
             type(LocalGASSpec_t) :: GAS_spec
-            type(SuperGroupIndexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: indexer
             integer :: i
             integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
                 !! The supergroups as calculated by the indexer and by the free function
@@ -155,13 +155,13 @@ contains
             call assert_true(GAS_spec%is_valid())
             call assert_true(GAS_spec%is_connected())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
-            supergroups = indexer%get_supergroups()
+            indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            supergroups = indexer%get_prop_vecs()
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -171,7 +171,7 @@ contains
 
         block
             type(LocalGASSpec_t) :: GAS_spec
-            type(SuperGroupIndexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: indexer
 
             GAS_spec = LocalGASSpec_t(&
                 n_min=[0, 0, 1], &
@@ -180,9 +180,9 @@ contains
                 nEl=3)
             call assert_true(GAS_spec%is_valid())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
+            indexer = GAS_SuperGroupIndexer_t(GAS_spec)
 
-            call assert_equals(5, indexer%n_supergroups())
+            call assert_equals(5, indexer%n_prop_vecs())
 
             call assert_equals(1, indexer%idx_nI([1, 2, 9]))
             call assert_equals(1, indexer%idx_nI([1, 3, 9]))
@@ -203,7 +203,7 @@ contains
 
         block
             type(FlexibleGASSpec_t) :: GAS_spec
-            type(SuperGroupIndexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: indexer
             integer, allocatable :: supergroups(:, :), supergroups_from_free(:, :)
             integer :: i
             logical :: correct
@@ -213,12 +213,12 @@ contains
                 supergroups=supergroups, &
                 spat_GAS_orbs = [1, 2, 3, 4])
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
+            indexer = GAS_SuperGroupIndexer_t(GAS_spec)
             supergroups_from_free = get_supergroups(GAS_spec)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= indexer%idx_supergroup(supergroups(:, i)) &
+                if (i /= indexer%idx_prop_vec(supergroups(:, i)) &
                         .or. any(supergroups(:, i) /= supergroups_from_free(:, i))) then
                     correct = .false.
                 end if
@@ -243,7 +243,7 @@ contains
 
 
     subroutine test_count_supergroups()
-        type(SuperGroupIndexer_t), allocatable :: sg_indexer(:)
+        type(GAS_SuperGroupIndexer_t), allocatable :: sg_indexer(:)
         integer, allocatable :: expected(:)
         integer :: i
 
@@ -251,7 +251,7 @@ contains
         expected = [1, 5, 25, 125, 625]
 
         do i = 1, size(sg_indexer)
-            call assert_equals(expected(i), sg_indexer(i)%n_supergroups())
+            call assert_equals(expected(i), sg_indexer(i)%n_prop_vecs())
         end do
 
     contains
@@ -259,8 +259,8 @@ contains
         function get_sg_indexer(n_benz) result(res)
             integer, intent(in) :: n_benz
             integer, parameter :: n_exc = 2
-            type(SuperGroupIndexer_t) :: res
-            res = SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc))
+            type(GAS_SuperGroupIndexer_t) :: res
+            res = GAS_SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc))
         end function
     end subroutine
 

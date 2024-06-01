@@ -55,41 +55,50 @@ module gasci_supergroup_index
     use constants, only: int64, n_int
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
     use bit_rep_data, only: nIfD
-    use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t
+    use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, CAS_spec
     use hash, only: hash_table_lookup
     use guga_bitRepOps, only: CSF_Info_t
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
         composition_from_idx, next_composition
+    use excitation_types, only: Excite_1_t, Excite_2_t
+    use guga_bitRepOps, only: CSF_Info_t
+    use guga_data, only: DistinctDouble_t
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
 
     better_implicit_none
 
     private
 
-    public :: SuperGroupIndexer_t, lookup_supergroup_indexer
+    public :: GAS_SuperGroupIndexer_t, get_CAS_indexer
     public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
 
-    type :: SuperGroupIndexer_t
-        private
+    type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
-        integer(int64), allocatable :: allowed_composition_indices(:)
     contains
+#ifndef IFORT_
+        ! Stupid Ifort has problems with overwriting private methods.
+        ! https://gitlab.mpcdf.mpg.de/elpa/elpa/-/issues/54
         private
-        procedure, public :: idx_supergroup => get_supergroup_idx
-        procedure, public :: idx_nI => get_supergroup_idx_det
-        procedure, public :: idx_csf => get_supergroup_idx_csf
-        generic, public :: lookup_supergroup_idx => lookup_supergroup_idx_Ni, lookup_supergroup_idx_CSF
-        procedure :: lookup_supergroup_idx_Ni
-        procedure :: lookup_supergroup_idx_CSF
-        procedure, public :: n_supergroups => get_n_supergroups
-        procedure, public :: get_supergroups => indexer_get_supergroups
+#endif
+        procedure, public :: get_prop_vecs => indexer_get_supergroups
+            !! We overwrite the `get_supergroups` method of the generalized indexer
+            !! because this allows us a much larger number of GAS spaces
+            !! for disconnected spaces.
+
+        procedure :: to_prop_vec_nI => to_supergroup_nI
+        procedure :: to_prop_vec_csf => to_supergroup_csf
+
+        procedure :: is_allowed_single
+        procedure :: is_allowed_double
+        procedure :: is_allowed_distinct_double
+
+        procedure, public :: gen_all_excits => idxer_gen_all_excits
     end type
 
-    interface SuperGroupIndexer_t
+    interface GAS_SuperGroupIndexer_t
         module procedure construct_SuperGroupIndexer_t
     end interface
-
-    type(SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
 
 contains
 
@@ -464,33 +473,55 @@ contains
     end function
 
 
-    pure function get_n_supergroups(this) result(res)
-        !! Get the number of possible supergroups.
-        !!
-        !! GAS allowed compositions are called supergroups.
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer :: res
-        if (this%GAS_spec%is_connected()) then
-            res = size(this%allowed_composition_indices)
-        else
-            res = 1
-        end if
-    end function
+    pure function construct_SuperGroupIndexer_t(GAS_spec) result(idxer)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        type(GAS_SuperGroupIndexer_t) :: idxer
+        integer(int64), allocatable :: allowed_indices(:)
+        character(*), parameter :: this_routine = 'construct_SuperGroupIndexer_t'
+        @:pure_ASSERT(GAS_spec%is_valid())
 
+        if (GAS_spec%is_connected()) then
+            allowed_indices = get_allowed_composition_indices(GAS_spec)
+        else
+            ! Yes this is a nonsensical number.
+            ! We treat the case of disconnected spaces in a special way.
+            allowed_indices = [-1_int64]
+        end if
+
+        ! I would like to write the following code, but it does not work
+        ! unfortunately
+        ! idxer = GAS_SuperGroupIndexer_t(&
+        !         GAS_spec=GAS_spec, &
+        !         allowed_composition_indices=allowed_indices, &
+        !         prop_vec_sum_=GAS_spec%nEl(), &
+        !         n_spin_orbs_=GAS_spec%n_spin_orbs(), &
+        !         prop_vec_dim_=GAS_spec%nGAS()
+        ! )
+
+        allocate(idxer%GAS_spec, source=GAS_spec)
+        allocate(idxer%allowed_composition_indices, source=allowed_indices)
+        idxer%prop_vec_sum_ = GAS_spec%nEl()
+        idxer%n_spin_orbs_ = GAS_spec%n_spin_orbs()
+        idxer%prop_vec_dim_ = GAS_spec%nGAS()
+    end function
 
     pure function indexer_get_supergroups(this) result(res)
         !! Get the ordered compositions of n into k summands
         !!  constrained by cumulative minima and maxima.
         !!
         !! GAS allowed compositions are called supergroups.
-        class(SuperGroupIndexer_t), intent(in) :: this
+        !!
+        !! We overwrite the `get_supergroups` method of the generalized indexer
+        !! because this allows us a much larger number of GAS spaces
+        !! for disconnected spaces.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         integer, allocatable :: res(:, :)
         integer(int64) :: i
         routine_name("indexer_get_supergroups")
 
-        allocate(res(this%GAS_spec%nGAS(), this%n_supergroups()))
+        allocate(res(this%GAS_spec%nGAS(), this%n_prop_vecs()))
         if (this%GAS_spec%is_connected()) then
-            do i = 1_int64, this%n_supergroups()
+            do i = 1_int64, this%n_prop_vecs()
                 res(:, i) = composition_from_idx(&
                     this%GAS_spec%nGAS(), this%GAS_spec%nEl(), this%allowed_composition_indices(i))
             end do
@@ -510,111 +541,89 @@ contains
         end if
     end function
 
-    pure function get_supergroup_idx(this, supergroup) result(idx)
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer, intent(in) :: supergroup(:)
-        integer :: idx
-        character(*), parameter :: this_routine = 'get_supergroup_idx'
 
-        if (this%GAS_spec%is_connected()) then
-            idx = int(binary_search_first_ge(this%allowed_composition_indices, composition_idx(supergroup)))
-        else
-            idx = 1
-        end if
-        @:pure_ASSERT(idx /= -1)
-    end function
-
-
-    pure function get_supergroup_idx_det(this, nI) result(idx)
-        !!  Calculate the supergroup index for a determinant nI
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer, intent(in) :: nI(:)
-            !! The determinant for which the supergroup index should be calculated.
-        integer :: idx
-        character(*), parameter :: this_routine = 'get_supergroup_idx_det'
-
-        @:pure_ASSERT(this%GAS_spec%contains_conf(nI))
-        if (this%GAS_spec%is_connected()) then
-            idx = this%idx_supergroup(this%GAS_spec%count_per_GAS(nI))
-        else
-            idx = 1
-        end if
-        @:pure_ASSERT(idx /= -1)
-    end function
-
-    pure function get_supergroup_idx_csf(self, csf_i) result(idx)
-        !!  Calculate the supergroup index for a CSF `csf_i`
-        class(SuperGroupIndexer_t), intent(in) :: self
-        type(CSF_Info_t), intent(in) :: csf_i
-            !! The CSF for which the supergroup index should be calculated.
-        integer :: idx
-        character(*), parameter :: this_routine = 'get_supergroup_idx_det'
-
-        @:pure_ASSERT(self%GAS_spec%contains_conf(csf_i))
-        if (self%GAS_spec%is_connected()) then
-            idx = self%idx_supergroup(self%GAS_spec%count_per_GAS(csf_i))
-        else
-            idx = 1
-        end if
-        @:pure_ASSERT(idx /= -1)
-    end function
-
-    pure function lookup_supergroup_idx_nI(this, idet, nI) result(idx)
-        !!  Use a precomputed supergroup index from global_det_data.
+    logical pure function is_allowed_single(this, exc, prop_vec)
+        !! Check if a single excitation is allowed.
         !!
-        !!  This function heavily relies on correctly initialized global data
-        !!  outside the control of this class.
-        !!  Carefully make sure, that global_det_data is correctly initialized.
-        use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: this
-        integer, intent(in) :: idet
-            !!  The index of nI in the FciMCData::CurrentDets array.
-        integer, intent(in) :: nI(:)
-            !!  The determinant for which the supergroup index should be calculated.
-        integer :: idx
-        debug_function_name('lookup_supergroup_idx')
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
 
-        if (this%GAS_spec%is_connected()) then
-            idx = global_lookup(idet)
-            ! Assert that looked up and computed index agree.
-            @:pure_ASSERT(idx == this%idx_nI(nI))
-        else
-            idx = 1
-        end if
+        is_allowed_single = this%GAS_spec%is_allowed(exc, prop_vec)
     end function
 
-    pure function lookup_supergroup_idx_CSF(this, csf_i) result(idx)
-        !!  Use a precomputed supergroup index from global_det_data.
+
+    logical pure function is_allowed_double(this, exc, prop_vec)
+        !! Check if a double excitation is allowed.
         !!
-        !!  This function heavily relies on correctly initialized global data
-        !!  outside the control of this class.
-        !!  Carefully make sure, that global_det_data is correctly initialized.
-        use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: this
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        is_allowed_double = this%GAS_spec%is_allowed(exc, prop_vec)
+    end function
+
+    logical pure function is_allowed_distinct_double(this, exc, prop_vec)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(DistinctDouble_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        is_allowed_distinct_double = this%GAS_spec%is_allowed(exc, prop_vec)
+    end function
+
+
+    subroutine idxer_gen_all_excits(this, nI, n_excits, det_list, ic)
+        !!  Get all excitated determinants from
+        !!  det_I that are allowed under GAS constraints.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: nI(:)
+            !!  Starting determinant
+        integer, intent(out) :: n_excits
+            !!  Number of determinants
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+            !!  Allocatable array of determinants in ilut format
+        integer, intent(in), optional :: ic
+            !!  Optional input for excitation level (ic=1 => singles, ic=2 => doubles)
+            !!      If ommited generate all.
+
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list, ic)
+    end subroutine
+
+    pure function to_supergroup_nI(this, nI) result(supergroup)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: nI(:)
+#ifndef IFORT_
+        ! Stupid Ifort has problems with defining abstract interfaces
+        ! using stack arrays like this.
+        ! The abstract interfaces are necessary for defining the deferred method.
+        integer :: supergroup(this%prop_vec_dim())
+#else
+        integer, allocatable :: supergroup(:)
+#endif
+        supergroup = this%GAS_spec%count_per_GAS(nI)
+    end function
+
+    pure function to_supergroup_csf(this, csf_i) result(supergroup)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
-            !! The CSF
-        integer :: idx
-        debug_function_name('lookup_supergroup_idx')
+#ifndef IFORT_
+        ! Stupid Ifort has problems with defining abstract interfaces
+        ! using stack arrays like this.
+        ! The abstract interfaces are necessary for defining the deferred method.
+        integer :: supergroup(this%prop_vec_dim())
+#else
+        integer, allocatable :: supergroup(:)
+#endif
+        supergroup = this%GAS_spec%count_per_GAS(csf_i)
+    end function
 
-        if (this%GAS_spec%is_connected()) then
-            idx = global_lookup(csf_i%idx_curr_dets)
-            ! Assert that looked up and computed index agree.
-            @:pure_ASSERT(idx == this%idx_csf(csf_i))
-        else
-            idx = 1
-        end if
+    pure function get_CAS_indexer(n_el, n_spat_orbs) result(res)
+        integer, intent(in) :: n_el, n_spat_orbs
+        type(GAS_SuperGroupIndexer_t) :: res
+        res = GAS_SuperGroupIndexer_t(CAS_spec(n_el, n_spat_orbs))
     end function
 
 
-    pure function construct_SuperGroupIndexer_t(GAS_spec) result(idxer)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        type(SuperGroupIndexer_t) :: idxer
-        character(*), parameter :: this_routine = 'construct_SuperGroupIndexer_t'
-        @:pure_ASSERT(GAS_spec%is_valid())
-
-        idxer%GAS_spec = GAS_spec
-        if (GAS_spec%is_connected()) then
-            idxer%allowed_composition_indices = get_allowed_composition_indices(GAS_spec)
-        end if
-    end function
 end module gasci_supergroup_index

@@ -8,8 +8,7 @@ module test_gasci_util_mod
     use SystemData, only: nEl
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
-    use gasci_util, only: &
-        get_available_singles, get_available_doubles, gen_all_excits, get_n_SDs
+    use gasci_util, only: get_n_SDs
 
     use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helpers, only: run_excit_gen_tester
@@ -50,8 +49,8 @@ contains
                             [4, 8])
 
 
-        singles_exc_list = get_available_singles(GAS_spec, det_I)
-        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        singles_exc_list = GAS_spec%get_available_singles(det_I)
+        doubles_exc_list = GAS_spec%get_available_doubles(det_I)
 
 
         call assert_equals(expect_singles, singles_exc_list, &
@@ -85,8 +84,8 @@ contains
                                 [4, 5, 6, 7], [5, 6, 7, 8]], &
                             [4, 18])
 
-        singles_exc_list = get_available_singles(GAS_spec, det_I)
-        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        singles_exc_list = GAS_spec%get_available_singles(det_I)
+        doubles_exc_list = GAS_spec%get_available_doubles(det_I)
 
 
         call assert_equals(expect_singles, singles_exc_list, &
@@ -833,8 +832,8 @@ contains
                     [3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 18]], &
                 [12, 684])
 
-        singles_exc_list = get_available_singles(GAS_spec, det_I)
-        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        singles_exc_list = GAS_spec%get_available_singles(det_I)
+        doubles_exc_list = GAS_spec%get_available_doubles(det_I)
 
 
         call assert_equals(expect_singles, singles_exc_list, &

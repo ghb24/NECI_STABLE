@@ -30,9 +30,8 @@ module gasci_on_the_fly_heat_bath
 
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
 
-    use gasci, only: GASSpec_t, LocalGASSpec_t
-    use gasci_util, only: &
-        gen_all_excits, get_cumulative_list, draw_from_cum_list
+    use gasci, only: GASSpec_t
+    use gasci_util, only: get_cumulative_list, draw_from_cum_list
     better_implicit_none
 
     private
@@ -230,7 +229,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine
 
 
@@ -469,7 +468,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list, ic=2)
     end subroutine
 
 

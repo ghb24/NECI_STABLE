@@ -76,9 +76,9 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
 
-    use global_det_data, only: set_supergroup_idx
+    use global_det_data, only: set_prop_vec_idx
 
-    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use property_vector_index, only: lookup_property_indexer
 
     use LoggingData, only: tAccumPopsActive
 
@@ -1268,13 +1268,13 @@ contains
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
 
-            ! After reordering the dets, we have to reset all supergroup
+            ! After reordering the dets, we have to reset all prop_vec
             ! idx in the global_det_data
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 do i = 1, nwalkers
                     call decode_bit_det(nI, CurrentDets(:, i))
-                    call set_supergroup_idx(&
-                        i, lookup_supergroup_indexer%idx_nI(nI))
+                    call set_prop_vec_idx(&
+                        i, lookup_property_indexer%idx_nI(nI))
                 end do
             end if
 

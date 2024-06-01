@@ -615,7 +615,7 @@ contains
                         pgen_diagnostic, ic, get_helement(nI, nJ), pgen_list(i)
                     if (present(calc_pgen)) then
                         write(i_unit_, '(F15.10"|")', advance='no') &
-                            calc_pgen(nI, det_list(:, i), exc, ic, store%ClassCountOcc, store%ClassCountUnocc)
+                            calc_pgen(nI, ilut, exc, ic, store%ClassCountOcc, store%ClassCountUnocc)
                     end if
                     write(i_unit_, *)
                 end if

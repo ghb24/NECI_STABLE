@@ -7,7 +7,7 @@ module guga_pchb_class
     use guga_data, only: ExcitationInformation_t
     use guga_bitrepops, only: CSF_Info_t
     use guga_base_class, only: GUGABase_t
-    use gasci, only: CAS_spec
+    use gasci_supergroup_index, only: get_CAS_indexer
     use input_parser_mod, only: TokenIterator_t
     use guga_gas_pchb_main, only: &
         GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
@@ -56,7 +56,7 @@ contains
     subroutine init(this, options)
         class(PCHB_t), intent(inout) :: this
         type(FCI_PCHB_options_t), intent(in) :: options
-        call this%GAS_sampler%init(CAS_spec(nEl, nSpatOrbs), &
+        call this%GAS_sampler%init(get_CAS_indexer(nEl, nSpatOrbs), &
             translate_to_GAS(options))
     end subroutine
 

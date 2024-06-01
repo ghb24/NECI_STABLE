@@ -409,17 +409,18 @@ set( FYPP_SRC_FILES
     GAS/gasci_discarding.fpp
     GAS/gasci_disconnected.fpp
     GAS/gasci_on_the_fly_heat_bath.fpp
-    GAS/gasci_pchb_main.fpp
     GAS/gasci_singles_main.fpp
-    GAS/gasci_singles_pc_weighted.fpp
-    GAS/gasci_pchb_doubles_main.fpp
-    GAS/gasci_pchb_doubles_select_particles.fpp
-    GAS/gasci_pchb_doubles_spatorb_fastweighted.fpp
-    GAS/gasci_pchb_doubles_spinorb_fullyweighted.fpp
-    GAS/gasci_pchb_doubles_spinorb_fastweighted.fpp
-    GAS/gasci_supergroup_index.fpp
-    GAS/composition_utils.fpp
     GAS/gasci_util.fpp
+    GAS/gasci_supergroup_index.fpp
+    property_vector_constraint/composition_utils.fpp
+    property_vector_constraint/property_vector_index.fpp
+    property_vector_constraint/property_vector_pchb_doubles_main.fpp
+    property_vector_constraint/property_vector_pchb_doubles_select_particles.fpp
+    property_vector_constraint/property_vector_pchb_doubles_spatorb_fastweighted.fpp
+    property_vector_constraint/property_vector_pchb_doubles_spinorb_fastweighted.fpp
+    property_vector_constraint/property_vector_pchb_doubles_spinorb_fullyweighted.fpp
+    property_vector_constraint/property_vector_pchb_main.fpp
+    property_vector_constraint/property_vector_singles_pc_weighted.fpp
     GUGA/guga_base_class.fpp
     GUGA/guga_gas_pchb_main.fpp
     GUGA/guga_gas_pchb_singles_main.fpp
