@@ -91,7 +91,7 @@ contains
         src_space = this%total_space%GAS_spec%get_iGAS(exc%val(1, 1))
         tgt_space = this%total_space%GAS_spec%get_iGAS(exc%val(2, 1))
 
-        if (src_space == tgt_space) then
+        if (src_space == tgt_space .and. this%contained_in_P(this%idx_prop_vec(prop_vec))) then
             is_allowed_single = .true.
         else
             exc_prop_vec = this%excite(exc,prop_vec)
@@ -119,8 +119,11 @@ contains
         src_spaces(2) = this%total_space%GAS_spec%get_iGAS(exc%val(1, 2))
         tgt_spaces = this%total_space%GAS_spec%get_iGAS(exc%val(2, :))
 
-        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
-            is_allowed_double = .true.
+        if (all(src_spaces == tgt_spaces) &
+            .and. src_spaces(1) == src_spaces(2) &
+            .and.  this%contained_in_P(this%idx_prop_vec(prop_vec))) then
+
+                is_allowed_double = .true.
         else
             exc_prop_vec = this%excite(exc,prop_vec)
             valid_excitation =  this%total_space%GAS_spec%contains_supergroup(exc_prop_vec)
