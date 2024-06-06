@@ -10,7 +10,7 @@ add_unit_test(neci gasci_on_the_fly_heat_bath)
 add_unit_test(neci gasci_disconnected)
 add_unit_test(neci gasci_discarding)
 add_unit_test(neci gasci_supergroup_index)
-
+add_unit_test(neci pq_property_index)
 
 add_unit_test(neci gasci_pchb_rhf_hermitian gasci_pchb_test_helper)
 target_link_libraries(test_neci_gasci_pchb_rhf_hermitian gasci_pchb_test_helper)
