@@ -98,6 +98,8 @@ module gasci_supergroup_index
         generic, public :: excite => excite_single, excite_double
 
         procedure, public :: gen_all_excits => idxer_gen_all_excits
+
+        procedure, public :: write_to => GAS_write_to
     end type
 
     interface GAS_SuperGroupIndexer_t
@@ -652,5 +654,10 @@ contains
         res = GAS_SuperGroupIndexer_t(CAS_spec(n_el, n_spat_orbs))
     end function
 
+    subroutine GAS_write_to(this, iunit)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: iunit
 
+        call this%GAS_spec%write_to(iunit)
+    end subroutine
 end module gasci_supergroup_index

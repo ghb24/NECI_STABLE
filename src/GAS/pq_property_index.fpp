@@ -43,6 +43,8 @@ module pq_property_index
 
         procedure :: to_prop_vec_csf => PQ_to_prop_vec_csf
         procedure :: to_prop_vec_ni => PQ_to_prop_vec_ni
+
+        procedure, public :: write_to => PQ_write_to
     end type
 
     interface PQ_indexer_t
@@ -246,4 +248,24 @@ contains
         @:pure_ASSERT(size(idxer%contained_in_P) == size(idxer%total_space%allowed_composition_indices))
         @:pure_ASSERT(count(idxer%contained_in_P) == size(idxer%P_space%allowed_composition_indices))
     end function
+
+    subroutine PQ_write_to(this, iunit)
+        class(PQ_indexer_t), intent(in) :: this
+        integer, intent(in) :: iunit
+
+        write(iunit, '(/A)') 'The PQ Truncation was used:'
+
+        write(iunit, '(/A)') 'Specification of the total space:'
+        call this%total_space%write_to(iunit)
+
+        write(iunit, '(/A)') 'Specification of the P space:'
+        call this%P_space%write_to(iunit)
+
+        write(iunit, '(/A20, 1x, A20, 1x)') 'n_prop_vecs (total)', 'n_prop_vecs (P)'
+        write(iunit, '(A)') '------------------------------------------'
+        write(iunit, '(I20, 1x, I20, 1x)') size(this%total_space%allowed_composition_indices), &
+                                           size(this%P_space%allowed_composition_indices)
+        write(iunit, '(A)') '------------------------------------------'
+    
+    end subroutine
 end module pq_property_index

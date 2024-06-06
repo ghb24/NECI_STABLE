@@ -2008,13 +2008,10 @@ contains
                             select type(P_specification)
                                 type is(CumulGASSpec_t)
                                     P_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                                    call P_specification%write_to(stdout) !NOTE: Currently direct call for dev purposes
                                 type is(LocalGASSpec_t)
                                     P_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                                    call P_specification%write_to(stdout)
                                 type is(FlexibleGASSpec_t)
                                     P_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
-                                    call P_specification%write_to(stdout)
                                 class default
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select

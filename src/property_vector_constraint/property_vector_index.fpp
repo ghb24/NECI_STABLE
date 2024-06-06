@@ -69,6 +69,8 @@ module property_vector_index
         procedure, public :: prop_vec_dim
         procedure, public :: n_spin_orbs
         procedure, public :: prop_vec_sum
+
+        procedure(write_to_t), public, deferred :: write_to
     end type
 
     type, abstract, extends(PropertyIndexer_t) :: AlsoGUGA_PropertyIndexer_t
@@ -160,6 +162,14 @@ module property_vector_index
             integer, allocatable :: prop_vec(:)
 #endif
         end function
+
+        subroutine write_to_t(this, iunit)
+            !! Write a string representation of this PropVec specification to iunit
+            import :: PropertyIndexer_t
+            implicit none
+            class(PropertyIndexer_t), intent(in) :: this
+            integer, intent(in) :: iunit
+        end subroutine
 
     end interface
 
