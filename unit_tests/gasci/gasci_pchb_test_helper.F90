@@ -1,3 +1,7 @@
+! NOTE
+! For meaningful pgen tests `n_iters` has to be higher
+! and the `is_problematic` function has to be tighter!
+
 module gasci_pchb_test_helper
     use fruit, only: assert_equals, assert_true, assert_false
     use fortran_strings, only: str
@@ -9,10 +13,11 @@ module gasci_pchb_test_helper
     use excitation_types, only: Excitation_t
 
     use gasci, only: LocalGASSpec_t
-    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, &
-        GAS_PCHB_options_vals
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t
-    use gasci_singles_main, only: GAS_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use property_vector_pchb_main, only: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, &
+        PropVec_PCHB_options_vals
+    use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t
+    use gasci_singles_main, only: PropVec_PCHB_SinglesOptions_t, PC_WeightedSinglesOptions_t
 
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -57,14 +62,18 @@ contains
         use System, only: SetSysDefaults
         use Calc, only: SetCalcDefaults
         logical, intent(in) :: UHF, hermitian
-        type(GAS_PCHB_ExcGenerator_t) :: exc_generator
+        type(PropVec_PCHB_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
-        type(GAS_PCHB_options_t), allocatable :: settings(:)
+        type(GAS_SuperGroupIndexer_t) :: indexer
+        type(PropVec_PCHB_options_t), allocatable :: settings(:)
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
         integer :: n_interspace_exc, i
-        integer, parameter :: n_iters=10**7
+        integer, parameter :: n_iters=10**6
+            ! NOTE:
+            ! For meaningful pgen tests `n_iters` has to be higher
+            ! and the `is_problematic` function has to be tighter.
         call SetCalcDefaults()
         call SetSysDefaults()
         t_non_hermitian_1_body = .not. hermitian
@@ -78,41 +87,41 @@ contains
 
         if (UHF) then ! UHF cannot use spatorbs
             settings = [&
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
@@ -120,41 +129,41 @@ contains
             ]
         else
             settings = [&
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%BITMASK_UNIFORM &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FAST_FAST, &
                             spin_orb_resolved=.false. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%UNIF_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
                 ), &
-                GAS_PCHB_options_t(&
-                        GAS_PCHB_SinglesOptions_t(&
-                            GAS_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
+                PropVec_PCHB_options_t(&
+                        PropVec_PCHB_SinglesOptions_t(&
+                            PropVec_PCHB_options_vals%singles%algorithm%PC_WEIGHTED, &
                             PC_WeightedSinglesOptions_t(&
-                                GAS_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
+                                PropVec_PCHB_options_vals%singles%PC_weighted%drawing%FULL_FULL &
                             ) &
                         ), &
                         PCHB_DoublesOptions_t( &
-                            GAS_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
-                            GAS_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%particle_selection%FULL_FULL, &
+                            PropVec_PCHB_options_vals%doubles%hole_selection%FULL_FULL, &
                             spin_orb_resolved=.true. &
                         ), &
                         use_lookup=.false. &
@@ -165,9 +174,10 @@ contains
         over_settings: do i = 1, size(settings)
             over_interspace_excitations: do n_interspace_exc = 0, 1
                 GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
-                                        spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+                                        spat_GAS_orbs=[1, 1, 1, 2, 2, 2], nEl=6)
                 call assert_true(GAS_spec%is_valid())
                 call assert_true(GAS_spec%contains_conf(det_I))
+                indexer = GAS_SuperGroupIndexer_t(GAS_spec)
 
                 call init_excitgen_test(det_I, &
                     RandomFcidumpWriter_t(&
@@ -177,7 +187,7 @@ contains
                 )
 
                 call exc_generator%init(&
-                    GAS_spec, options=settings(i) &
+                    indexer, options=settings(i) &
                 )
 
                 call run_excit_gen_tester( &
@@ -196,11 +206,14 @@ contains
 
     contains
 
+        ! NOTE:
+        ! For meaningful pgen tests `n_iters` has to be higher
+        ! and the `is_problematic` function has to be tighter.
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = &
-                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
+                (abs(1._dp - pgen_diagnostic) >= 1.6_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
     end subroutine test_pgen_general

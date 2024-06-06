@@ -1,7 +1,7 @@
 #include "macros.h"
 #:include "../macros.fpph"
 
-module gasci_singles_pc_weighted
+module property_vector_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
     use util_mod, only: stop_all, EnumBase_t, operator(.div.)
@@ -16,9 +16,7 @@ module gasci_singles_pc_weighted
     use get_excit, only: make_single
     use MPI_wrapper, only: root
     use excitation_types, only: Excite_1_t, spin_allowed
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
     use orb_idx_mod, only: calc_spin_raw
     use OneEInts, only: GetTMatEl
     use UMatCache, only: GTID, get_umat_el
@@ -74,24 +72,22 @@ module gasci_singles_pc_weighted
     type, abstract, extends(SingleExcitationGenerator_t) :: PC_Weighted_t
         type(AliasSampler_1D_t) :: I_sampler
             !! p(I | i_sg)
-            !! The probability of picking particle `I` in the supergroup i_sg.
+            !! The probability of picking particle `I` in the prop_vec i_sg.
         type(AliasSampler_2D_t) :: A_sampler
             !! p(A | I, i_sg)
             !! The probability of picking the hole A after having picked particle I
-            !! in the supergroup i_sg.
+            !! in the prop_vec i_sg.
         real(dp), allocatable :: weights(:, :, :)
             !! The weights w_{A, I, i_sg} for the excitation of I -> A.
             !! They are made independent of the determinant by various approximations:
             !! For example setting \( w_{A, I, i_sg} = | h_{I, A} + \sum_{R} g_{I, A, R, R} - g_{I, R, R, A} | \)
             !! where \(R\) runs over all orbitals instead of only the occupied.
-        class(GASSpec_t), allocatable :: GAS_spec
-            !! The GAS specification
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(PropertyIndexer_t), allocatable :: indexer
             !! The Supergroup indexer.
             !! This is only a pointer because components cannot be targets
             !! otherwise. :-(
         logical, public :: use_lookup = .false.
-            !! Use a lookup for the supergroup index in global_det_data.
+            !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
 
         type(UnoccupiedGetter_t), private :: unoccupied
@@ -210,47 +206,46 @@ contains
         end if
     end function
 
-    subroutine init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine init(this, indexer, use_lookup, create_lookup)
         class(PC_Weighted_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         routine_name("init")
-        integer, allocatable :: supergroups(:, :)
-        integer :: n_supergroups, nBI
+        integer, allocatable :: prop_vecs(:, :)
+        integer :: n_prop_vecs, nBI
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        this%indexer=indexer
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
-        nBI = this%GAS_spec%n_spin_orbs()
-        supergroups = this%indexer%get_supergroups()
-        n_supergroups = size(supergroups, 2)
+        nBI = this%indexer%n_spin_orbs()
+        prop_vecs = this%indexer%get_prop_vecs()
+        n_prop_vecs = size(prop_vecs, 2)
 
         this%unoccupied = UnoccupiedGetter_t(nBasis)
 
-        call this%I_sampler%shared_alloc(n_supergroups, nBI, 'PC_singles_I')
-        call this%A_sampler%shared_alloc([nBi, n_supergroups], nBI, 'PC_singles_A')
-        allocate(this%weights(nBI, nBI, n_supergroups), source=0._dp)
+        call this%I_sampler%shared_alloc(n_prop_vecs, nBI, 'PC_singles_I')
+        call this%A_sampler%shared_alloc([nBi, n_prop_vecs], nBI, 'PC_singles_A')
+        allocate(this%weights(nBI, nBI, n_prop_vecs), source=0._dp)
         block
             integer :: i_sg, src, tgt
             type(Excite_1_t) :: exc
-            do i_sg = 1, n_supergroups
+            do i_sg = 1, n_prop_vecs
                 do src = 1, nBi
                     do tgt = 1, nBi
                         if (src == tgt) cycle
                         exc = Excite_1_t(src, tgt)
-                        if (this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                        if (this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) &
                                 .and. spin_allowed(exc) &
                                 .and. symmetry_allowed(exc) &
                         ) then
@@ -295,7 +290,7 @@ contains
         ic = 1
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -392,7 +387,7 @@ contains
         ic = 1
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -446,7 +441,7 @@ contains
         integer :: i_sg
         real(dp) :: p_src, p_tgt
 
-        integer :: unoccupied(this%GAS_spec%n_spin_orbs() - nEl)
+        integer :: unoccupied(this%indexer%n_spin_orbs() - nEl)
         integer(n_int) :: ilut_unoccupied(0 : nIfD)
 
         @:ASSERT(ic == 1)
@@ -484,7 +479,7 @@ contains
         ic = 1
 
         if (this%use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -549,8 +544,8 @@ contains
             ! that assumption is wrong.
             call this%I_sampler%finalize()
             call this%A_sampler%finalize()
-            deallocate(this%indexer, this%weights, this%GAS_spec)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            deallocate(this%indexer, this%weights)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine
 
@@ -601,7 +596,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine
 
-end module gasci_singles_pc_weighted
+end module property_vector_singles_pc_weighted

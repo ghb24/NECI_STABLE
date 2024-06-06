@@ -11,8 +11,7 @@ module guga_gas_pchb_doubles_select_particles
     use sets_mod, only: operator(.in.)
     use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.), near_zero
     use UMatCache, only: gtID
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
     use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
 
@@ -24,8 +23,6 @@ module guga_gas_pchb_doubles_select_particles
     public :: ParticleSelector_t, &
         UniformParticles_t, PCHB_ParticleSelection_t, allocate_and_init, &
         PCHB_ParticleSelection_vals_t, PCHB_particle_selection_vals
-
-
 
     type, extends(EnumBase_t) :: PCHB_ParticleSelection_t
         private
@@ -72,7 +69,7 @@ module guga_gas_pchb_doubles_select_particles
             import :: dp, CSF_Info_t, ParticleSelector_t, nEl
             implicit none
             integer, intent(in) :: nI(nEl), i_sg
-                !! The CSF in nI-format and the supergroup
+                !! The CSF in nI-format and the prop_vec
             class(ParticleSelector_t), intent(in) :: this
             type(CSF_Info_t), intent(in) :: csf_I
             integer, intent(in) :: I, J
@@ -83,12 +80,12 @@ module guga_gas_pchb_doubles_select_particles
             import :: dp, CSF_Info_t, ParticleSelector_t, nEl, n_int, nIfD
             class(ParticleSelector_t), intent(in) :: this
             integer, intent(in) :: nI(nEl)
-                !! The determinant in nI-format and the supergroup index
+                !! The determinant in nI-format and the prop_vec index
             integer(n_int), intent(in) :: ilutI(0 : nIfD)
                 !! The determinant in bitmask format
             type(CSF_Info_t), intent(in) :: csf_I
             integer, intent(in) :: i_sg
-                !! The supergroup index
+                !! The prop_vec index
             integer, intent(out) :: srcs(2)
                 !! The chosen particles \(I, J\) and their index in `nI`.
                 !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -110,7 +107,7 @@ module guga_gas_pchb_doubles_select_particles
     type, extends(ParticleSelector_t), abstract :: PC_Particles_t
         private
         type(AliasSampler_1D_t) :: I_sampler
-            !! The shape is (n_supergroup) -> 2 * number_of_spat_orbs
+            !! The shape is (n_prop_vec) -> 2 * number_of_spat_orbs
             !!
             !! @note
             !! To make doubly occupied orbitals more probable we have doubly the
@@ -118,16 +115,13 @@ module guga_gas_pchb_doubles_select_particles
             !! @endnote
             !!
         type(AliasSampler_2D_t) :: j_sampler
-            !! The shape is (number_of_spat_orbs, n_supergroup) -> number_of_spat_orbs
+            !! The shape is (number_of_spat_orbs, n_prop_vec) -> number_of_spat_orbs
 
-        class(GASSpec_t), allocatable :: GAS_spec
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
-            !! Use a lookup for the supergroup index in global_det_data.
+            !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
-            !! Create **and** manage! the supergroup index lookup in global_det_data.
+            !! Create **and** manage! the prop_vec index lookup in global_det_data.
     contains
         private
         procedure, public :: init => init_PC_WeightedParticles_t
@@ -173,12 +167,12 @@ contains
         end select
     end function
 
-    subroutine allocate_and_init(PCHB_particle_selection, GAS_spec, ij_weights, rank_with_info, use_lookup, particle_selector)
+    subroutine allocate_and_init(PCHB_particle_selection, indexer, ij_weights, rank_with_info, use_lookup, particle_selector)
         type(PCHB_ParticleSelection_t), intent(in) :: PCHB_particle_selection
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: ij_weights(:, :, :)
             !! The weights for the spatial orbitals ij
-            !! nSpatOrb * n_SpatOrb * n_supergroup
+            !! nSpatOrb * n_SpatOrb * n_prop_vec
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
@@ -192,13 +186,13 @@ contains
             allocate(PC_FullyWeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_FullyWeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+                call particle_selector%init(indexer, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_FULL) then
             allocate(PC_WeightedParticles_t :: particle_selector)
             select type(particle_selector)
             type is(PC_WeightedParticles_t)
-                call particle_selector%init(GAS_spec, IJ_weights, rank_with_info, use_lookup, .false.)
+                call particle_selector%init(indexer, IJ_weights, rank_with_info, use_lookup, .false.)
             end select
         else
             call stop_all(this_routine, 'Invalid particle selection.')
@@ -208,12 +202,12 @@ contains
     subroutine draw_UniformParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
         class(UniformParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i_sg
-            !! The supergroup index
+            !! The prop_vec index
         integer, intent(out) :: srcs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) < srcs(2)`.
@@ -271,47 +265,46 @@ contains
     end subroutine
 
 
-    subroutine init_PC_WeightedParticles_t(this, GAS_spec, weights, rank_with_info, use_lookup, create_lookup)
+    subroutine init_PC_WeightedParticles_t(this, indexer, weights, rank_with_info, use_lookup, create_lookup)
         class(PC_Particles_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         real(dp), intent(in) :: weights(:, :, :)
-            !! `w(j, i, i_sg)`, The weight of picking `j` after picking `i` under supergroup `i_sg`
+            !! `w(j, i, i_sg)`, The weight of picking `j` after picking `i` under prop_vec `i_sg`
         integer, intent(in) :: rank_with_info
             !! The **intra-node** rank that contains the weights to be used
             !! all other arr of all other ranks are ignored (and can be allocated with size 0).
         logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'init_PC_WeightedParticles_t'
 
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         integer :: i_sg, nBi
 
-        this%GAS_spec = GAS_spec
-        nBi = this%GAS_spec%n_spin_orbs()
+        allocate(this%indexer, source=indexer)
+        nBi = this%indexer%n_spin_orbs()
         @:ASSERT(2 * nSpatOrbs == nBi)
 
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
         if (this%create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'PC particles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         if (this%use_lookup) write(stdout, *) 'PC particles is using the supergroup lookup'
 
-        supergroups = this%indexer%get_supergroups()
+        prop_vecs = this%indexer%get_prop_vecs()
 
         if (iProcIndex_intra == rank_with_info) then
             @:ASSERT(nSpatOrbs == size(weights, 1) .and. nSpatOrbs == size(weights, 2))
-            @:ASSERT(size(supergroups, 2) == size(weights, 3))
+            @:ASSERT(size(prop_vecs, 2) == size(weights, 3))
         end if
 
-        call this%I_sampler%shared_alloc(size(supergroups, 2), nBi, 'PC_particles_i')
-        call this%J_sampler%shared_alloc([nBi, size(supergroups, 2)], nBi, 'PC_particles_j')
+        call this%I_sampler%shared_alloc(size(prop_vecs, 2), nBi, 'PC_particles_i')
+        call this%J_sampler%shared_alloc([nBi, size(prop_vecs, 2)], nBi, 'PC_particles_j')
         block
             integer :: I
             real(dp) :: dummy(2)
@@ -322,7 +315,7 @@ contains
             else
                 allocate(i_weight(0), j_weight(0))
             end if
-            do i_sg = 1, size(supergroups, 2)
+            do i_sg = 1, size(prop_vecs, 2)
                 do I = 1, nBI
                     if (iProcIndex_intra == rank_with_info) then
                         J_weight(1::2) = weights(:, gtID(I), i_sg)
@@ -348,12 +341,12 @@ contains
     subroutine finalize_PC_WeightedParticles_t(this)
         class(PC_Particles_t), intent(inout) :: this
 
-        if (allocated(this%GAS_spec)) then
+        if (allocated(this%indexer)) then
             ! Yes, we assume, that either all or none are allocated
             call this%I_sampler%finalize()
             call this%j_sampler%finalize()
-            deallocate(this%indexer, this%GAS_spec)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            deallocate(this%indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine
 
@@ -361,12 +354,12 @@ contains
     subroutine draw_PC_FullyWeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
         class(PC_FullyWeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i_sg
-            !! The supergroup index
+            !! The prop_vec index
         integer, intent(out) :: srcs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) <= srcs(2)`.
@@ -435,7 +428,7 @@ contains
         class(PC_FullyWeightedParticles_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_I
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: i, j
             !! The particles in spatial format
         real(dp) :: p
@@ -499,12 +492,12 @@ contains
     subroutine draw_PC_WeightedParticles_t(this, nI, ilutI, csf_i, i_sg, srcs, p)
         class(PC_WeightedParticles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer(n_int), intent(in) :: ilutI(0 : nIfD)
             !! The determinant in bitmask format
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i_sg
-            !! The supergroup index
+            !! The prop_vec index
         integer, intent(out) :: srcs(2)
             !! The chosen particles \(I, J\) and their index in `nI`.
             !! It is guaranteed that `scrs(1) <= srcs(2)`.
@@ -562,7 +555,7 @@ contains
         class(PC_WeightedParticles_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_I
         integer, intent(in) :: nI(nEl), i_sg
-            !! The determinant in nI-format and the supergroup index
+            !! The determinant in nI-format and the prop_vec index
         integer, intent(in) :: i, j
             !! The particles in spatial format
         real(dp) :: p

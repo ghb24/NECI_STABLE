@@ -13,8 +13,9 @@ module exc_gen_classes
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
     use gasci_util, only: write_GAS_info
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name, tSD_GAS
+    use property_vector_index, only: indexer
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_pchb_main, only: GAS_PCHB_ExcGenerator_t, GAS_PCHB_user_input, decide_on_PCHB_options
+    use property_vector_pchb_main, only: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_user_input, decide_on_PCHB_options
 
     implicit none
     private
@@ -62,12 +63,12 @@ contains
                         call current_exc_generator%init(GAS_specification)
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%PCHB) then
-                    allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
+                    allocate(PropVec_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
-                    type is (GAS_PCHB_ExcGenerator_t)
+                    type is (PropVec_PCHB_ExcGenerator_t)
                         call current_exc_generator%init(&
-                            GAS_specification, &
-                            decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF)&
+                            indexer, &
+                            decide_on_PCHB_options(PropVec_PCHB_user_input, nBasis, nEl, tUHF)&
                         )
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%ON_FLY_HEAT_BATH) then

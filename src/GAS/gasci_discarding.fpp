@@ -15,7 +15,6 @@ module gasci_discarding
     use excitation_generators, only: ExcitationGenerator_t, &
         SingleExcitationGenerator_t, DoubleExcitationGenerator_t
     use gasci, only: GASSpec_t
-    use gasci_util, only: GAS_gen_all_excits => gen_all_excits
     implicit none
 
     private
@@ -113,7 +112,7 @@ contains
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        call GAS_gen_all_excits(this%GAS_spec, nI, n_excits, det_list)
+        call this%GAS_spec%gen_all_excits(nI, n_excits, det_list)
     end subroutine
 
 end module gasci_discarding

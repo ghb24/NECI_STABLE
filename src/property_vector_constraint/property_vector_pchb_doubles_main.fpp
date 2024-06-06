@@ -1,18 +1,18 @@
 #include "macros.h"
 #:include "../macros.fpph"
 
-module gasci_pchb_doubles_main
+module property_vector_pchb_doubles_main
     use constants, only: stdout
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
-    use gasci, only: GASSpec_t
-    use gasci_pchb_doubles_spatorb_fastweighted, only: GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t
-    use gasci_pchb_doubles_spinorb_fullyweighted, only: GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t
-    use gasci_pchb_doubles_spinorb_fastweighted, only: GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
+    use property_vector_index, only: PropertyIndexer_t
+    use property_vector_pchb_doubles_spatorb_fastweighted, only: PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t
+    use property_vector_pchb_doubles_spinorb_fullyweighted, only: PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t
+    use property_vector_pchb_doubles_spinorb_fastweighted, only: PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t
+    use property_vector_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
     better_implicit_none
 
@@ -60,8 +60,8 @@ module gasci_pchb_doubles_main
 
 contains
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    subroutine allocate_and_init(indexer, options, use_lookup, generator)
+        class(PropertyIndexer_t), intent(in) :: indexer
         type(PCHB_DoublesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
             !! Use the supergroup lookup
@@ -70,29 +70,29 @@ contains
 
         if (options%spin_orb_resolved) then
             if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
-                allocate(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t :: generator)
             else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
-                allocate(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t :: generator)
             end if
         else
             if (tUHF) call stop_all(this_routine, "spatial-orbital-resolved PCHB generator not compatible with UHF FCIDUMP.")
             if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
-                allocate(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t :: generator)
+                allocate(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t :: generator)
             else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
                 call stop_all(this_routine, "PCHB spatorb-resolved fully weighted hole selection not implemented.")
             end if
         end if
 
         select type(generator)
-        type is(GAS_PCHB_DoublesSpatOrbFastWeightedExcGenerator_t)
+        type is(PropVec_PCHB_DoublesSpatOrbFastWeightExcGen_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
-        type is(GAS_PCHB_DoublesSpinorbFullyWeightedExcGenerator_t)
+                indexer, use_lookup, use_lookup, options%particle_selection)
+        type is(PropVec_PCHB_DoublesSpinorbFullyWeightExcGen_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
-        type is(GAS_PCHB_DoublesSpinOrbFastWeightedExcGenerator_t)
+                indexer, use_lookup, use_lookup, options%particle_selection)
+        type is(PropVec_PCHB_DoublesSpinOrbFastWeightExcGen_t)
             call generator%init(&
-                GAS_spec, use_lookup, use_lookup, options%particle_selection)
+                indexer, use_lookup, use_lookup, options%particle_selection)
         class default
             call stop_all(this_routine, "Error. Should never be here.")
         end select
@@ -110,7 +110,7 @@ contains
         case(doubles_options_vals%hole_selection%FULL_FULL%str)
             res = doubles_options_vals%hole_selection%FULL_FULL
         case default
-            call stop_all(this_routine, trim(w)//" not a valid hole selection for GAS PCHB.")
+            call stop_all(this_routine, trim(w)//" not a valid hole selection for PropVec PCHB.")
         end select
     end function
 
@@ -137,4 +137,4 @@ contains
     end function
 
 
-end module gasci_pchb_doubles_main
+end module property_vector_pchb_doubles_main

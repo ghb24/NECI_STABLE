@@ -6,17 +6,17 @@ module pchb_excitgen
     use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
-    use gasci, only: CAS_spec
+    use gasci_supergroup_index, only: get_CAS_indexer
     use excitation_generators, only: ClassicAbInitExcitationGenerator_t, &
         SingleExcitationGenerator_t
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_singles_pc_weighted, only: &
+    use property_vector_singles_pc_weighted, only: &
         PC_WeightedSinglesOptions_t,  PC_WeightedSinglesOptions_vals_t, &
         PC_Weighted_t, do_allocation, print_options
-    use gasci_pchb_main, only: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
-    use gasci_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
+    use property_vector_pchb_main, only: PCHB_OptionSelection_t, PCHB_OptionSelection_vals_t
+    use property_vector_pchb_doubles_main, only: PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init
-    use gasci_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t
+    use property_vector_pchb_doubles_select_particles, only: PCHB_ParticleSelection_t
     better_implicit_none
 
     private
@@ -152,7 +152,7 @@ contains
         ! Since a GAS specification with one GAS space is trivially disconnected, there
         ! is no point to use the lookup.
         call doubles_allocate_and_init(&
-                CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
+                get_CAS_indexer(n_el=nEl, n_spat_orbs=nBasis .div. 2), options%doubles, &
                 .false., this%doubles_generator)
     end subroutine
 
@@ -177,7 +177,7 @@ contains
             call do_allocation(generator, options%PC_weighted%drawing)
             select type(generator)
             class is(PC_Weighted_t)
-                call generator%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                call generator%init(get_CAS_indexer(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
                                     use_lookup=.false., create_lookup=.false.)
             end select
         else

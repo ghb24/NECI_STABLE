@@ -8,7 +8,6 @@ module test_gasci_discarding_mod
 
     use gasci, only: LocalGASSpec_t
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_util, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: init_excitgen_test, finalize_excitgen_test
@@ -37,7 +36,7 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
-                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2], nEl=6)
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_conf(det_I))
 

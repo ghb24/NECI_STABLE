@@ -100,10 +100,10 @@ contains
                 consider_par_bias = .true.
             else
                 block
-                    use gasci_pchb_main, only: GAS_PCHB_user_input, decide_on_PCHB_options, GAS_PCHB_options_vals, GAS_PCHB_options_t
-                    type(GAS_PCHB_options_t) :: GAS_PCHB_options
-                    GAS_PCHB_options = decide_on_PCHB_options(GAS_PCHB_user_input, nBasis, nEl, tUHF)
-                    consider_par_bias = GAS_PCHB_options%doubles%particle_selection == GAS_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
+                    use property_vector_pchb_main, only: PropVec_PCHB_user_input, decide_on_PCHB_options, PropVec_PCHB_options_vals, PropVec_PCHB_options_t
+                    type(PropVec_PCHB_options_t) :: PropVec_PCHB_options
+                    PropVec_PCHB_options = decide_on_PCHB_options(PropVec_PCHB_user_input, nBasis, nEl, tUHF)
+                    consider_par_bias = PropVec_PCHB_options%doubles%particle_selection == PropVec_PCHB_options_vals%doubles%particle_selection%UNIF_UNIF
                 end block
             end if
         else

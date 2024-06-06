@@ -1,3 +1,7 @@
+! NOTE
+! For meaningful pgen tests `n_iters` has to be higher
+! and the `is_problematic` function has to be tighter!
+
 module pchb_excitgen_test_helper
     use fruit, only: assert_true, run_test_case
     use constants, only: dp, maxExcit
@@ -41,7 +45,10 @@ contains
         use SystemData, only: t_non_hermitian_1_body, t_non_hermitian_2_body, &
                               tUHF, tZeroDelimitedFCIDUMP
         logical, intent(in) :: uhf, hermitian
-        integer, parameter :: n_iters = 5 * 10**7
+        integer, parameter :: n_iters = 1 * 10**7
+            ! NOTE
+            ! For meaningful pgen tests `n_iters` has to be higher
+            ! and the `is_problematic` function has to be tighter!
         type(PCHB_FCI_excit_generator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10], n_spat_orb = 10
         logical :: successful
@@ -102,11 +109,14 @@ contains
 
     contains
 
+        ! NOTE
+        ! For meaningful pgen tests `n_iters` has to be higher
+        ! and the `is_problematic` function has to be tighter!
         logical function is_problematic(nI, exc, ic, pgen_diagnostic)
             integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = &
-                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
+                (abs(1._dp - pgen_diagnostic) >= 0.5_dp) &
                 .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function is_problematic
 

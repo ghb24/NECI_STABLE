@@ -7,18 +7,17 @@ module gasci_singles_main
     use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: ScratchSize
-    use gasci, only: GASSpec_t
-    use gasci_util, only: gen_all_excits
     use gasci_on_the_fly_heat_bath, only: GAS_singles_heat_bath_ExcGen_t
     use get_excit, only: make_single
-    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use property_vector_index, only: PropertyIndexer_t, lookup_property_indexer
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use excitation_types, only: Excite_1_t, spin_allowed
-    use FciMCData, only: excit_gen_store_type, GAS_PCHB_init_time
+    use FciMCData, only: excit_gen_store_type
     use fortran_strings, only: to_upper
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
 
-    use gasci_singles_pc_weighted, only: PC_Weighted_t, &
+    use property_vector_singles_pc_weighted, only: PC_Weighted_t, &
         do_allocation, print_options, &
         PC_WeightedSinglesOptions_t, PC_WeightedSinglesOptions_vals_t
     better_implicit_none
@@ -27,7 +26,7 @@ module gasci_singles_main
     public :: GAS_PCHB_SinglesAlgorithm_t, &
         GAS_singles_PC_uniform_ExcGenerator_t, &
         GAS_singles_heat_bath_ExcGen_t, allocate_and_init, &
-        GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, GAS_PCHB_singles_options_vals
+        PropVec_PCHB_SinglesOptions_t, PropVec_PCHB_SinglesOptions_vals_t, PropVec_PCHB_singles_options_vals
     ! Reexpose the stuff from gasci_singles_pc_weighted
     public :: PC_WeightedSinglesOptions_t, PC_Weighted_t, do_allocation, &
         print_options
@@ -45,19 +44,19 @@ module gasci_singles_main
 
     type(GAS_PCHB_SinglesAlgorithm_vals_t), parameter :: GAS_used_singles_vals = GAS_PCHB_SinglesAlgorithm_vals_t()
 
-    type :: GAS_PCHB_SinglesOptions_vals_t
+    type :: PropVec_PCHB_SinglesOptions_vals_t
         type(GAS_PCHB_SinglesAlgorithm_vals_t) :: algorithm = GAS_PCHB_SinglesAlgorithm_vals_t()
         type(PC_WeightedSinglesOptions_vals_t) :: PC_weighted = PC_WeightedSinglesOptions_vals_t()
         contains
             procedure, nopass :: from_str => singles_from_keyword
     end type
 
-    type(GAS_PCHB_SinglesOptions_vals_t), parameter :: GAS_PCHB_singles_options_vals = GAS_PCHB_SinglesOptions_vals_t()
+    type(PropVec_PCHB_SinglesOptions_vals_t), parameter :: PropVec_PCHB_singles_options_vals = PropVec_PCHB_SinglesOptions_vals_t()
 
-    type :: GAS_PCHB_SinglesOptions_t
+    type :: PropVec_PCHB_SinglesOptions_t
         type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
         type(PC_WeightedSinglesOptions_t) :: PC_weighted = PC_WeightedSinglesOptions_t(&
-            GAS_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
+            PropVec_PCHB_singles_options_vals%PC_weighted%drawing%UNDEFINED)
     contains
         procedure :: to_str
     end type
@@ -67,16 +66,14 @@ module gasci_singles_main
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
         private
         ! allowed_holes(:, src, i_sg)
-        ! is a bitmask that returns for a given supergroup `i_sg` and `src`
+        ! is a bitmask that returns for a given prop_vec `i_sg` and `src`
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
-        class(GASSpec_t), allocatable :: GAS_spec
-        ! This is only a pointer because components cannot be targets
-        ! otherwise. :-(
-        type(SuperGroupIndexer_t), pointer :: indexer => null()
-        !> Use a lookup for the supergroup index in global_det_data.
+
+        class(PropertyIndexer_t), allocatable :: indexer
+        !> Use a lookup for the prop_vec index in global_det_data.
         logical, public :: use_lookup = .false.
-        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        !> Create **and** manage! the prop_vec index lookup in global_det_data.
         logical, public :: create_lookup = .false.
     contains
         private
@@ -93,11 +90,11 @@ module gasci_singles_main
 contains
 
 
-    subroutine allocate_and_init(GAS_spec, options, use_lookup, generator)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+    subroutine allocate_and_init(indexer, options, use_lookup, generator)
+        class(PropertyIndexer_t), intent(in) :: indexer
+        type(PropVec_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup
-            !! Use the supergroup lookup
+            !! Use the prop_vec lookup
         class(SingleExcitationGenerator_t), allocatable, intent(inout) :: generator
         routine_name("gasci_singles_main::allocate_and_init")
 
@@ -111,20 +108,25 @@ contains
             select type(generator => generator)
             type is(GAS_singles_PC_uniform_ExcGenerator_t)
                 ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
-                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+                !   prop_vec lookup!
+                call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else if (options%algorithm == GAS_used_singles_vals%ON_FLY_HEAT_BATH) then
             write(stdout, *) 'GAS heat bath on the fly singles activated'
-            allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
+            select type(indexer)
+            type is(GAS_SuperGroupIndexer_t)
+                allocate(generator, source=GAS_singles_heat_bath_ExcGen_t(indexer%GAS_spec))
+            class default
+                call stop_all(this_routine, 'On the fly heat bath requires vanilla GAS')
+            end select
         else if (options%algorithm == GAS_used_singles_vals%PC_WEIGHTED) then
             call print_options(options%PC_weighted, stdout)
             call do_allocation(generator, options%PC_weighted%drawing)
             select type(generator)
             class is(PC_Weighted_t)
                 ! NOTE: only one of the excitation generators should manage the
-                !   supergroup lookup!
-                call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+                !   prop_vec lookup!
+                call generator%init(indexer, use_lookup, create_lookup=.false.)
             end select
         else
             call stop_all(this_routine, "Invalid choice for singles.")
@@ -136,18 +138,18 @@ contains
     pure function singles_from_keyword(w) result(res)
         !! Parse a given keyword into the possible weighting schemes
         character(*), intent(in) :: w
-        type(GAS_PCHB_SinglesOptions_t) :: res
+        type(PropVec_PCHB_SinglesOptions_t) :: res
         routine_name("singles_from_keyword")
         character(:), allocatable :: up_w
         up_w = to_upper(w)
-        associate(vals => GAS_PCHB_singles_options_vals)
+        associate(vals => PropVec_PCHB_singles_options_vals)
         select case(up_w)
         case('UNIFORM', 'UNIF:UNIF')
-            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%BITMASK_UNIFORM)
+            res = PropVec_PCHB_SinglesOptions_t(vals%algorithm%BITMASK_UNIFORM)
         case('ON-THE-FLY-HEAT-BATH')
-            res = GAS_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
+            res = PropVec_PCHB_SinglesOptions_t(vals%algorithm%ON_FLY_HEAT_BATH)
         case('UNIF:FAST', 'UNIF:FULL', 'FULL:FULL')
-            res = GAS_PCHB_SinglesOptions_t(&
+            res = PropVec_PCHB_SinglesOptions_t(&
                     vals%algorithm%PC_WEIGHTED, &
                     PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
             )
@@ -158,10 +160,10 @@ contains
     end function
 
     pure function to_str(options) result(res)
-        class(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+        class(PropVec_PCHB_SinglesOptions_t), intent(in) :: options
         routine_name("to_str")
         character(:), allocatable :: res
-        associate(vals => GAS_PCHB_singles_options_vals)
+        associate(vals => PropVec_PCHB_singles_options_vals)
         if (options%algorithm == vals%algorithm%BITMASK_UNIFORM) then
             res = 'UNIF:UNIF'
         else if (options%algorithm == vals%algorithm%ON_FLY_HEAT_BATH) then
@@ -174,45 +176,44 @@ contains
         end associate
     end function
 
-    subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
+    subroutine GAS_singles_uniform_init(this, indexer, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        class(GASSpec_t), intent(in) :: GAS_spec
+        class(PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
-        integer, allocatable :: supergroups(:, :)
+        integer, allocatable :: prop_vecs(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
 
         integer :: i_sg, src, tgt
 
-        this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
+        allocate(this%indexer, source=indexer)
         this%create_lookup = create_lookup
         if (create_lookup) then
-            if (associated(lookup_supergroup_indexer)) then
+            if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
                 write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
-                lookup_supergroup_indexer => this%indexer
+                allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
         if (use_lookup) write(stdout, *) 'GAS singles is using the supergroup lookup'
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        ! possible prop_vecs
+        prop_vecs = this%indexer%get_prop_vecs()
 
-        allocate(this%allowed_holes(0 : nIfD, this%GAS_spec%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
+        allocate(this%allowed_holes(0 : nIfD, this%indexer%n_spin_orbs(), size(prop_vecs, 2)), source=0_n_int)
 
 
-        ! Find for each supergroup (i_sg)
+        ! Find for each prop_vec (i_sg)
         ! the allowed holes `tgt` for a given `src`.
-        do i_sg = 1, size(supergroups, 2)
+        do i_sg = 1, size(prop_vecs, 2)
             ! Note that the loop cannot take a symmetric shape.
             ! It may be, that (1 -> 5) is allowed, but (5 -> 1) is not.
-            do src = 1, this%GAS_spec%n_spin_orbs()
-                do tgt = 1, this%GAS_spec%n_spin_orbs()
+            do src = 1, this%indexer%n_spin_orbs()
+                do tgt = 1, this%indexer%n_spin_orbs()
                     if (src == tgt) cycle
                     associate(exc => Excite_1_t(src, tgt))
                     if (spin_allowed(exc) &
-                            .and. this%GAS_spec%is_allowed(exc, supergroups(:, i_sg)) &
+                            .and. this%indexer%is_allowed(exc, prop_vecs(:, i_sg)) &
                             .and. symmetry_allowed(exc)) then
                         call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
                     end if
@@ -245,7 +246,7 @@ contains
 
         if (allocated(this%allowed_holes)) then
             deallocate(this%allowed_holes, this%indexer)
-            if (this%create_lookup) nullify(lookup_supergroup_indexer)
+            if (this%create_lookup) deallocate(lookup_property_indexer)
         end if
     end subroutine GAS_singles_uniform_finalize
 
@@ -265,7 +266,7 @@ contains
 
         @:ASSERT(use_lookup .implies. present(store))
         if (use_lookup) then
-            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+            i_sg = this%indexer%lookup_prop_vec_idx(store%idx_curr_dets, nI)
         else
             i_sg = this%indexer%idx_nI(nI)
         end if
@@ -353,6 +354,6 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
+        call this%indexer%gen_all_excits(nI, n_excits, det_list, ic=1)
     end subroutine GAS_singles_uniform_gen_all_excits
 end module gasci_singles_main
