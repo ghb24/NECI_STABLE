@@ -959,7 +959,7 @@ and ends with the `endcalc` keyword.
     Truncate spawns which are larger than a threshold value \(n\). Both
     arguments are optional, \(n\) defaults to \(3\). If UNOCC is given
     the truncation is restricted to spawns onto unoccupied. Useful in
-    combination with hist-tau-search.
+    combination with histogramming tau-search.
 
 
 
