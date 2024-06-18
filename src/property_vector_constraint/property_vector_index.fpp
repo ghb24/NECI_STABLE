@@ -25,7 +25,7 @@ module property_vector_index
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
         composition_from_idx, next_composition
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use excitation_types, only: Excite_1_t, Excite_2_t, Excitation_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
 !    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
@@ -60,7 +60,9 @@ module property_vector_index
         procedure(is_allowed_single_t), deferred :: is_allowed_single
         procedure(is_allowed_double_t), deferred :: is_allowed_double
         generic, public :: is_allowed => is_allowed_single, is_allowed_double
-        
+
+        procedure, public :: dyn_is_allowed
+
         procedure(idxer_gen_all_excits_t), deferred, public :: gen_all_excits
 
         procedure(to_prop_vec_nI_t), deferred :: to_prop_vec_nI
@@ -174,7 +176,7 @@ module property_vector_index
     end interface
 
     class(PropertyIndexer_t), allocatable :: indexer, lookup_property_indexer
-    
+
 contains
 
     pure function lookup_prop_vec_idx_nI(this, idet, nI) result(idx)
@@ -317,5 +319,25 @@ contains
             idx = 1
         end if
     end function
-        
+
+
+    logical pure function dyn_is_allowed(this, exc, prop_vec)
+        !! Check if an excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(PropertyIndexer_t), intent(in) :: this
+        class(Excitation_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        routine_name("dyn_is_allowed")
+
+        select type(exc)
+        type is(Excite_1_t)
+            dyn_is_allowed = this%is_allowed(exc, prop_vec)
+        type is(Excite_2_t)
+            dyn_is_allowed = this%is_allowed(exc, prop_vec)
+        class default
+            call stop_all(this_routine, "invalid excitation passed in.")
+        end select
+    end function
+
 end module

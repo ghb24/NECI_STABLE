@@ -1,9 +1,11 @@
 module test_orb_idx_mod
-    use fruit, only: assert_true, assert_false, run_test_case
+    use fruit, only: assert_true, assert_false, run_test_case, assert_equals
+    use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, excite, is_canonical, &
-        canonicalize, make_canonical
+    use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, &
+        Excite_2_t, Excite_3_t, excite, is_canonical, &
+        canonicalize, make_canonical, get_excitation, Excite_Further_t
     implicit none
     private
     public :: test_orb_idx_driver
@@ -116,12 +118,114 @@ contains
 
     end subroutine
 
+    subroutine test_get_excitation()
+        nEl = 4
+
+        block
+            class(Excitation_t), allocatable :: exc
+            integer :: nI(4), nJ(4)
+            logical :: tParity
+
+            nI = [1, 2, 3, 4]
+            nJ = [1, 2, 3, 4]
+
+            call get_excitation(nI, nJ, exc, tParity)
+
+            select type(exc)
+            type is(Excite_0_t)
+                call assert_true(.true.)
+            class default
+                call assert_true(.false.)
+            end select
+        end block
+
+        block
+            class(Excitation_t), allocatable :: exc
+            integer :: nI(4), nJ(4)
+            logical :: tParity
+
+            nI = [1, 2, 3, 4]
+            nJ = [1, 3, 4, 6]
+
+            call get_excitation(nI, nJ, exc, tParity)
+
+            select type(exc)
+            type is(Excite_1_t)
+                call assert_true(.true.)
+                call assert_true(all(exc%val(:, 1) == [2, 6]))
+            class default
+                call assert_true(.false.)
+            end select
+        end block
+
+        block
+            class(Excitation_t), allocatable :: exc
+            integer :: nI(4), nJ(4)
+            logical :: tParity
+
+            nI = [1, 2, 3, 4]
+            nJ = [1, 4, 5, 6]
+
+            call get_excitation(nI, nJ, exc, tParity)
+
+            select type(exc)
+            type is(Excite_2_t)
+                call assert_true(.true.)
+                call assert_true(all(exc%val(:, 1) == [2, 5]))
+                call assert_true(all(exc%val(:, 2) == [3, 6]))
+            class default
+                call assert_true(.false.)
+            end select
+        end block
+
+        block
+            class(Excitation_t), allocatable :: exc
+            integer :: nI(4), nJ(4)
+            logical :: tParity
+
+            nI = [1, 2, 3, 4]
+            nJ = [1, 5, 6, 8]
+
+            call get_excitation(nI, nJ, exc, tParity)
+
+            select type(exc)
+            type is(Excite_3_t)
+                call assert_true(.true.)
+                call assert_true(all(exc%val(:, 1) == [2, 5]))
+                call assert_true(all(exc%val(:, 2) == [3, 6]))
+                call assert_true(all(exc%val(:, 3) == [4, 8]))
+            class default
+                call assert_true(.false.)
+            end select
+        end block
+
+        block
+            class(Excitation_t), allocatable :: exc
+            integer :: nI(4), nJ(4)
+            logical :: tParity
+
+            nI = [1, 2, 3, 4]
+            nJ = [5, 6, 8, 9]
+
+            call get_excitation(nI, nJ, exc, tParity)
+
+            select type(exc)
+            type is(Excite_Further_t)
+                call assert_true(.true.)
+            class default
+                call assert_true(.false.)
+            end select
+        end block
+
+    end subroutine
+
 
     subroutine test_orb_idx_driver()
         call run_test_case(test_calc_spin, "test_calc_spin")
         call run_test_case(test_conversion, "test_conversion")
         call run_test_case(test_excite, "test_excite")
         call run_test_case(test_canonical, "test_canonical")
+        call run_test_case(test_get_excitation, "test_get_excitation")
     end subroutine
 
 end module test_orb_idx_mod

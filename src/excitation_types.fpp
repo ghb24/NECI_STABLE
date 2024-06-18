@@ -33,7 +33,7 @@ module excitation_types
     use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement, is_set, &
-        operator(.in.)
+        operator(.in.), operator(.complement.)
     use DetBitOps, only: GetBitExcitation
     use excit_mod, only: GetExcitation
     use sort_mod, only: sort
@@ -204,7 +204,7 @@ module excitation_types
     end interface
 
     interface get_excitation
-        module procedure get_excitation_old, get_excitation_new
+        module procedure get_excitation_old, get_excitation_new, get_excitation_unknown_ic
     end interface
 
 contains
@@ -405,6 +405,34 @@ contains
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         end select
     end subroutine get_excitation_new
+
+
+    !>  Create an excitation from nI to nJ
+    subroutine get_excitation_unknown_ic(nI, nJ, exc, tParity)
+        !> Two Slater determinants in nI format.
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+        !>  The excitation level. (1=Excite_1_t, 2=Excite_2_t, ...)
+        !>  An excitation of type excitation_t.
+        !>      By using select type(exc) one can select the actual type at runtime
+        !>      **and** statically dispatch as much as possible at compile time.
+        class(Excitation_t), allocatable, intent(out) :: exc
+        !>  The parity of the excitation.
+        logical, intent(out) :: tParity
+        debug_function_name("get_excitation_unknown_ic")
+
+        integer :: ic
+
+        ic = size(nI .complement. nJ)
+        @:ASSERT(ic == size(nJ .complement. nI))
+
+        if (1 <= ic .and. ic <= 3) then
+            call get_excitation_new(nI, nJ, ic, exc, tParity)
+        else
+            call create_excitation(exc, ic)
+            tParity = .false.
+        end if
+
+    end subroutine get_excitation_unknown_ic
 
     subroutine get_excitation_old(nI, nJ, ic, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC

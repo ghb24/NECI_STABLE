@@ -10,7 +10,8 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use hphf_integrals, only: hphf_off_diag_helement
     use DetBitOps, only: EncodeBitDet
     use orb_idx_mod, only: SpinOrbIdx_t
-    use gasci, only: GAS_spec => GAS_specification, tGAS
+    use property_vector_index, only: indexer
+    use excitation_types, only: Excitation_t, get_excitation
 
     use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t
@@ -107,11 +108,18 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
                 totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
             end if
             end if
-            if (tGAS) then
-            if (.not. GAS_spec%contains_conf(NMRKS(:, KI)) .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
-                totsum = 0.0_dp
+
+            if (allocated(indexer)) then
+            block
+                class(Excitation_t), allocatable :: exc
+                logical :: tDummy
+                call get_excitation(NMRKS(:, KI), NMRKS(:, KJ), exc, tDummy)
+                if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(NMRKS(:, KI)))) then
+                    totsum = 0.0_dp
+                end if
+            end block
             end if
-            end if
+
             IF (ABS(TOTSUM) < 1.0e-10_dp) TOTSUM = 0.0_dp
             IF (.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                 GC = GC + 1
