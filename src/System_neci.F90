@@ -2074,14 +2074,18 @@ contains
 
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
                         call read_spat_GAS_orbs(tokens, spat_GAS_orbs, recoupling)
-                        associate(calced_n_orbs => frequency(spat_GAS_orbs))
-                        if (size(calced_n_orbs) /= size(n_orbs) &
-                                .or. any(frequency(spat_GAS_orbs) /= n_orbs)) then
-                                call stop_all(t_r, 'Error in GAS spec. &
-                                            &Inconsisten number of orbitals &
-                                            &per GAS space.')
-                        end if
-                        end associate
+                        select type(GAS_specification)
+                        type is (FlexibleGASSpec_t)
+                        class default
+                            associate(calced_n_orbs => frequency(spat_GAS_orbs))
+                            if (size(calced_n_orbs) /= size(n_orbs) &
+                                    .or. any(frequency(spat_GAS_orbs) /= n_orbs)) then
+                                    call stop_all(t_r, 'Error in GAS spec. &
+                                                &Inconsisten number of orbitals &
+                                                &per GAS space.')
+                            end if
+                            end associate
+                        end select
                     else
                         call stop_all(t_r, 'Error in GAS spec. &
                                     &Assignment of orbitals to GAS spaces is missing.')

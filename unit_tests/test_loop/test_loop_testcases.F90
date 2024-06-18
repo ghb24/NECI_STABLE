@@ -51,7 +51,7 @@ contains
         if (flag_GAS_) then
             write(unit_id, '(A)') '    GAS-SPEC LOCAL 2'
             write(unit_id, '(A)') '        1  0  2'
-            write(unit_id, '(A)') '        2  0  2'
+            write(unit_id, '(A)') '        1  0  2'
             write(unit_id, '(A)') '        1 2'
         end if
         write(unit_id, '(A)') '    freeformat'
