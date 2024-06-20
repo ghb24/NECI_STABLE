@@ -10,7 +10,7 @@ module fast_determ_hamil
     use CalcData, only: tImportanceSampling
     use Determinants, only: get_helement, calcImportanceRatio
     use FciMCData, only: Hii
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+    use hphf_integrals, only: hphf_diag_helement, &
                               hphf_off_diag_helement_opt, hphf_off_diag_special_case
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -1050,10 +1050,10 @@ contains
             end do
 
             ! Allocate beta-1 and alpha-1 arrays
-            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), stat=ierr)
-            allocate(nbeta_m1_contribs(nbeta * nOccBeta), stat=ierr)
-            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha), stat=ierr)
-            allocate(nalpha_m1_contribs(nalpha * nOccAlpha), stat=ierr)
+            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta))
+            allocate(nbeta_m1_contribs(nbeta * nOccBeta))
+            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha))
+            allocate(nalpha_m1_contribs(nalpha * nOccAlpha))
 
             hash_size_2 = max(10, int(nbeta * nOccBeta / 10.0))
             hash_size_3 = max(10, int(nalpha * nOccAlpha / 10.0))
