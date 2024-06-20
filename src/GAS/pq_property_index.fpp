@@ -13,7 +13,7 @@ module pq_property_index
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
                                  composition_from_idx, next_composition
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use excitation_types, only: Excite_1_t, Excite_2_t, Excite_3_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
     use property_vector_index, only: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t
@@ -33,11 +33,13 @@ module pq_property_index
         procedure :: get_contained_in_P
         procedure :: is_allowed_single
         procedure :: is_allowed_double
+        procedure :: is_allowed_triple
         procedure :: is_allowed_distinct_double
 
         procedure :: excite_single
         procedure :: excite_double
-        generic :: excite => excite_single, excite_double
+        procedure :: excite_triple
+        generic :: excite => excite_single, excite_double, excite_triple
 
         procedure :: gen_all_excits => PQ_gen_all_excits
 
@@ -83,6 +85,15 @@ contains
         res = this%total_space%excite(exc, prop_vec)
     end function
 
+    pure function excite_triple(this, exc, prop_vec) result(res)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
+
+        res = this%total_space%excite(exc, prop_vec)
+    end function
+
     logical pure function is_allowed_single(this, exc, prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         type(Excite_1_t), intent(in) :: exc
@@ -115,51 +126,35 @@ contains
         type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         logical :: valid_excitation
-        integer :: src_spaces(2), tgt_spaces(2), exc_prop_vec(size(prop_vec))
+        integer :: exc_prop_vec(size(prop_vec))
 
-        src_spaces(1) = this%total_space%GAS_spec%get_iGAS(exc%val(1, 1))
-        src_spaces(2) = this%total_space%GAS_spec%get_iGAS(exc%val(1, 2))
-        tgt_spaces = this%total_space%GAS_spec%get_iGAS(exc%val(2, :))
+        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
-        if (all(src_spaces == tgt_spaces) &
-            .and. src_spaces(1) == src_spaces(2) &
-            .and.  this%contained_in_P(this%idx_prop_vec(prop_vec))) then
-
-                is_allowed_double = .true.
+        if (valid_excitation) then
+            exc_prop_vec = this%excite(exc, prop_vec)
+            is_allowed_double = this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                 .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec))
         else
-            exc_prop_vec = this%excite(exc,prop_vec)
-            valid_excitation =  this%total_space%GAS_spec%contains_supergroup(exc_prop_vec)
-
-            if (valid_excitation .and. .not. this%total_space%GAS_spec%recoupling()) then
-                block
-                    type(SpinProj_t) :: src_spins(2), tgt_spins(2)
-                    #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
-
-                    src_spins = calc_spin_raw(exc%val(1, :))
-                    tgt_spins = calc_spin_raw(exc%val(2, :))
-
-                    if (src_spaces(1) > src_spaces(2)) then
-                        @:spin_swap(src_spins(1), src_spins(2))
-                    end if
-
-                    if (tgt_spaces(1) > tgt_spaces(2)) then
-                        @:spin_swap(tgt_spins(1), tgt_spins(2))
-                    end if
-
-                    valid_excitation = all(src_spins == tgt_spins)
-                end block
-            end if
-
-            if (valid_excitation) then
-                is_allowed_double = (&
-                                     this%contained_in_P(this%idx_prop_vec(prop_vec)) &
-                                     .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec)) &
-                                    )
-            else
-                is_allowed_double = .false.
-            end if
+            is_allowed_double = .false.
         end if
+    end function
 
+    logical pure function is_allowed_triple(this, exc, prop_vec)
+        class(PQ_indexer_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        logical :: valid_excitation
+        integer :: exc_prop_vec(size(prop_vec))
+
+        valid_excitation = this%total_space%is_allowed(exc, prop_vec)
+
+        if (valid_excitation) then
+            exc_prop_vec = this%excite(exc, prop_vec)
+            is_allowed_triple = this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                 .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec))
+        else
+            is_allowed_triple = .false.
+        end if
     end function
 
     logical pure function is_allowed_distinct_double(this, exc, prop_vec)
@@ -266,6 +261,6 @@ contains
         write(iunit, '(I20, 1x, I20, 1x)') size(this%total_space%allowed_composition_indices), &
                                            size(this%P_space%allowed_composition_indices)
         write(iunit, '(A)') '------------------------------------------'
-    
+
     end subroutine
 end module pq_property_index
