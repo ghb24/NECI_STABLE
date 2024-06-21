@@ -1476,6 +1476,8 @@ contains
 
         type(ExcitationInformation_t) :: excitInfo
 
+        integer :: iunit
+
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
         allocate(GlobalProc(iHighPopWrite), source=0)
@@ -1508,7 +1510,7 @@ contains
                 this_run = GLOBAL_RUN
                 offset = 0
             end if
-            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
+            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, & ! @jphaupt
                 norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
 
             ! This has to be done by all procs
@@ -1609,18 +1611,23 @@ contains
 
 #endif
                 end if
+
+                iunit = get_free_unit()
+                open(iunit, file="NECIVEC", status="UNKNOWN")
+                write(iunit, '(A15, A30)') '# CI coeff.', 'excitation'
+
                 do i=1,iHighPopWrite
                     call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
                     call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
-                    if (tGUGA) then
+                    if (tGUGA) then ! @jphaupt
                         excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
                         Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                     end if
-                    write(stdout,"(I5)",advance='no') Excitlev
+                    write(stdout,"(I5)",advance='no') Excitlev ! @jphaupt
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                     write(stdout,"(I5)",advance='no') nopen
                     do j=1,lenof_out
@@ -1629,9 +1636,17 @@ contains
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                         !Weight is proportional to (nw/sqrt(2))**2
                         write(stdout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
+                        do j=1,lenof_out
+                        write(iunit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
+                        end do
                     else
-                        write(stdout,"(F9.5)",advance='no') (HighSign/norm)
+                        write(stdout,"(F9.5)",advance='no') (HighSign/norm) ! @jphaupt
+                        do j=1,lenof_out
+                        write(iunit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
+                        end do
                     end if
+                    write(iunit, "(A4)", advance='no') "    "
+                    call WriteDetBit(iunit,GlobalLargestWalkers(:,i),.true.)
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
                             write(stdout,"(A3)",advance='no') 'Y'
