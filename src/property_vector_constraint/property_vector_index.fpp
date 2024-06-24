@@ -33,7 +33,7 @@ module property_vector_index
 
     private
     public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t,&
-         indexer, lookup_property_indexer
+         indexer, lookup_property_indexer, total_indexer, P_indexer
 
     type, abstract :: PropertyIndexer_t
         integer(int64), allocatable :: allowed_composition_indices(:)
@@ -176,6 +176,7 @@ module property_vector_index
     end interface
 
     class(PropertyIndexer_t), allocatable :: indexer, lookup_property_indexer
+    class(PropertyIndexer_t), allocatable :: total_indexer, P_indexer
 
 contains
 

@@ -202,23 +202,20 @@ contains
 
     end function
 
-    pure function construct_PQ_indexer_t(P_spec, GAS_spec) result(idxer)
+    pure function construct_PQ_indexer_t(P_indexer, total_indexer) result(idxer)
         use gasci_supergroup_index, only: get_allowed_composition_indices
-        class(GASSpec_t), intent(in) :: P_spec, GAS_spec
+        class(GAS_SuperGroupIndexer_t), intent(in) :: P_indexer, total_indexer
         type(PQ_indexer_t) :: idxer
         integer(int64), allocatable :: allowed_indices(:)
         character(*), parameter :: this_routine = 'construct_PQ_indexer_t'
 
-        @:pure_ASSERT(GAS_spec%is_valid())
-        @:pure_ASSERT(P_spec%is_valid())
-
-        idxer%total_space = GAS_SuperGroupIndexer_t(GAS_spec)
-        idxer%P_space = GAS_SuperGroupIndexer_t(P_spec)
+        idxer%total_space = total_indexer
+        idxer%P_space = P_indexer
 
         @:pure_ASSERT(allocated(idxer%total_space))
         @:pure_ASSERT(allocated(idxer%P_space))
 
-        if (GAS_spec%is_connected()) then
+        if (total_indexer%GAS_spec%is_connected()) then
             allowed_indices = idxer%total_space%allowed_composition_indices
         else
             call stop_all(this_routine, "GAS Space cannot be disconnected")
@@ -228,8 +225,8 @@ contains
         !Overwrite it with the composition_idx of the single property_vector
         !Otherwise P_space can't be subset of total_space
 
-        if (.not. P_spec%is_connected()) then
-            idxer%P_space%allowed_composition_indices = get_allowed_composition_indices(P_spec)
+        if (.not. P_indexer%GAS_spec%is_connected()) then
+            idxer%P_space%allowed_composition_indices = get_allowed_composition_indices(P_indexer%GAS_spec)
         end if
 
         !Assert if P is subset of total

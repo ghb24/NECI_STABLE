@@ -55,7 +55,7 @@ MODULE System
     use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use pq_property_index, only: PQ_indexer_t
-    use property_vector_index, only: indexer
+    use property_vector_index, only: indexer, total_indexer, P_indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
@@ -1950,6 +1950,7 @@ contains
             case("GAS-PQ-TRUNCATION")
 
                 if (allocated(indexer) .and. allocated(GAS_specification)) then
+                    total_indexer = indexer
                     deallocate(indexer)
                     block
                         logical :: recoupling
@@ -2015,7 +2016,8 @@ contains
                                 class default
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select
-                            indexer = PQ_indexer_t(P_spec=P_specification, GAS_spec=GAS_specification)
+                            P_indexer = GAS_SuperGroupIndexer_t(P_specification)
+                            indexer = PQ_indexer_t(P_indexer=total_indexer, total_indexer=total_indexer)
                     end block
                 else
                     call stop_all(t_r, "There is no GAS spec")
