@@ -261,7 +261,6 @@ contains
         use gasci_supergroup_index, only: get_allowed_composition_indices
         class(GAS_SuperGroupIndexer_t), intent(in) :: P_indexer, total_indexer
         type(PQ_indexer_t) :: idxer
-        integer(int64), allocatable :: allowed_indices(:)
         character(*), parameter :: this_routine = 'construct_PQ_indexer_t'
 
         ! Pass the definition of the total and P space to the indexer
