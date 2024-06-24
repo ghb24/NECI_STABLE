@@ -10,13 +10,15 @@ module fast_determ_hamil
     use CalcData, only: tImportanceSampling
     use Determinants, only: get_helement, calcImportanceRatio
     use FciMCData, only: Hii
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+    use hphf_integrals, only: hphf_diag_helement, &
                               hphf_off_diag_helement_opt, hphf_off_diag_special_case
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
-    use sltcnd_mod, only: sltcnd_knowIC
-    use sparse_arrays
+    use sltcnd_mod, only: dyn_sltcnd_excit
+    use sparse_arrays, only: calc_approx_hamil_sparse_hphf, calc_determ_hamil_sparse, &
+        calc_determ_hamil_sparse_hphf, calculate_sparse_hamiltonian, calculate_sparse_hamiltonian_non_hermitian, &
+        var_ht
     use SystemData, only: tHPHF, nel
-    use timing_neci
+    use timing_neci, only: get_total_time
     use util_mod, only: get_free_unit
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use shared_array
@@ -26,7 +28,14 @@ module fast_determ_hamil
         buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     use util_mod, only: stop_all, neci_flush
-    implicit none
+    use excitation_types, only: Excitation_t, get_excitation
+    use property_vector_index, only: indexer
+    better_implicit_none
+    private
+    public :: calc_determ_hamil_opt_hphf, initialise_shared_rht, calc_approx_hamil_sparse_hphf, &
+        calc_determ_hamil_sparse_hphf, calc_determ_hamil_sparse, &
+        calculate_sparse_hamiltonian_non_hermitian, var_ht, calc_determ_hamil_opt, &
+        calculate_sparse_hamiltonian
 
     type auxiliary_array
         integer, pointer :: pos(:) => null()
@@ -1041,10 +1050,10 @@ contains
             end do
 
             ! Allocate beta-1 and alpha-1 arrays
-            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), stat=ierr)
-            allocate(nbeta_m1_contribs(nbeta * nOccBeta), stat=ierr)
-            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha), stat=ierr)
-            allocate(nalpha_m1_contribs(nalpha * nOccAlpha), stat=ierr)
+            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta))
+            allocate(nbeta_m1_contribs(nbeta * nOccBeta))
+            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha))
+            allocate(nalpha_m1_contribs(nalpha * nOccAlpha))
 
             hash_size_2 = max(10, int(nbeta * nOccBeta / 10.0))
             hash_size_3 = max(10, int(nalpha * nOccAlpha / 10.0))
@@ -1443,10 +1452,7 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
-                    endif
+                    hel = my_get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1467,10 +1473,7 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
-                    endif
+                    hel = my_get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1479,6 +1482,7 @@ contains
             end do
 
             ! Loop through alpha strings connected to this ind_alpha by a single excitation
+            ic = 2
             do j = 1, nalpha_alpha%ptr(ind_alpha)
                 ! This is the index of the connected alpha string
                 ind_alpha_conn = alpha_alpha%sub(ind_alpha, j)
@@ -1490,10 +1494,7 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
-                    hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
-                    endif
+                    hel = my_get_helement(nI, nK, IC, rep%core_space(:, i_full), rep%core_space(:, ind_k))
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_k)
                         call hamil_row%push_back(hel)
@@ -1554,6 +1555,31 @@ contains
         call hamil_pos%finalize()
 
         call MPIBarrier(ierr, tTimeIn=.false.)
+
+
+        contains
+
+            function my_get_helement(nI, nJ, ic, ilutI, ilutJ) result(hel)
+                integer, intent(in) :: nI(nEl), nJ(nEl), ic
+                integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
+                HElement_t(dp) :: hel
+                routine_name("my_get_helement")
+
+                class(Excitation_t), allocatable :: exc
+                logical :: tParity
+
+                call get_excitation(nI, nJ, ic, exc, tParity)
+                if (allocated(indexer)) then
+                    if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))) then
+                        hel = 0._dp
+                        return
+                    end if
+                end if
+                hel = dyn_sltcnd_excit(nI, exc, tParity)
+                if (tImportanceSampling) then
+                    hel = hel * calcImportanceRatio(nJ, ilutJ, nI, ilutI)
+                end if
+            end function
 
     end subroutine calc_determ_hamil_opt
 

@@ -12,22 +12,18 @@ module hphf_integrals
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs, GetBitExcitation, &
                          FindExcitBitDetSym, FindDetSpinSym
-    use excitation_types, only: Excite_0_t, Excite_2_t
+    use excitation_types, only: Excitation_t, get_excitation, Excite_0_t, Excite_2_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: stop_all
+    use property_vector_index, only: indexer
     implicit none
     private
     public :: hphf_off_diag_helement, hphf_spawn_sign, hphf_off_diag_helement_opt, &
         hphf_off_diag_special_case, hphf_diag_helement, hphf_sign, &
-        hphf_off_diag_helement_norm, hphf_off_diag_helement_spawn
-
-    interface hphf_off_diag_helement
-        module procedure hphf_off_diag_helement_norm
-        module procedure hphf_off_diag_helement_spawn
-    end interface
+        hphf_off_diag_helement_spawn
 
 contains
 
@@ -45,7 +41,7 @@ contains
 
     end function
 
-    ! TODO: comment as to why!
+    ! this interface is needed for function pointers in the spawn step
     function hphf_off_diag_helement_spawn(nI, nJ, iLutI, iLutJ, ic, ex, &
                                           tParity, HElGen) result(hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
@@ -56,11 +52,11 @@ contains
 
         unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
 
-        hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
+        hel = hphf_off_diag_helement(nI, nJ, iLutI, iLutJ)
 
     end function
 
-    function hphf_off_diag_helement_norm(nI, nJ, iLutnI, iLutnJ) result(hel)
+    function hphf_off_diag_helement(nI, nJ, iLutnI, iLutnJ) result(hel)
 
         ! Find the  between two half-projected hartree-fock
         ! determinants (different ones). NI and nJ have to be uniquely
@@ -196,13 +192,25 @@ contains
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
+        call decode_bit_det(nJ, ilutnJ)
+        if (allocated(indexer)) then
+            block
+                class(Excitation_t), allocatable :: exc
+                call get_excitation(nI, nJ, exc, tSign)
+                if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))) then
+                    hel = 0._dp
+                    return
+                end if
+            end block
+        end if
+
         if (t_lattice_model) then
-            call decode_bit_det(nJ, ilutnJ)
             hel = hphf_off_diag_helement(nI, nJ, iLutnI, iLutnJ)
             return
         end if
 
         hel = 0.0_dp
+
 
         if(IC <= max_ex_level) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
 
@@ -317,8 +325,20 @@ contains
         Ex(1, 1) = ExcitLevel
         call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
 
+        call decode_bit_det(nJ, iLutnJ)
+
+        if (allocated(indexer)) then
+            block
+                class(Excitation_t), allocatable :: exc
+                call get_excitation(nI2, nJ, ExcitLevel, exc, tSign)
+                if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI2))) then
+                    hel = 0._dp
+                    return
+                end if
+            end block
+        end if
+
         if (t_lattice_model) then
-            call decode_bit_det(nJ, iLutnJ)
             MatEl2 = hphf_off_diag_helement(nI2, nJ, iLutnI2, ilutnJ)
         else
             MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
