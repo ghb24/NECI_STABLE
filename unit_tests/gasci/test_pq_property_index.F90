@@ -26,6 +26,7 @@ contains
     end subroutine
 
     subroutine test_is_subset()
+
         block
             type(LocalGASSpec_t) :: GAS_spec, P_spec
             type(PQ_indexer_t) :: indexer
@@ -50,9 +51,61 @@ contains
                               )
 
         end block
+
+        block
+            type(CumulGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = CumulGASSpec_t(cn_min=[0, 4], cn_max=[4, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+            P_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+             ! P space is subset of total_space
+             call assert_true(subset(indexer%P_space%allowed_composition_indices, &
+                                    indexer%total_space%allowed_composition_indices) &
+                             )
+
+            ! But not the other way around
+            call assert_false(subset(indexer%total_space%allowed_composition_indices, &
+                                     indexer%P_space%allowed_composition_indices) &
+                              )
+
+        end block
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[0,4],[1,3],[2,2],[3,1],[4,0]], [2,5]), spat_GAS_orbs=[1,1,2,2])
+            P_spec = FlexibleGASSpec_t(supergroups=reshape([[2,2]], [2,1]), spat_GAS_orbs=[1,1,2,2])
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+             ! P space is subset of total_space
+             call assert_true(subset(indexer%P_space%allowed_composition_indices, &
+                                    indexer%total_space%allowed_composition_indices) &
+                             )
+
+            ! But not the other way around
+            call assert_false(subset(indexer%total_space%allowed_composition_indices, &
+                                     indexer%P_space%allowed_composition_indices) &
+                              )
+
+        end block
+
     end subroutine
 
     subroutine test_contained_in_P()
+
         block
 
             type(LocalGASSpec_t) :: GAS_spec, P_spec
@@ -74,9 +127,53 @@ contains
             call assert_true(count(indexer%contained_in_P) == size(indexer%P_space%allowed_composition_indices))
 
         end block
+
+        block
+            type(CumulGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = CumulGASSpec_t(cn_min=[1, 4], cn_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+            P_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+            call assert_true(size(indexer%contained_in_P) == 3)
+            call assert_true(size(indexer%contained_in_P) == size(indexer%total_space%allowed_composition_indices))
+
+            call assert_true(count(indexer%contained_in_P) == 1)
+            call assert_true(count(indexer%contained_in_P) == size(indexer%P_space%allowed_composition_indices))
+
+        end block
+
+        block
+            type(FlexibleGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[1,3],[2,2],[3,1]], [2,3]), spat_GAS_orbs=[1,1,2,2])
+            P_spec = FlexibleGASSpec_t(supergroups=reshape([[2,2]], [2,1]), spat_GAS_orbs=[1,1,2,2])
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+            call assert_true(size(indexer%contained_in_P) == 3)
+            call assert_true(size(indexer%contained_in_P) == size(indexer%total_space%allowed_composition_indices))
+
+            call assert_true(count(indexer%contained_in_P) == 1)
+            call assert_true(count(indexer%contained_in_P) == size(indexer%P_space%allowed_composition_indices))
+
+        end block
+
     end subroutine
 
     subroutine test_allowed_excitations()
+
         block
             integer :: i, j, k
             logical :: allowed_excitation(9)
@@ -105,6 +202,65 @@ contains
             call assert_true(count(allowed_excitation) == 5)
 
         end block
+
+        block
+            integer :: i, j, k
+            logical :: allowed_excitation(9)
+            type(CumulGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = CumulGASSpec_t(cn_min=[1, 4], cn_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+            P_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+            k = 1
+            do i = 1, 3
+                do j = 1, 3
+                    allowed_excitation(k) = indexer%contained_in_P(i) .or. indexer%contained_in_P(j)
+                    k = k + 1
+                end do
+            end do
+
+            !There should be 5 allowed excitations (or rather transitions between prop_vecs) 
+            !P space to anywhere, and Q->P twice
+            call assert_true(count(allowed_excitation) == 5)
+
+        end block
+
+        block
+            integer :: i, j, k
+            logical :: allowed_excitation(9)
+            type(FlexibleGASSpec_t) :: GAS_spec, P_spec
+            type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
+
+            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[1,3],[2,2],[3,1]], [2,3]), spat_GAS_orbs=[1,1,2,2])
+            P_spec = FlexibleGASSpec_t(supergroups=reshape([[2,2]], [2,1]), spat_GAS_orbs=[1,1,2,2])
+
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+            k = 1
+            do i = 1, 3
+                do j = 1, 3
+                    allowed_excitation(k) = indexer%contained_in_P(i) .or. indexer%contained_in_P(j)
+                    k = k + 1
+                end do
+            end do
+
+            !There should be 5 allowed excitations (or rather transitions between prop_vecs) 
+            !P space to anywhere, and Q->P twice
+            call assert_true(count(allowed_excitation) == 5)
+
+        end block
+
     end subroutine
 
     subroutine test_pq_single_excitation
@@ -133,7 +289,9 @@ contains
         indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
 
         call assert_true(all([5, 7] == indexer%excite(Excite_1_t(1, 3), [5, 7])))
+
     end subroutine
+
 end module test_pq_property_index_mod
 
 program test_pq_program
