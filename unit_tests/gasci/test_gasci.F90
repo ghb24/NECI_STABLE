@@ -23,7 +23,7 @@ module test_gasci_mod
     implicit none
     private
     public :: test_igas, test_contains_det, test_particles_per_GAS, &
-        test_is_valid, test_is_connected, test_get_orb_idx, test_pq_single_excitation
+        test_is_valid, test_is_connected, test_get_orb_idx
 
 
 
@@ -144,24 +144,6 @@ contains
         call assert_equals(GAS_spec%get_orb_idx([1, 2], 2), [5, 6], 2)
     end subroutine
 
-    subroutine test_pq_single_excitation
-        type(LocalGASSpec_t) :: GAS_spec, P_spec
-        type(PQ_indexer_t) :: indexer
-
-        GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
-        P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
-        indexer = PQ_indexer_t(P_spec, GAS_spec)
-
-        call assert_true(all([1, 3] == indexer%excite(Excite_1_t(1, 5), [2, 2])))
-
-        call assert_true(all([1, 3] == indexer%total_space%excite(Excite_1_t(1, 5), [2, 2])))
-
-        GAS_spec = LocalGASSpec_t(n_min=[3, 7], n_max=[5, 9], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
-        P_spec = LocalGASSpec_t(n_min=[3, 8], n_max=[4, 8], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
-        indexer = PQ_indexer_t(P_spec, GAS_spec)
-
-        call assert_true(all([5, 7] == indexer%excite(Excite_1_t(1, 3), [5, 7])))
-    end subroutine
 end module test_gasci_mod
 
 program test_gasci_program
@@ -171,7 +153,7 @@ program test_gasci_program
     use util_mod, only: stop_all
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_mod, only: test_igas, test_is_connected, test_is_valid, &
-        test_contains_det, test_particles_per_GAS, test_get_orb_idx, test_pq_single_excitation
+        test_contains_det, test_particles_per_GAS, test_get_orb_idx
 
     implicit none
     integer :: failed_count
@@ -201,6 +183,5 @@ contains
         call run_test_case(test_get_orb_idx, "test_get_orb_idx")
         call run_test_case(test_contains_det, "test_contains_det")
         call run_test_case(test_particles_per_GAS, "test_particles_per_GAS")
-        call run_test_case(test_pq_single_excitation, "test_pq_single_excitation")
     end subroutine
 end program test_gasci_program

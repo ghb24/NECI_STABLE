@@ -9,6 +9,7 @@ module test_pq_property_index_mod
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     use composition_utils, only: composition_idx, get_compositions, composition_from_idx
     use pq_property_index, only: PQ_indexer_t
+    use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, excite, dyn_excite
 
     use sets_mod, only: subset
     implicit none
@@ -21,24 +22,29 @@ contains
         call run_test_case(test_is_subset, "test_is_subset")
         call run_test_case(test_contained_in_P, "test_contained_in_P")
         call run_test_case(test_allowed_excitations, "test_allowed_excitations")
+        call run_test_case(test_pq_single_excitation, "test_pq_single_excitation")
     end subroutine
 
     subroutine test_is_subset()
         block
             type(LocalGASSpec_t) :: GAS_spec, P_spec
             type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
 
-            GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+            GAS_spec = LocalGASSpec_t(n_min=[0, 0], n_max=[4, 4], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
             P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
-            indexer = PQ_indexer_t(GAS_spec=GAS_spec, P_spec=P_spec)
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
 
-            !P space is subset of total_space
-            call assert_true(subset(indexer%P_space%allowed_composition_indices, &
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+             ! P space is subset of total_space
+             call assert_true(subset(indexer%P_space%allowed_composition_indices, &
                                     indexer%total_space%allowed_composition_indices) &
                              )
 
-            !But not the other way around
+            ! But not the other way around
             call assert_false(subset(indexer%total_space%allowed_composition_indices, &
                                      indexer%P_space%allowed_composition_indices) &
                               )
@@ -51,17 +57,22 @@ contains
 
             type(LocalGASSpec_t) :: GAS_spec, P_spec
             type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
 
             GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
             P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
-            indexer = PQ_indexer_t(GAS_spec=GAS_spec, P_spec=P_spec)
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
 
             call assert_true(size(indexer%contained_in_P) == 3)
             call assert_true(size(indexer%contained_in_P) == size(indexer%total_space%allowed_composition_indices))
 
             call assert_true(count(indexer%contained_in_P) == 1)
             call assert_true(count(indexer%contained_in_P) == size(indexer%P_space%allowed_composition_indices))
+
         end block
     end subroutine
 
@@ -71,11 +82,15 @@ contains
             logical :: allowed_excitation(9)
             type(LocalGASSpec_t) :: GAS_spec, P_spec
             type(PQ_indexer_t) :: indexer
+            type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
 
             GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
             P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
 
-            indexer = PQ_indexer_t(GAS_spec=GAS_spec, P_spec=P_spec)
+            total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+            P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+            indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
 
             k = 1
             do i = 1, 3
@@ -92,6 +107,33 @@ contains
         end block
     end subroutine
 
+    subroutine test_pq_single_excitation
+        type(LocalGASSpec_t) :: GAS_spec, P_spec
+        type(PQ_indexer_t) :: indexer
+        type(GAS_SuperGroupIndexer_t) :: P_indexer, total_indexer
+
+        GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+        P_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2], nEl=4)
+
+        total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+        P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+        indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+        call assert_true(all([1, 3] == indexer%excite(Excite_1_t(1, 5), [2, 2])))
+
+        call assert_true(all([1, 3] == indexer%total_space%excite(Excite_1_t(1, 5), [2, 2])))
+
+        GAS_spec = LocalGASSpec_t(n_min=[3, 7], n_max=[5, 9], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+        P_spec = LocalGASSpec_t(n_min=[3, 8], n_max=[4, 8], spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+
+        total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
+        P_indexer = GAS_SuperGroupIndexer_t(P_spec)
+
+        indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+
+        call assert_true(all([5, 7] == indexer%excite(Excite_1_t(1, 3), [5, 7])))
+    end subroutine
 end module test_pq_property_index_mod
 
 program test_pq_program
