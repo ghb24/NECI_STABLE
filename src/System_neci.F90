@@ -54,8 +54,8 @@ MODULE System
     use gasci_util, only: t_output_GAS_sizes
     use property_vector_pchb_main, only: PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals
     use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
-    use pq_property_index, only: PQ_indexer_t
-    use property_vector_index, only: indexer, total_indexer, P_indexer
+    use pq_property_index, only: PQ_indexer_t, P_indexer, total_indexer
+    use property_vector_index, only: indexer
     use pchb_excitgen, only: FCI_PCHB_user_input, FCI_PCHB_user_input_vals
 
     use cpmdinit_mod, only: CPMDBASISINIT, GENCPMDSYMREPS, cpmdsysteminit
@@ -2017,7 +2017,10 @@ contains
                                     call stop_all(t_r, "Invalid type for P specification.")
                             end select
                             P_indexer = GAS_SuperGroupIndexer_t(P_specification)
-                            indexer = PQ_indexer_t(P_indexer=total_indexer, total_indexer=total_indexer)
+                            select type (total_indexer)
+                                type is(GAS_SuperGroupIndexer_t)
+                                    indexer = PQ_indexer_t(P_indexer=P_indexer, total_indexer=total_indexer)
+                            end select
                     end block
                 else
                     call stop_all(t_r, "There is no GAS spec")
