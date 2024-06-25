@@ -28,6 +28,8 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
+    use property_vector_index, only: indexer
+    use excitation_types, only: get_excitation, Excitation_t, Excite_Further_t
     use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
@@ -502,7 +504,9 @@ contains
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
-                    if (tHPHF) then
+                    if (is_zero(nI_tmp, nJ_tmp)) then
+                        hamiltonian_row(j) = 0._dp
+                    else if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ_tmp, IlutI_tmp, ilutJ_tmp)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
@@ -571,6 +575,27 @@ contains
         call LogMemDealloc(this_routine, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(this_routine, HRTag, ierr)
+
+        contains
+
+            logical function is_zero(nI, nJ)
+                integer, intent(in) :: nI(nEl), nJ(nEl)
+                HElement_t(dp) :: hel
+
+                class(Excitation_t), allocatable :: exc
+                logical :: tParity
+
+                is_zero = .false.
+                if (allocated(indexer)) then
+                    call get_excitation(nI, nJ, exc, tParity)
+                    select type(exc)
+                    type is (Excite_Further_t)
+                        is_zero = .true.
+                    class default
+                        is_zero = .not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))
+                    end select
+                end if
+            end function
 
     end subroutine calc_determ_hamil_sparse
 
