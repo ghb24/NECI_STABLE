@@ -663,7 +663,6 @@ contains
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
         integer :: npops_pert, npert_spectral_left, npert_spectral_right
         real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
-        integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
         logical :: t_force_global_core
         integer :: last_nField
         character(len=100) :: TempFieldFiles(5)
@@ -1128,14 +1127,25 @@ contains
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
-                    call EncodeBitDet(DefDet, def_ilut)
+                    ! This is super ugly, but set nIfTot to a very large value for now
+                    ! otherwise we cannot really use HPHF with large orbital numbers
+                    !
+                    ! nIfTot is used in this block but not yet initialized
+                    ! and we cannot properly initialize it yet, because `nBasis` is not yet
+                    ! initialized.
+                    nIfTot = 100
+                    block
+                        integer(n_int) :: def_ilut(0:nIfTot), def_ilut_sym(0:NiFtot)
+                        call EncodeBitDet(DefDet, def_ilut)
 
-                    def_ilut_sym = return_hphf_sym_det(def_ilut)
-                    if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
-                        call decode_bit_det(DefDet, def_ilut_sym)
-                        write(stdout, *) "definedet changed to HPHF symmetric:"
-                        call write_det(stdout, DefDet, .true.)
-                    end if
+                        def_ilut_sym = return_hphf_sym_det(def_ilut)
+                        if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
+                            call decode_bit_det(DefDet, def_ilut_sym)
+                            write(stdout, *) "definedet changed to HPHF symmetric:"
+                            call write_det(stdout, DefDet, .true.)
+                        end if
+                    end block
+                    nIfTot = 0
                 end if
 
                 if(tGUGA) then
