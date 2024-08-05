@@ -1,6 +1,6 @@
 #:include "../macros.fpph"
 #include "macros.h"
-module guga_gas_pchb_singles_main
+module guga_prop_vec_pchb_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.), &
         operator(.div.), operator(.isclose.), near_zero
     use SystemData, only: nEl, nSpatOrbs, nBasis

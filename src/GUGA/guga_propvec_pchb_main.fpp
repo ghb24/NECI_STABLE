@@ -23,9 +23,9 @@
 ! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
 ! Depending on the supergroup and PropVec constraints certain excitations can be forbidden by setting p to zero.
 !
-! The details of calculating i_sg can be found in PropVec/gasci_supergroup_index.fpp
+! The details of calculating i_sg can be found in GAS/gasci_supergroup_index.fpp
 
-module guga_gas_pchb_main
+module guga_prop_vec_pchb_main
     !! Precomputed Heat Bath Implementation for PropVecCI. This modules implements
     !! the excitation generator PropVecCI PCHB either resolve in spin- or spatial-
     !! orbitals.
@@ -39,11 +39,11 @@ module guga_gas_pchb_main
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
     use guga_base_class, only: AbInitGUGABase_t
 
-    use guga_gas_pchb_singles_main, only: &
+    use guga_prop_vec_pchb_singles_main, only: &
         PropVec_PCHB_SinglesOptions_t, PropVec_PCHB_SinglesOptions_vals_t, &
         singles_allocate_and_init => allocate_and_init
 
-    use guga_gas_pchb_doubles_main, only: &
+    use guga_prop_vec_pchb_doubles_main, only: &
         PCHB_DoublesOptions_t, PCHB_DoublesOptions_vals_t, &
         doubles_allocate_and_init => allocate_and_init
 

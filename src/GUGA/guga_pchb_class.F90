@@ -9,7 +9,7 @@ module guga_pchb_class
     use guga_base_class, only: GUGABase_t
     use gasci_supergroup_index, only: get_CAS_indexer
     use input_parser_mod, only: TokenIterator_t
-    use guga_gas_pchb_main, only: &
+    use guga_prop_vec_pchb_main, only: &
         PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, &
         PropVec_PCHB_options_vals_t, PropVec_options_from_tokens => from_tokens
 

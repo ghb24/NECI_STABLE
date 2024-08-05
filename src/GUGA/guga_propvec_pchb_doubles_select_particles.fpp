@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module guga_gas_pchb_doubles_select_particles
+module guga_prop_vec_pchb_doubles_select_particles
     use constants, only: dp, n_int, stdout
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
@@ -179,7 +179,7 @@ contains
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
 
-        routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
+        routine_name("allocate_and_init")
         if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%FULL_FULL) then

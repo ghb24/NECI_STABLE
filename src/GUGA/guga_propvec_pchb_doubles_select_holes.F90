@@ -1,5 +1,5 @@
 #include "macros.h"
-module guga_gas_pchb_doubles_select_holes
+module guga_prop_vec_pchb_doubles_select_holes
 
     use iso_c_binding, only: c_sizeof
     use aliasSampling, only: AliasSampler_2D_t, AliasSampler_3D_t, do_direct_calculation
@@ -32,7 +32,7 @@ module guga_gas_pchb_doubles_select_holes
 
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
 
-    use guga_gas_pchb_doubles_select_particles, only: ParticleSelector_t, &
+    use guga_prop_vec_pchb_doubles_select_particles, only: ParticleSelector_t, &
         PCHB_ParticleSelection_t, particle_allocate_and_init => allocate_and_init
 
 
