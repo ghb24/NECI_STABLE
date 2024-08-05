@@ -1613,7 +1613,9 @@ contains
 
                     ! Add this site to the main list
                     CurrWalkers = CurrWalkers + 1
-                    dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                    associate(L => lbound(SpawnedParts2, 1))
+                        dets(:, CurrWalkers) = SpawnedParts2(L : L + size(dets, 1) - 1, j)
+                    end associate
                     call add_pops_norm_contrib(dets(:, CurrWalkers))
                     call extract_sign(SpawnedParts2(:, j), sgn)
                     norm = norm + sgn**2
