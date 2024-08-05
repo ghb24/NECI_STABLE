@@ -170,7 +170,7 @@ contains
             subroutine create_input_GUGA_GAS(unit_id)
                 integer, intent(in) :: unit_id
                 call create_input(unit_id, &
-                    exc_generator = 'guga-gas-pchb &
+                    exc_generator = 'guga-gas-pchb manual &
                         & drawing full:full full-full:fast-fast &
                         & weighting abs-integral initial-dobrautz' , &
                     flag_GUGA = .true., flag_GAS=.true.)
