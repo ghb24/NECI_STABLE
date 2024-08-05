@@ -191,7 +191,6 @@ contains
     end function
 
     pure function to_str(options) result(res)
-        !! Parse a given keyword into the possible drawing schemes.
         class(PC_singles_drawing_t), intent(in) :: options
         character(9) :: res
         routine_name("from_keyword")

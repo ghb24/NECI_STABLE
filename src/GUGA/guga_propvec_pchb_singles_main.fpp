@@ -31,6 +31,8 @@ module guga_prop_vec_pchb_singles_main
 
     type, extends(EnumBase_t) :: PropVec_PCHB_SinglesAlgorithm_t
         character(9) :: str
+    contains
+        procedure :: to_str => to_str_algorithm
     end type
 
     real(dp) :: scale_down_exch_singles = 1._dp
@@ -50,6 +52,7 @@ module guga_prop_vec_pchb_singles_main
         type(PropVec_PCHB_SinglesWeighting_t) :: weighting
     contains
         procedure :: is_valid
+        procedure :: to_str => to_str_singles
     end type
 
     type :: PropVec_PCHB_SinglesOptions_vals_t
@@ -977,7 +980,29 @@ contains
         end block select_hole
         pgen = p_src * p_tgt
         end associate
+    end function
 
+    pure function to_str_algorithm(algorithm) result(res)
+        class(PropVec_PCHB_SinglesAlgorithm_t), intent(in) :: algorithm
+        character(9) :: res
+        routine_name("to_str_algorithm")
+        if (algorithm == option_vals%algorithm%UNIF_UNIF) then
+            res = option_vals%algorithm%UNIF_UNIF%str
+        else if (algorithm == option_vals%algorithm%UNIF_FULL) then
+            res = option_vals%algorithm%UNIF_FULL%str
+        else if (algorithm == option_vals%algorithm%FULL_FULL) then
+            res = option_vals%algorithm%FULL_FULL%str
+        else if (algorithm == option_vals%algorithm%UNIF_XNEW) then
+            res = option_vals%algorithm%UNIF_XNEW%str
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
+    end function
+
+    pure function to_str_singles(singles_options) result(res)
+        class(PropVec_PCHB_SinglesOptions_t), intent(in) :: singles_options
+        character(:), allocatable :: res
+        res = singles_options%algorithm%to_str() // ' ' // singles_options%weighting%to_str()
     end function
 
 end module

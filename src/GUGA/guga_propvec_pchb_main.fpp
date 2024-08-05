@@ -33,7 +33,7 @@ module guga_prop_vec_pchb_main
     use constants, only: stdout, stderr
     use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
     use SystemData, only: nBasis
-    use fortran_strings, only: split, to_upper
+    use fortran_strings, only: split, to_upper, join, Token_t
     use input_parser_mod, only: TokenIterator_t
 
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
@@ -66,6 +66,7 @@ module guga_prop_vec_pchb_main
         logical :: use_lookup
     contains
         procedure :: assert_validity
+        procedure :: to_str
     end type
 
     type :: PropVec_PCHB_options_vals_t
@@ -112,6 +113,7 @@ contains
         type(PropVec_PCHB_options_t), intent(in) :: options
         call options%assert_validity()
 
+        write(stdout, '(A)') 'GUGA PropVec PCHB with ' // options%to_str() // ' is used'
         call singles_allocate_and_init(indexer, options%singles, options%use_lookup, .false., this%singles_generator)
         call doubles_allocate_and_init(indexer, options%doubles, options%use_lookup, options%use_lookup, this%doubles_generator)
     end subroutine
@@ -228,6 +230,12 @@ contains
             call stop_all(this_routine, "Should not be here.")
         end if
         end associate
+    end function
+
+    function to_str(options) result(res)
+        class(PropVec_PCHB_options_t), intent(in) :: options
+        character(:), allocatable :: res
+        res = join([Token_t(options%singles%to_str()), Token_t(options%doubles%to_str())], ' ')
     end function
 
 end module

@@ -25,6 +25,8 @@ module guga_pchb_singles_weights_mod
 
     type, extends(EnumBase_t) :: PropVec_PCHB_SinglesWeighting_t
         character(20) :: str
+    contains
+        procedure :: to_str
     end type
 
 
@@ -120,6 +122,21 @@ contains
             two_el_term = two_el_term + abs(2 * g(i, a, r, r) - g(i, r, r, a))
         end do
         weight = abs(h(i, a)) + two_el_term
+    end function
+
+    pure function to_str(weighting) result(res)
+        class(PropVec_PCHB_SinglesWeighting_t), intent(in) :: weighting
+        character(:), allocatable :: res
+        routine_name("to_str")
+        if (weighting == weighting_vals%UNIFORM) then
+            res = weighting_vals%UNIFORM%str
+        else if (weighting == weighting_vals%ABS_INTEGRAL) then
+            res = weighting_vals%ABS_INTEGRAL%str
+        else if (weighting == weighting_vals%RHF_EXPR) then
+            res = weighting_vals%RHF_EXPR%str
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
     end function
 
 end module
