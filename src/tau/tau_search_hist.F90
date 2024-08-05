@@ -1974,7 +1974,7 @@ contains
             res = user_input_histogramming_spec
         else if (tGUGA .and. allocated(GUGA_selected_exc_generator)) then
             if (GUGA_selected_exc_generator == GUGA_exc_generator_vals%FCI_PCHB &
-                    .or. GUGA_selected_exc_generator == GUGA_exc_generator_vals%GAS_PCHB) then
+                    .or. GUGA_selected_exc_generator == GUGA_exc_generator_vals%PropVec_PCHB) then
                 res = HistogrammingSpec_t(1.e5_dp, 10**5, 0.999999_dp)
             end if
         else

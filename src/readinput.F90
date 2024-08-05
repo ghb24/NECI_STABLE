@@ -651,7 +651,7 @@ contains
         end if
 
         if (tGUGA_GAS()) then
-            if (GUGA_selected_exc_generator /= GUGA_exc_generator_vals%GAS_PCHB) then
+            if (GUGA_selected_exc_generator /= GUGA_exc_generator_vals%PropVec_PCHB) then
                 call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
             end if
         end if
