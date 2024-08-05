@@ -39,9 +39,9 @@ module guga_gas_pchb_doubles_select_holes
     better_implicit_none
 
     private
-    public :: GAS_PCHB_FastFast_t, PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
+    public :: PropVec_PCHB_FastFast_t, PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
         WeightingChoice_t, WeightingChoice_vals_t, &
-        GAS_PCHB_FullFull_t
+        PropVec_PCHB_FullFull_t
 
     type, extends(EnumBase_t) :: PCHB_HoleAlgorithm_t
         private
@@ -60,7 +60,7 @@ module guga_gas_pchb_doubles_select_holes
 
     type(PCHB_HoleAlgorithm_vals_t), parameter :: algorithm_vals = PCHB_HoleAlgorithm_vals_t()
 
-    type, extends(DoublesGUGABase_t), abstract :: GAS_PCHB_Doubles_t
+    type, extends(DoublesGUGABase_t), abstract :: PropVec_PCHB_Doubles_t
         private
 
         !> Use a lookup for the prop_vec index in global_det_data
@@ -78,7 +78,7 @@ module guga_gas_pchb_doubles_select_holes
 
     contains
         private
-        procedure, public :: init => init_GAS_PCHB_Doubles_t
+        procedure, public :: init => init_PropVec_PCHB_Doubles_t
         procedure, public :: finalize => finalize_GugaAliasSampler_t
 
         procedure, public :: gen_all_distinct
@@ -102,23 +102,23 @@ module guga_gas_pchb_doubles_select_holes
 
     abstract interface
         subroutine calculate_pchb_sampler_t(this, rank_with_info, ij_weights)
-            import :: GAS_PCHB_Doubles_t, dp
+            import :: PropVec_PCHB_Doubles_t, dp
             implicit none
-            class(GAS_PCHB_Doubles_t), intent(inout) :: this
+            class(PropVec_PCHB_Doubles_t), intent(inout) :: this
             integer, intent(in) :: rank_with_info
             real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
         end subroutine
 
         subroutine additional_finalize_t(this)
-            import :: GAS_PCHB_Doubles_t
+            import :: PropVec_PCHB_Doubles_t
             implicit none
-            class(GAS_PCHB_Doubles_t), intent(inout) :: this
+            class(PropVec_PCHB_Doubles_t), intent(inout) :: this
         end subroutine
 
         function calc_hole_pgen_t(this, nI, ilutI, csf_i, ij, i_sg, a, b) result(pgen)
-            import :: GAS_PCHB_Doubles_t, dp, CSF_Info_t, nEl, n_int, GugaBits
+            import :: PropVec_PCHB_Doubles_t, dp, CSF_Info_t, nEl, n_int, GugaBits
             implicit none
-            class(GAS_PCHB_Doubles_t), intent(in) :: this
+            class(PropVec_PCHB_Doubles_t), intent(in) :: this
             integer, intent(in) :: nI(nEl)
             integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
@@ -127,13 +127,13 @@ module guga_gas_pchb_doubles_select_holes
         end function
 
         type(ByteSize_t) elemental function GetMemoryDemand_t(this)
-            import :: GAS_PCHB_Doubles_t, ByteSize_t
+            import :: PropVec_PCHB_Doubles_t, ByteSize_t
             implicit none
-            class(GAS_PCHB_Doubles_t), intent(in) :: this
+            class(PropVec_PCHB_Doubles_t), intent(in) :: this
         end function
     end interface
 
-    type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FastFast_t
+    type, extends(PropVec_PCHB_Doubles_t) :: PropVec_PCHB_FastFast_t
         private
         !> The shape is (fused_number_of_double_excitations, n_prop_vec)
         type(AliasSampler_2D_t) :: alias_sampler
@@ -147,7 +147,7 @@ module guga_gas_pchb_doubles_select_holes
         procedure, public :: get_memory_demand => get_memory_demand_FastFast
     end type
 
-    type, extends(GAS_PCHB_Doubles_t) :: GAS_PCHB_FullFull_t
+    type, extends(PropVec_PCHB_Doubles_t) :: PropVec_PCHB_FullFull_t
         private
 
         !> The shape is (fused_number_of_double_excitations, n_prop_vec) -> orbitals
@@ -168,7 +168,7 @@ module guga_gas_pchb_doubles_select_holes
 contains
 
     subroutine new_info_table(this, nEntries, entrySize)
-        class(GAS_PCHB_Doubles_t) :: this
+        class(PropVec_PCHB_Doubles_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
@@ -187,7 +187,7 @@ contains
 
     function get_info_entry(this, iEntry, tgt) result(info)
         debug_function_name("get_info_entry")
-        class(GAS_PCHB_Doubles_t) :: this
+        class(PropVec_PCHB_Doubles_t) :: this
         integer, intent(in) :: iEntry, tgt
         integer(int64) :: info
 
@@ -196,7 +196,7 @@ contains
     end function
 
     subroutine set_info_entry(this, ij, ab, info)
-        class(GAS_PCHB_Doubles_t) :: this
+        class(PropVec_PCHB_Doubles_t) :: this
         integer, intent(in) :: ij, ab
         integer(int64), intent(in) :: info
 
@@ -206,13 +206,13 @@ contains
         call this%all_info_table%sync()
     end subroutine
 
-    subroutine init_GAS_PCHB_Doubles_t(this, indexer, particle_selection, weighting_selection, use_lookup, create_lookup)
-        class(GAS_PCHB_Doubles_t), intent(inout) :: this
+    subroutine init_PropVec_PCHB_Doubles_t(this, indexer, particle_selection, weighting_selection, use_lookup, create_lookup)
+        class(PropVec_PCHB_Doubles_t), intent(inout) :: this
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         type(PCHB_ParticleSelection_t), intent(in) :: particle_selection
         type(WeightingChoice_t), intent(in) :: weighting_selection
         logical, intent(in) :: use_lookup, create_lookup
-        character(*), parameter :: this_routine = "init_GAS_PCHB_Doubles_t"
+        character(*), parameter :: this_routine = "init_PropVec_PCHB_Doubles_t"
 
         real(dp), allocatable :: ij_weights(:, :, :)
 
@@ -225,11 +225,11 @@ contains
             if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'GUGA GAS PCHB doubles is creating and managing the prop_vec lookup'
+                write(stdout, *) 'GUGA PropVec PCHB doubles is creating and managing the prop_vec lookup'
                 allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
-        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the prop_vec lookup'
+        if (this%use_lookup) write(stdout, *) 'PropVec PCHB doubles is using the prop_vec lookup'
 
         call set_doubles_weight_pointer(weighting_selection, this%get_weight)
 
@@ -240,7 +240,7 @@ contains
     end subroutine
 
     subroutine finalize_GugaAliasSampler_t(this)
-        class(GAS_PCHB_Doubles_t), intent(inout) :: this
+        class(PropVec_PCHB_Doubles_t), intent(inout) :: this
         if (allocated(this%info_tables)) then
             ! Yes, we assume, that either all or none are allocated
             call this%all_info_table%shared_dealloc()
@@ -254,7 +254,7 @@ contains
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
     subroutine calc_orbital_pgen_contr_Base(this, nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
-        class(GAS_PCHB_Doubles_t), intent(in) :: this
+        class(PropVec_PCHB_Doubles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -281,7 +281,7 @@ contains
 
 
     subroutine calc_orbital_pgen_contr_start_Base(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
-        class(GAS_PCHB_Doubles_t), intent(in) :: this
+        class(PropVec_PCHB_Doubles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -310,7 +310,7 @@ contains
     end subroutine
 
     subroutine calc_orbital_pgen_contr_end_Base(this, nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
-        class(GAS_PCHB_Doubles_t), intent(in) :: this
+        class(PropVec_PCHB_Doubles_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -392,7 +392,7 @@ contains
 
 
     subroutine setup_pchb_sampler_conditional_FastFast(this, rank_with_info, ij_weights)
-        class(GAS_PCHB_FastFast_t), intent(inout) :: this
+        class(PropVec_PCHB_FastFast_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
         real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
         integer :: i, j, ij, a, b, ab, i_sg
@@ -489,7 +489,7 @@ contains
     end subroutine setup_pchb_sampler_conditional_FastFast
 
     elemental function get_memory_demand_FastFast(this) result(res)
-        class(GAS_PCHB_FastFast_t), intent(in) :: this
+        class(PropVec_PCHB_FastFast_t), intent(in) :: this
         type(ByteSize_t) :: res
         res = this%alias_sampler%get_memory_demand() &
               + ByteSize_t(size(this%tgtOrbs) * int(c_sizeof(this%tgtOrbs(1, 1)), int64)) &
@@ -497,7 +497,7 @@ contains
     end function
 
     subroutine finalize_pchb_sampler_FastFast(this)
-        class(GAS_PCHB_FastFast_t), intent(inout) :: this
+        class(PropVec_PCHB_FastFast_t), intent(inout) :: this
         if (allocated(this%tgtOrbs)) then
             deallocate(this%tgtOrbs)
             call this%alias_sampler%finalize()
@@ -505,7 +505,7 @@ contains
     end subroutine
 
     subroutine pickOrbitals_FastFast(this, nI, ilut, csf_i, excitInfo, pgen)
-        class(GAS_PCHB_FastFast_t), intent(in) :: this
+        class(PropVec_PCHB_FastFast_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -537,7 +537,7 @@ contains
         ! get a pair of orbitals using the precomputed weights
         call this%alias_sampler%sample(ij, i_sg, ab, pgen_orbs)
 
-        ! can happen for GAS and is ok
+        ! can happen for PropVec and is ok
         if (ab == 0) then
             excitInfo%valid = .false.
             pgen = 0.0_dp
@@ -579,7 +579,7 @@ contains
 
 
     function calc_hole_pgen_FastFast(this, nI, ilutI, csf_i, ij, i_sg, a, b) result(pgen)
-        class(GAS_PCHB_FastFast_t), intent(in) :: this
+        class(PropVec_PCHB_FastFast_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -591,7 +591,7 @@ contains
 
 
     subroutine setup_pchb_sampler_conditional_FullFull(this, rank_with_info, ij_weights)
-        class(GAS_PCHB_FullFull_t), intent(inout) :: this
+        class(PropVec_PCHB_FullFull_t), intent(inout) :: this
         integer, intent(in) :: rank_with_info
         real(dp), allocatable, intent(out) :: ij_weights(:, :, :)
         integer :: i, j, ij, a, b, ab, i_sg
@@ -686,7 +686,7 @@ contains
     end subroutine setup_pchb_sampler_conditional_FullFull
 
     elemental function get_memory_demand_FullFull(this) result(res)
-        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        class(PropVec_PCHB_FullFull_t), intent(in) :: this
         type(ByteSize_t) :: res
         res = this%A_sampler%get_memory_demand() &
                 + this%B_sampler%get_memory_demand() &
@@ -694,13 +694,13 @@ contains
     end function
 
     subroutine finalize_pchb_sampler_FullFull(this)
-        class(GAS_PCHB_FullFull_t), intent(inout) :: this
+        class(PropVec_PCHB_FullFull_t), intent(inout) :: this
         call this%A_sampler%finalize()
         call this%B_sampler%finalize()
     end subroutine
 
     subroutine pickOrbitals_FullFull(this, nI, ilut, csf_i, excitInfo, pgen)
-        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        class(PropVec_PCHB_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -805,7 +805,7 @@ contains
     end subroutine pickOrbitals_FullFull
 
     function calc_hole_pgen_FullFull(this, nI, ilutI, csf_i, ij, i_sg, a, b) result(pgen)
-        class(GAS_PCHB_FullFull_t), intent(in) :: this
+        class(PropVec_PCHB_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -871,7 +871,7 @@ contains
 
 
     function calc_pgen_Base(this, nI, ilutI, csf_i, excitInfo) result(pgen)
-        class(GAS_PCHB_Doubles_t), intent(in) :: this
+        class(PropVec_PCHB_Doubles_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -893,15 +893,15 @@ contains
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.
-        class(GAS_PCHB_Doubles_t), intent(in) :: this
+        class(PropVec_PCHB_Doubles_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         logical, intent(in), optional :: sort_fused_key
             !! The fused index of the excitations should be sorted.
         type(DistinctDouble_t), allocatable :: res(:)
-        res = gen_all_distinct_GAS(this%indexer, csf_i, sort_fused_key)
+        res = gen_all_distinct_PropVec(this%indexer, csf_i, sort_fused_key)
     end function
 
-    pure function gen_all_distinct_GAS(indexer, csf_i, sort_fused_key) result(res)
+    pure function gen_all_distinct_PropVec(indexer, csf_i, sort_fused_key) result(res)
         !! This function returns all possible excitations for the orbital picker
         !!
         !! This means it considers only occupation, not spin recoupling.

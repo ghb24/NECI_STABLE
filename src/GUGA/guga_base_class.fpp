@@ -30,7 +30,7 @@ module guga_base_class
     type :: GUGA_ExcGenerator_vals_t
         type(GUGA_ExcGenerator_t) :: &
             FCI_PCHB = GUGA_ExcGenerator_t(1), &
-            GAS_PCHB = GUGA_ExcGenerator_t(2)
+            PropVec_PCHB = GUGA_ExcGenerator_t(2)
     end type
 
     type(GUGA_ExcGenerator_t), allocatable :: GUGA_selected_exc_generator

@@ -16,18 +16,18 @@
 ! This gives #{i, j | i < j} * 3 probability distributions.
 ! NOTE: This is only relevant for RHF-type calculations
 !
-! The generalization to GAS spaces is published in
+! The generalization to PropVec spaces is published in
 !    https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00936
 ! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
 ! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
 ! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
-! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
+! Depending on the supergroup and PropVec constraints certain excitations can be forbidden by setting p to zero.
 !
-! The details of calculating i_sg can be found in GAS/gasci_supergroup_index.fpp
+! The details of calculating i_sg can be found in PropVec/gasci_supergroup_index.fpp
 
 module guga_gas_pchb_main
-    !! Precomputed Heat Bath Implementation for GASCI. This modules implements
-    !! the excitation generator GASCI PCHB either resolve in spin- or spatial-
+    !! Precomputed Heat Bath Implementation for PropVecCI. This modules implements
+    !! the excitation generator PropVecCI PCHB either resolve in spin- or spatial-
     !! orbitals.
 
     use constants, only: stdout
@@ -40,7 +40,7 @@ module guga_gas_pchb_main
     use guga_base_class, only: AbInitGUGABase_t
 
     use guga_gas_pchb_singles_main, only: &
-        GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, &
+        PropVec_PCHB_SinglesOptions_t, PropVec_PCHB_SinglesOptions_vals_t, &
         singles_allocate_and_init => allocate_and_init
 
     use guga_gas_pchb_doubles_main, only: &
@@ -49,42 +49,42 @@ module guga_gas_pchb_main
 
     better_implicit_none
     private
-    public :: GAS_PCHB_ExcGenerator_t, GAS_PCHB_options_t, options_vals, &
-        GAS_PCHB_options_vals_t, from_tokens, options
+    public :: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, options_vals, &
+        PropVec_PCHB_options_vals_t, from_tokens, options
 
-    type, extends(AbInitGUGABase_t) :: GAS_PCHB_ExcGenerator_t
+    type, extends(AbInitGUGABase_t) :: PropVec_PCHB_ExcGenerator_t
     contains
         procedure :: init
         procedure :: finalize
     end type
 
-    type :: GAS_PCHB_options_t
-        type(GAS_PCHB_SinglesOptions_t) :: singles
+    type :: PropVec_PCHB_options_t
+        type(PropVec_PCHB_SinglesOptions_t) :: singles
         type(PCHB_DoublesOptions_t) :: doubles
         logical :: use_lookup
     contains
         procedure :: assert_validity
     end type
 
-    type :: GAS_PCHB_options_vals_t
-        type(GAS_PCHB_SinglesOptions_vals_t) :: &
-            singles = GAS_PCHB_SinglesOptions_vals_t()
+    type :: PropVec_PCHB_options_vals_t
+        type(PropVec_PCHB_SinglesOptions_vals_t) :: &
+            singles = PropVec_PCHB_SinglesOptions_vals_t()
         type(PCHB_DoublesOptions_vals_t) :: &
             doubles = PCHB_DoublesOptions_vals_t()
     end type
 
-    type(GAS_PCHB_options_vals_t), parameter :: options_vals = GAS_PCHB_options_vals_t()
-    type(GAS_PCHB_options_t) :: options
+    type(PropVec_PCHB_options_vals_t), parameter :: options_vals = PropVec_PCHB_options_vals_t()
+    type(PropVec_PCHB_options_t) :: options
 
 contains
 
     subroutine init(this, indexer, options)
         !! Initialize the PCHB excitation generator.
         !!
-        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_ExcGenerator_t), intent(inout) :: this
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
-            !!  The GAS specifications for the excitation generator.
-        type(GAS_PCHB_options_t), intent(in) :: options
+            !!  The PropVec specifications for the excitation generator.
+        type(PropVec_PCHB_options_t), intent(in) :: options
         call options%assert_validity()
 
         call singles_allocate_and_init(indexer, options%singles, options%use_lookup, .false., this%singles_generator)
@@ -92,7 +92,7 @@ contains
     end subroutine
 
     subroutine finalize(this)
-        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        class(PropVec_PCHB_ExcGenerator_t), intent(inout) :: this
 
         if (allocated(this%singles_generator)) then
             ! Yes I assume that either all or none are allocated
@@ -103,7 +103,7 @@ contains
     end subroutine
 
     subroutine assert_validity(this)
-        class(GAS_PCHB_options_t), intent(in) :: this
+        class(PropVec_PCHB_options_t), intent(in) :: this
         routine_name("assert_validity")
         if (.not. this%singles%is_valid()) then
             call stop_all(this_routine, 'singles options are not valid')
@@ -116,7 +116,7 @@ contains
     function from_tokens(tokens, use_lookup) result(res)
         type(TokenIterator_t), intent(inout) :: tokens
         logical, intent(in) :: use_lookup
-        type(GAS_PCHB_options_t) :: res
+        type(PropVec_PCHB_options_t) :: res
         routine_name("from_tokens")
 
         if (to_upper(tokens%next()) /= "DRAWING") then
@@ -134,7 +134,7 @@ contains
         res%doubles%weighting = options_vals%doubles%weighting%from_str(tokens%next())
 
         ! To make sure we did not forget a component
-        res = GAS_PCHB_options_t(res%singles, res%doubles, use_lookup)
+        res = PropVec_PCHB_options_t(res%singles, res%doubles, use_lookup)
     end function
 
 end module

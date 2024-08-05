@@ -18,53 +18,53 @@ module guga_gas_pchb_singles_main
     use guga_base_class, only: SinglesGUGABase_t
     use guga_bitrepops, only: CSF_Info_t
     use guga_data, only: ExcitationInformation_t, gen_type
-    use guga_pchb_singles_weights_mod, only: get_weight_t, GAS_PCHB_SinglesWeighting_t, &
-        GAS_PCHB_SinglesWeighting_vals_t, set_get_weight_pointer
+    use guga_pchb_singles_weights_mod, only: get_weight_t, PropVec_PCHB_SinglesWeighting_t, &
+        PropVec_PCHB_SinglesWeighting_vals_t, set_get_weight_pointer
     use guga_excitations, only: assign_excitinfo_values_single, &
         checkcompatibility_single
     better_implicit_none
 
 
     private
-    public :: allocate_and_init, GAS_PCHB_SinglesOptions_t, GAS_PCHB_SinglesOptions_vals_t, &
+    public :: allocate_and_init, PropVec_PCHB_SinglesOptions_t, PropVec_PCHB_SinglesOptions_vals_t, &
         scale_down_exch_singles
 
-    type, extends(EnumBase_t) :: GAS_PCHB_SinglesAlgorithm_t
+    type, extends(EnumBase_t) :: PropVec_PCHB_SinglesAlgorithm_t
         character(9) :: str
     end type
 
     real(dp) :: scale_down_exch_singles = 1._dp
 
-    type :: GAS_PCHB_SinglesAlgorithm_vals_t
-        type(GAS_PCHB_SinglesAlgorithm_t) :: &
-            UNIF_UNIF = GAS_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF'), &
-            FULL_FULL = GAS_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL'), &
-            UNIF_FULL = GAS_PCHB_SinglesAlgorithm_t(3, 'UNIF:FULL'), &
-            UNIF_XNEW = GAS_PCHB_SinglesAlgorithm_t(4, 'UNIF:XNEW')
+    type :: PropVec_PCHB_SinglesAlgorithm_vals_t
+        type(PropVec_PCHB_SinglesAlgorithm_t) :: &
+            UNIF_UNIF = PropVec_PCHB_SinglesAlgorithm_t(1, 'UNIF:UNIF'), &
+            FULL_FULL = PropVec_PCHB_SinglesAlgorithm_t(2, 'FULL:FULL'), &
+            UNIF_FULL = PropVec_PCHB_SinglesAlgorithm_t(3, 'UNIF:FULL'), &
+            UNIF_XNEW = PropVec_PCHB_SinglesAlgorithm_t(4, 'UNIF:XNEW')
     contains
         procedure, nopass :: from_str => alg_from_str
     end type
 
-    type :: GAS_PCHB_SinglesOptions_t
-        type(GAS_PCHB_SinglesAlgorithm_t) :: algorithm
-        type(GAS_PCHB_SinglesWeighting_t) :: weighting
+    type :: PropVec_PCHB_SinglesOptions_t
+        type(PropVec_PCHB_SinglesAlgorithm_t) :: algorithm
+        type(PropVec_PCHB_SinglesWeighting_t) :: weighting
     contains
         procedure :: is_valid
     end type
 
-    type :: GAS_PCHB_SinglesOptions_vals_t
-        type(GAS_PCHB_SinglesAlgorithm_vals_t) :: &
-            algorithm = GAS_PCHB_SinglesAlgorithm_vals_t()
-        type(GAS_PCHB_SinglesWeighting_vals_t) :: &
-            weighting = GAS_PCHB_SinglesWeighting_vals_t()
+    type :: PropVec_PCHB_SinglesOptions_vals_t
+        type(PropVec_PCHB_SinglesAlgorithm_vals_t) :: &
+            algorithm = PropVec_PCHB_SinglesAlgorithm_vals_t()
+        type(PropVec_PCHB_SinglesWeighting_vals_t) :: &
+            weighting = PropVec_PCHB_SinglesWeighting_vals_t()
     end type
 
-    type(GAS_PCHB_SinglesOptions_vals_t), parameter :: &
-        option_vals = GAS_PCHB_SinglesOptions_vals_t()
+    type(PropVec_PCHB_SinglesOptions_vals_t), parameter :: &
+        option_vals = PropVec_PCHB_SinglesOptions_vals_t()
 
 
-    !> The precomputed GAS uniform excitation generator
-    type, extends(SinglesGUGABase_t) :: GAS_UniformExcGenerator_t
+    !> The precomputed PropVec uniform excitation generator
+    type, extends(SinglesGUGABase_t) :: PropVec_UniformExcGenerator_t
         private
         class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
@@ -79,8 +79,8 @@ module guga_gas_pchb_singles_main
             !! store information about spatial orbitals as bitmask
     contains
         private
-        procedure, public :: init => init_GAS_UniformExcGenerator_t
-        procedure, public :: finalize => GAS_singles_uniform_finalize
+        procedure, public :: init => init_PropVec_UniformExcGenerator_t
+        procedure, public :: finalize => PropVec_singles_uniform_finalize
 
         procedure :: get_valid_orbs
 
@@ -88,8 +88,8 @@ module guga_gas_pchb_singles_main
         procedure, public :: pickOrbitals => pickOrbitals_single
     end type
 
-    !> The precomputed GAS uniform excitation generator
-    type, extends(SinglesGUGABase_t), abstract :: GAS_Weighted_t
+    !> The precomputed PropVec uniform excitation generator
+    type, extends(SinglesGUGABase_t), abstract :: PropVec_Weighted_t
         private
         class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
         logical, public :: use_lookup = .false.
@@ -121,23 +121,23 @@ module guga_gas_pchb_singles_main
 
     contains
         private
-        procedure, public :: init => init_GAS_Weighted_t
-        procedure, public :: finalize => finalize_GAS_Weighted_t
+        procedure, public :: init => init_PropVec_Weighted_t
+        procedure, public :: finalize => finalize_PropVec_Weighted_t
     end type
 
-    type, extends(GAS_Weighted_t) :: SinglesGAS_FullFull_t
+    type, extends(PropVec_Weighted_t) :: SinglesPropVec_FullFull_t
     contains
         procedure, public :: calc_pgen => calc_pgen_FullFull
         procedure, public :: pickOrbitals => pickOrbitals_FullFull
     end type
 
-    type, extends(GAS_Weighted_t) :: SinglesGAS_UnifFull_t
+    type, extends(PropVec_Weighted_t) :: SinglesPropVec_UnifFull_t
     contains
         procedure, public :: calc_pgen => calc_pgen_UnifFull
         procedure, public :: pickOrbitals => pickOrbitals_UnifFull
     end type
 
-    !> The precomputed GAS uniform excitation generator
+    !> The precomputed PropVec uniform excitation generator
     type, extends(SinglesGUGABase_t) :: UnifXnew_t
         private
         class(AlsoGUGA_PropertyIndexer_t), allocatable :: indexer
@@ -163,7 +163,7 @@ module guga_gas_pchb_singles_main
 contains
 
     elemental logical function is_valid(this)
-        class(GAS_PCHB_SinglesOptions_t), intent(in) :: this
+        class(PropVec_PCHB_SinglesOptions_t), intent(in) :: this
         is_valid = (this%algorithm == option_vals%algorithm%UNIF_UNIF &
                             .implies. this%weighting == option_vals%weighting%UNIFORM)
     end function
@@ -171,7 +171,7 @@ contains
 
     subroutine allocate_and_init(indexer, options, use_lookup, create_lookup, generator)
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
-        type(GAS_PCHB_SinglesOptions_t), intent(in) :: options
+        type(PropVec_PCHB_SinglesOptions_t), intent(in) :: options
         logical, intent(in) :: use_lookup, create_lookup
         class(SinglesGUGABase_t), allocatable, intent(inout) :: generator
         routine_name("allocate_and_init")
@@ -184,21 +184,21 @@ contains
         end if
 
         if (options%algorithm == option_vals%algorithm%UNIF_UNIF) then
-            allocate(GAS_UniformExcGenerator_t :: generator)
+            allocate(PropVec_UniformExcGenerator_t :: generator)
             select type(generator)
-            type is(GAS_UniformExcGenerator_t)
+            type is(PropVec_UniformExcGenerator_t)
                 call generator%init(indexer, use_lookup, create_lookup)
             end select
         else if (options%algorithm == option_vals%algorithm%FULL_FULL) then
-            allocate(SinglesGAS_FullFull_t :: generator)
+            allocate(SinglesPropVec_FullFull_t :: generator)
             select type(generator)
-            type is(SinglesGAS_FullFull_t)
+            type is(SinglesPropVec_FullFull_t)
                 call generator%init(options%weighting, indexer, use_lookup, create_lookup)
             end select
         else if (options%algorithm == option_vals%algorithm%UNIF_FULL) then
-            allocate(SinglesGAS_UnifFull_t :: generator)
+            allocate(SinglesPropVec_UnifFull_t :: generator)
             select type(generator)
-            type is(SinglesGAS_UnifFull_t)
+            type is(SinglesPropVec_UnifFull_t)
                 call generator%init(options%weighting, indexer, use_lookup, create_lookup)
             end select
         else if (options%algorithm == option_vals%algorithm%UNIF_XNEW) then
@@ -214,12 +214,12 @@ contains
 
 
 
-    subroutine init_GAS_UniformExcGenerator_t(this, indexer, use_lookup, create_lookup)
-        class(GAS_UniformExcGenerator_t), intent(inout) :: this
+    subroutine init_PropVec_UniformExcGenerator_t(this, indexer, use_lookup, create_lookup)
+        class(PropVec_UniformExcGenerator_t), intent(inout) :: this
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: prop_vecs(:, :)
-        routine_name('init_GAS_UniformExcGenerator_t')
+        routine_name('init_PropVec_UniformExcGenerator_t')
 
 
         integer :: i_sg, src, tgt
@@ -230,12 +230,12 @@ contains
             if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'GAS singles is creating and managing the prop_vec lookup'
+                write(stdout, *) 'PropVec singles is creating and managing the prop_vec lookup'
                 allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
-        if (use_lookup) write(stdout, *) 'GAS singles is using the prop_vec lookup'
+        if (use_lookup) write(stdout, *) 'PropVec singles is using the prop_vec lookup'
         ! possible prop_vecs
         prop_vecs = this%indexer%get_prop_vecs()
 
@@ -280,8 +280,8 @@ contains
         symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
     end function
 
-    subroutine GAS_singles_uniform_finalize(this)
-        class(GAS_UniformExcGenerator_t), intent(inout) :: this
+    subroutine PropVec_singles_uniform_finalize(this)
+        class(PropVec_UniformExcGenerator_t), intent(inout) :: this
         deallocate(this%allowed_holes, this%indexer)
         if (this%create_lookup) deallocate(lookup_property_indexer)
     end subroutine
@@ -289,7 +289,7 @@ contains
 
     subroutine pickOrbitals_single(this, nI, ilut, csf_i, excitInfo, pgen)
         debug_function_name("pickOrbitals_single")
-        class(GAS_UniformExcGenerator_t), intent(in) :: this
+        class(PropVec_UniformExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -334,7 +334,7 @@ contains
 
 
     function get_valid_orbs(this, csf_i, src_orb) result(valid_orbs)
-        class(GAS_UniformExcGenerator_t), intent(in) :: this
+        class(PropVec_UniformExcGenerator_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: src_orb
         integer, allocatable :: valid_orbs(:)
@@ -369,7 +369,7 @@ contains
 
     function calc_pgen_uniform_singles(this, nI, ilutI, csf_i, excitInfo) result(pgen)
         debug_function_name("calc_pgen_uniform_singles")
-        class(GAS_UniformExcGenerator_t), intent(in) :: this
+        class(PropVec_UniformExcGenerator_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -399,7 +399,7 @@ contains
 
     elemental function alg_from_str(str) result(res)
         character(*), intent(in) :: str
-        type(GAS_PCHB_SinglesAlgorithm_t) :: res
+        type(PropVec_PCHB_SinglesAlgorithm_t) :: res
         routine_name("alg_from_str")
 
         select case(to_upper(str))
@@ -416,13 +416,13 @@ contains
         end select
     end function
 
-    subroutine init_GAS_Weighted_t(this, weighting, indexer, use_lookup, create_lookup)
-        class(GAS_Weighted_t), intent(inout) :: this
-        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
+    subroutine init_PropVec_Weighted_t(this, weighting, indexer, use_lookup, create_lookup)
+        class(PropVec_Weighted_t), intent(inout) :: this
+        type(PropVec_PCHB_SinglesWeighting_t), intent(in) :: weighting
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: prop_vecs(:, :)
-        routine_name("init_GAS_Weighted_t")
+        routine_name("init_PropVec_Weighted_t")
 
         integer :: i_sg, src, tgt, nBi
         real(dp), allocatable :: I_weights(:), A_weights(:)
@@ -435,12 +435,12 @@ contains
             if (allocated(lookup_property_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the prop_vec lookup.')
             else
-                write(stdout, *) 'GAS singles is creating and managing the prop_vec lookup'
+                write(stdout, *) 'PropVec singles is creating and managing the prop_vec lookup'
                 allocate(lookup_property_indexer, source=this%indexer)
             end if
         end if
         this%use_lookup = use_lookup
-        if (use_lookup) write(stdout, *) 'GAS singles is using the prop_vec lookup'
+        if (use_lookup) write(stdout, *) 'PropVec singles is using the prop_vec lookup'
         ! possible prop_vecs
         prop_vecs = this%indexer%get_prop_vecs()
 
@@ -478,8 +478,8 @@ contains
 
     end subroutine
 
-    subroutine finalize_GAS_Weighted_t(this)
-        class(GAS_Weighted_t), intent(inout) :: this
+    subroutine finalize_PropVec_Weighted_t(this)
+        class(PropVec_Weighted_t), intent(inout) :: this
         if (allocated(this%indexer)) then
             ! Yes I assume that either all or none are allocated
             call this%I_sampler%finalize()
@@ -492,13 +492,13 @@ contains
 
 
     subroutine pickOrbitals_FullFull(this, nI, ilut, csf_i, excitInfo, pgen)
-        class(SinglesGAS_FullFull_t), intent(in) :: this
+        class(SinglesPropVec_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        routine_name("pickOrbitals_GAS_Weighted_t")
+        routine_name("pickOrbitals_PropVec_Weighted_t")
 
         integer :: i_sg, src, tgt
         real(dp) :: p_src, p_tgt
@@ -569,7 +569,7 @@ contains
 
 
     function calc_pgen_FullFull(this, nI, ilutI, csf_i, excitInfo) result(pgen)
-        class(SinglesGAS_FullFull_t), intent(in) :: this
+        class(SinglesPropVec_FullFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -625,13 +625,13 @@ contains
     end function
 
     subroutine pickOrbitals_UnifFull(this, nI, ilut, csf_i, excitInfo, pgen)
-        class(SinglesGAS_UnifFull_t), intent(in) :: this
+        class(SinglesPropVec_UnifFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        routine_name("pickOrbitals_GAS_Weighted_t")
+        routine_name("pickOrbitals_PropVec_Weighted_t")
 
         integer :: i_sg, src, tgt
         real(dp) :: p_src, p_tgt
@@ -693,7 +693,7 @@ contains
 
 
     function calc_pgen_UnifFull(this, nI, ilutI, csf_i, excitInfo) result(pgen)
-        class(SinglesGAS_UnifFull_t), intent(in) :: this
+        class(SinglesPropVec_UnifFull_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
@@ -748,7 +748,7 @@ contains
 
     subroutine init_UnifXnew_t(this, weighting, indexer, use_lookup, create_lookup, scale_down)
         class(UnifXnew_t), intent(inout) :: this
-        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weighting
+        type(PropVec_PCHB_SinglesWeighting_t), intent(in) :: weighting
         class(AlsoGUGA_PropertyIndexer_t), intent(in) :: indexer
         logical, intent(in) :: use_lookup, create_lookup
         real(dp), intent(in) :: scale_down
@@ -840,7 +840,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        routine_name("pickOrbitals_GAS_Weighted_t")
+        routine_name("pickOrbitals_PropVec_Weighted_t")
 
         integer :: i_sg, src, tgt
         real(dp) :: p_src, p_tgt
