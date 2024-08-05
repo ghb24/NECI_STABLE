@@ -11,14 +11,16 @@ module guga_pchb_class
     use input_parser_mod, only: TokenIterator_t
     use guga_prop_vec_pchb_main, only: &
         PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, &
-        PropVec_PCHB_options_vals_t, PropVec_options_from_tokens => from_tokens
+        PropVec_PCHB_options_vals_t, PropVec_options_from_tokens => from_tokens, &
+        PropVec_PCHB_OptionsUserInput_t, PropVec_PCHB_OptionsUserInput_vals_t, &
+        PropVec_decide_on_PCHB_options => decide_on_PCHB_options
 
 
     better_implicit_none
 
     private
-    public :: PCHB_t, options, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals, &
-        from_tokens
+    public :: PCHB_t, FCI_PCHB_options_t, FCI_PCHB_options_vals_t, options_vals, &
+        from_tokens, decide_on_PCHB_options, FCI_PCHB_user_input
 
     type, extends(GUGABase_t) :: PCHB_t
         private
@@ -37,18 +39,26 @@ module guga_pchb_class
         procedure, public :: calc_orbital_pgen_contr_end
     end type PCHB_t
 
-    ! NOTE be careful to not violate the Liskov substitution principle.
-    ! At the moment `FCI_PCHB_options_t` **is** a `PropVec_PCHB_options_t`
-    ! and can be used interchangeably.
-    ! If this is changed in the future, the inheritance has to be stopped.
-    type, extends(PropVec_PCHB_options_t) :: FCI_PCHB_options_t
+    type :: FCI_PCHB_options_t
+        type(PropVec_PCHB_options_t) :: prop_vec_pchb
     end type
 
-    type, extends(PropVec_PCHB_options_vals_t) :: FCI_PCHB_options_vals_t
+    type :: FCI_PCHB_options_vals_t
+        type(PropVec_PCHB_options_vals_t) :: prop_vec_pchb = PropVec_PCHB_options_vals_t()
     end type
 
+    type :: FCI_PCHB_OptionsUserInput_t
+        type(PropVec_PCHB_OptionsUserInput_t) :: prop_vec_pchb
+    end type
 
-    type(FCI_PCHB_options_t) :: options
+    type :: FCI_PCHB_OptionsUserInput_vals_t
+        type(PropVec_PCHB_OptionsUserInput_vals_t) :: &
+            prop_vec_pchb = PropVec_PCHB_OptionsUserInput_vals_t()
+    end type
+
+    type(FCI_PCHB_OptionsUserInput_t), allocatable :: FCI_PCHB_user_input
+
+
     type(FCI_PCHB_options_vals_t), parameter :: options_vals = FCI_PCHB_options_vals_t()
 
 contains
@@ -57,7 +67,7 @@ contains
         class(PCHB_t), intent(inout) :: this
         type(FCI_PCHB_options_t), intent(in) :: options
         call this%PropVec_sampler%init(get_CAS_indexer(nEl, nSpatOrbs), &
-            translate_to_PropVec(options))
+            options%prop_vec_pchb)
     end subroutine
 
     subroutine finalize(this)
@@ -127,24 +137,21 @@ contains
         pgen = this%PropVec_sampler%calc_pgen(nI, ilutI, csf_i, excitInfo)
     end function
 
-    elemental function translate_to_PropVec(FCI_options) result(PropVec_options)
-        type(FCI_PCHB_options_t), intent(in) :: FCI_options
-        type(PropVec_PCHB_options_t) :: PropVec_options
-        PropVec_options = PropVec_PCHB_options_t(FCI_options%singles, FCI_options%doubles, FCI_options%use_lookup)
-    end function
-
-    elemental function translate_to_FCI(PropVec_options) result(FCI_options)
-        type(PropVec_PCHB_options_t), intent(in) :: PropVec_options
-        type(FCI_PCHB_options_t) :: FCI_options
-        FCI_options = FCI_PCHB_options_t(PropVec_options%singles, PropVec_options%doubles, PropVec_options%use_lookup)
-    end function
-
     function from_tokens(tokens, use_lookup) result(res)
         type(TokenIterator_t), intent(inout) :: tokens
         logical, intent(in) :: use_lookup
             !! Do a lookup of supergroups
+        type(FCI_PCHB_OptionsUserInput_t) :: res
+        res = FCI_PCHB_OptionsUserInput_t(PropVec_options_from_tokens(tokens, use_lookup))
+    end function
+
+
+    pure function decide_on_PCHB_options(FCI_PCHB_user_input, loc_nBasis, loc_nEl) result(res)
+        type(FCI_PCHB_OptionsUserInput_t), intent(in) :: FCI_PCHB_user_input
+        integer, intent(in) :: loc_nBasis, loc_nEl
         type(FCI_PCHB_options_t) :: res
-        res = translate_to_FCI(PropVec_options_from_tokens(tokens, use_lookup))
+        res = FCI_PCHB_options_t(PropVec_decide_on_PCHB_options(&
+            FCI_PCHB_user_input%prop_vec_pchb, loc_nBasis, loc_nEl))
     end function
 
 end module guga_pchb_class

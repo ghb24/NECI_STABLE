@@ -1786,17 +1786,17 @@ contains
                     case ("GUGA-PCHB")
                     ! use an explicit guga-pchb keyword and flag
                     block
-                        use guga_pchb_class, only: options, from_tokens
+                        use guga_pchb_class, only: FCI_PCHB_user_input, from_tokens
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%FCI_PCHB
-                        options = from_tokens(tokens, use_lookup=.true.)
+                        FCI_PCHB_user_input = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("GUGA-GAS-PCHB")
                     ! use an explicit guga-pchb keyword and flag
                     block
-                        use guga_prop_vec_pchb_main, only: options, from_tokens
+                        use guga_prop_vec_pchb_main, only: PropVec_PCHB_user_input, from_tokens
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%PropVec_PCHB
-                        options = from_tokens(tokens, use_lookup=.true.)
+                        PropVec_PCHB_user_input = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("UEG")

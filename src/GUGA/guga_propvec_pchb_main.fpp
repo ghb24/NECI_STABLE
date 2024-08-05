@@ -30,7 +30,7 @@ module guga_prop_vec_pchb_main
     !! the excitation generator PropVecCI PCHB either resolve in spin- or spatial-
     !! orbitals.
 
-    use constants, only: stdout
+    use constants, only: stdout, stderr
     use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
     use SystemData, only: nBasis
     use fortran_strings, only: split, to_upper
@@ -50,7 +50,9 @@ module guga_prop_vec_pchb_main
     better_implicit_none
     private
     public :: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_options_t, options_vals, &
-        PropVec_PCHB_options_vals_t, from_tokens, options
+        PropVec_PCHB_options_vals_t, from_tokens, &
+        PropVec_PCHB_OptionsUserInput_t, PropVec_PCHB_OptionsUserInput_vals_t, &
+        PropVec_PCHB_user_input, PropVec_PCHB_user_input_vals,  decide_on_PCHB_options
 
     type, extends(AbInitGUGABase_t) :: PropVec_PCHB_ExcGenerator_t
     contains
@@ -74,7 +76,30 @@ module guga_prop_vec_pchb_main
     end type
 
     type(PropVec_PCHB_options_vals_t), parameter :: options_vals = PropVec_PCHB_options_vals_t()
-    type(PropVec_PCHB_options_t) :: options
+
+    type, extends(EnumBase_t) :: PCHB_OptionSelection_t
+    end type
+
+    type :: PCHB_OptionSelection_vals_t
+        type(PCHB_OptionSelection_t) :: &
+            LOCALISED = PCHB_OptionSelection_t(1), &
+            DELOCALISED = PCHB_OptionSelection_t(2), &
+            MANUAL = PCHB_OptionSelection_t(3)
+    end type
+
+    type :: PropVec_PCHB_OptionsUserInput_t
+        type(PCHB_OptionSelection_t) :: option_selection
+        type(PropVec_PCHB_options_t), allocatable :: options
+    end type
+
+    type :: PropVec_PCHB_OptionsUserInput_vals_t
+        type(PCHB_OptionSelection_vals_t) :: option_selection = PCHB_OptionSelection_vals_t()
+        type(PropVec_PCHB_options_vals_t) :: options = PropVec_PCHB_options_vals_t()
+    end type
+
+    type(PropVec_PCHB_OptionsUserInput_vals_t), parameter :: PropVec_PCHB_user_input_vals = PropVec_PCHB_OptionsUserInput_vals_t()
+
+    type(PropVec_PCHB_OptionsUserInput_t), allocatable :: PropVec_PCHB_user_input
 
 contains
 
@@ -116,25 +141,93 @@ contains
     function from_tokens(tokens, use_lookup) result(res)
         type(TokenIterator_t), intent(inout) :: tokens
         logical, intent(in) :: use_lookup
-        type(PropVec_PCHB_options_t) :: res
+        type(PropVec_PCHB_OptionsUserInput_t) :: res
         routine_name("from_tokens")
 
-        if (to_upper(tokens%next()) /= "DRAWING") then
-            call stop_all(this_routine, "Speciy Drawing")
+        if (tokens%remaining_items() == 0) then
+            call stop_all(this_routine, "No item specified. Please specify one of {LOCALISED, DELOCALISED, MANUAL}.")
         end if
-        res%singles%algorithm = options_vals%singles%algorithm%from_str(tokens%next())
-        associate(splitted => split(tokens%next(), ':'))
-            res%doubles%particle_selection = options_vals%doubles%particle_selection%from_str(splitted(1)%str)
-            res%doubles%hole_selection = options_vals%doubles%hole_selection%from_str(splitted(2)%str)
-        end associate
-        if (to_upper(tokens%next()) /= "WEIGHTING") then
-            call stop_all(this_routine, "Speciy WEIGHTING")
-        end if
-        res%singles%weighting = options_vals%singles%weighting%from_str(tokens%next())
-        res%doubles%weighting = options_vals%doubles%weighting%from_str(tokens%next())
+        select case (to_upper(tokens%next()))
+        case ("LOCALISED")
+            res%option_selection &
+                = PropVec_PCHB_user_input_vals%option_selection%LOCALISED
+        case ("DELOCALISED")
+            res%option_selection &
+                = PropVec_PCHB_user_input_vals%option_selection%DELOCALISED
+        case ("MANUAL")
+            res%option_selection &
+                = PropVec_PCHB_user_input_vals%option_selection%MANUAL
+            allocate(res%options)
+            if (to_upper(tokens%next()) /= "DRAWING") then
+                call stop_all(this_routine, "Speciy Drawing")
+            end if
+            res%options%singles%algorithm = options_vals%singles%algorithm%from_str(tokens%next())
+            associate(splitted => split(tokens%next(), ':'))
+                res%options%doubles%particle_selection = options_vals%doubles%particle_selection%from_str(splitted(1)%str)
+                res%options%doubles%hole_selection = options_vals%doubles%hole_selection%from_str(splitted(2)%str)
+            end associate
+            if (to_upper(tokens%next()) /= "WEIGHTING") then
+                call stop_all(this_routine, "Speciy WEIGHTING")
+            end if
+            res%options%singles%weighting = options_vals%singles%weighting%from_str(tokens%next())
+            res%options%doubles%weighting = options_vals%doubles%weighting%from_str(tokens%next())
 
-        ! To make sure we did not forget a component
-        res = PropVec_PCHB_options_t(res%singles, res%doubles, use_lookup)
+            ! To make sure we did not forget a component
+            res%options = PropVec_PCHB_options_t(res%options%singles, res%options%doubles, use_lookup)
+        case default
+            write(stderr, *) "Please specify one of {LOCALISED, DELOCALISED, MANUAL}."
+            write(stderr, *) "With localised and delocalised the fastest PCHB sampler is chosen automatically."
+            write(stderr, *) "Specify delocalised for Hartree-Fock like orbitals and"
+            write(stderr, *) "localised for localised orbitals."
+            write(stderr, *) "With manual one can select the PCHB sampler themselves."
+            call stop_all(this_routine, "Wrong input to PCHB.")
+        end select
+
+
+    end function
+
+
+    pure function decide_on_PCHB_options(PropVec_PCHB_user_input, loc_nBasis, loc_nEl) result(res)
+        type(PropVec_PCHB_OptionsUserInput_t), intent(in) :: PropVec_PCHB_user_input
+        integer, intent(in) :: loc_nBasis, loc_nEl
+        type(PropVec_PCHB_options_t) :: res
+        routine_name("decide_on_PCHB_options")
+
+        associate(hole_selection_2 => merge(options_vals%doubles%hole_selection%FAST_FAST, &
+                                            options_vals%doubles%hole_selection%FULL_FULL, &
+                                            loc_nBasis > 6 * loc_nEl))
+        if (PropVec_PCHB_user_input%option_selection == PropVec_PCHB_user_input_vals%option_selection%LOCALISED) then
+            res = PropVec_PCHB_options_t(&
+                    PropVec_PCHB_SinglesOptions_t(&
+                        options_vals%singles%algorithm%UNIF_FULL, &
+                        options_vals%singles%weighting%RHF_EXPR &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        options_vals%doubles%particle_selection%UNIF_FULL, &
+                        hole_selection_2, &
+                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
+                    ), &
+                    use_lookup=.true. &
+            )
+        else if (PropVec_PCHB_user_input%option_selection == PropVec_PCHB_user_input_vals%option_selection%DELOCALISED) then
+            res = PropVec_PCHB_options_t(&
+                    PropVec_PCHB_SinglesOptions_t(&
+                        options_vals%singles%algorithm%UNIF_UNIF, &
+                        options_vals%singles%weighting%UNIFORM &
+                    ), &
+                    PCHB_DoublesOptions_t( &
+                        options_vals%doubles%particle_selection%UNIF_FULL, &
+                        hole_selection_2, &
+                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
+                    ), &
+                    use_lookup=.true. &
+            )
+        else if (PropVec_PCHB_user_input%option_selection == PropVec_PCHB_user_input_vals%option_selection%MANUAL) then
+            res = PropVec_PCHB_user_input%options
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
+        end associate
     end function
 
 end module

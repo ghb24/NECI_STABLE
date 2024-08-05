@@ -1,8 +1,9 @@
 #include "macros.h"
 submodule (guga_base_class) guga_base_class_impls
     use property_vector_index, only: indexer, AlsoGUGA_PropertyIndexer_t
+    use SystemData, only: nBasis
     use guga_pchb_class, only: PCHB_t
-    use guga_prop_vec_pchb_main, only: PropVec_PCHB_ExcGenerator_t, options
+    use guga_prop_vec_pchb_main, only: PropVec_PCHB_ExcGenerator_t, PropVec_PCHB_user_input, decide_on_PCHB_options
 
     better_implicit_none
 contains
@@ -15,8 +16,8 @@ contains
                 select type(GUGA_exc_generator)
                 type is (PCHB_t)
                 block
-                    use guga_pchb_class, only: options
-                    call GUGA_exc_generator%init(options)
+                    use guga_pchb_class, only: decide_on_PCHB_options, FCI_PCHB_user_input
+                    call GUGA_exc_generator%init(decide_on_PCHB_options(FCI_PCHB_user_input, nBasis, nEl))
                 end block
                 end select
             else if (GUGA_selected_exc_generator == GUGA_exc_generator_vals%PropVec_PCHB) then
@@ -26,7 +27,7 @@ contains
                 block
                     select type(indexer)
                     class is (AlsoGUGA_PropertyIndexer_t)
-                        call GUGA_exc_generator%init(indexer, options)
+                        call GUGA_exc_generator%init(indexer, decide_on_PCHB_options(PropVec_PCHB_user_input, nBasis, nEl))
                     class default
                         call stop_all(this_routine, "GUGA PCHB requires an indexer compatible to it.")
                     end select
