@@ -109,7 +109,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
             end if
             if (tGAS) then
                 if (.not. GAS_spec%contains_conf(NMRKS(:, KI)) .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
-                    call stop_all('detham', 'DEBUGGING STOP ALL. REMOVE THIS!')
+                    ! call stop_all('detham', 'DEBUGGING STOP ALL. REMOVE THIS!')
                     totsum = 0.0_dp
                 end if
             end if

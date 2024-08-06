@@ -39,7 +39,15 @@ module sparse_arrays
     use util_mod, only: stop_all
     use basic_float_math, only: conjgt
 
-    implicit none
+    better_implicit_none
+
+    private
+    public :: calc_determ_hamil_sparse, calc_determ_hamil_sparse_hphf, sparse_ham, hamil_diag, &
+        HDiagTag, trial_ht, con_ht, calculate_sparse_ham_par, trial_hashtable, &
+        SparseHamilTags, approx_ham, allocate_sparse_ham_row, calc_approx_hamil_sparse_hphf, &
+        calculate_sparse_hamiltonian_non_hermitian, var_ht, &
+        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable
+
 
     type trial_hashtable
         ! All the states with this hash value.
@@ -84,8 +92,8 @@ contains
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian_non_hermitian"
 
-        allocate(sparse_ham(num_states))
-        allocate(SparseHamilTags(2, num_states))
+        allocate(sparse_ham(num_states), SparseHamilTags(2, num_states))
+
         allocate(hamiltonian_row(num_states), stat=ierr)
         call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
         allocate(hamil_diag(num_states), stat=ierr)
@@ -177,8 +185,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(CSF_Info_t) :: csf_i, csf_j
 
-        allocate(sparse_ham(num_states))
-        allocate(SparseHamilTags(2, num_states))
+        allocate(sparse_ham(num_states), SparseHamilTags(2, num_states))
         allocate(hamiltonian_row(num_states), stat=ierr)
         call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
         allocate(hamil_diag(num_states), stat=ierr)
@@ -445,14 +452,14 @@ contains
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
+        ! call stop_all(this_routine, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
-        call stop_all(this_routine, 'DEBUGGING STOP ALL. REMOVE THIS!')
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)))
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, this_routine, HRTag, ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, this_routine, TempStoreTag, ierr)
 
@@ -594,17 +601,18 @@ contains
         logical, allocatable :: cs(:)
 
 
-        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
+        ! call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)), &
+                 temp_store_nI(nel, rep%determ_space_size), &
+                 cs(rep%determ_space_size))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, t_r, HRTag, ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
-        allocate(temp_store_nI(nel, rep%determ_space_size), stat=ierr)
-        allocate(cs(rep%determ_space_size), stat=ierr)
+
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -693,9 +701,6 @@ contains
         call LogMemDealloc(t_r, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
-        deallocate(temp_store_nI, stat=ierr)
-        deallocate(cs, stat=ierr)
-
     end subroutine calc_determ_hamil_sparse_hphf
 
     subroutine calc_approx_hamil_sparse_hphf(rep)
