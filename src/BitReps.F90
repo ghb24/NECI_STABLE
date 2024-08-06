@@ -52,7 +52,7 @@ module bit_reps
         clr_flag, extract_flags, encode_bit_rep, extract_part_sign, log_spawn, &
         increase_spawn_counter, encode_spawn_hdiag, extract_spawn_hdiag, &
         get_num_spawns, bit_parent_zero, encode_det, add_ilut_lists, &
-        clear_all_flags, extract_run_sign, encode_flags
+        clear_all_flags, extract_run_sign, encode_flags, UnoccupiedGetter_t
 
 
 
@@ -159,7 +159,50 @@ module bit_reps
     private :: l27, l28, l29, l30, l31, l32, l33, l34, l35, l36, l37, l38, l39, l40, l41, l42, l43, l44, l45, l46, l47, l48, l49, l50
     private :: l51, l52, l53, l54, l55, l56, l57, l58, l59, l60, l61, l62, l63, l64, l65, l66, l67, l68, l69, l70
 
+    type :: UnoccupiedGetter_t
+        !! This class efficiently returns unoccupied orbitals from an ilut-bitmask.
+        private
+        integer(n_int) :: last_possible_occupied
+            !! The last element of the ilut array has some elements
+            !! which are not used, if the number of spinorbitals is not a multiple of
+            !! bitsize_n_int.
+            !! To correctly zero them this bitmask is 1 wherever a determinant
+            !! could be occupied in the last element, and 0 otherwise.
+    contains
+        private
+        procedure, public :: get => get_UnoccupiedGetter_t
+    end type
+
+    interface UnoccupiedGetter_t
+        module procedure construct_UnoccupiedGetter_t
+    end interface
+
 contains
+
+    elemental function construct_UnoccupiedGetter_t(nBasis) result(res)
+        integer, intent(in) :: nBasis
+        type(UnoccupiedGetter_t) :: res
+        integer(n_int) :: last_possible_occupied
+        last_possible_occupied = 0_n_int
+        block
+            integer :: i
+            do i = 0, ilut_off(nBasis)
+                last_possible_occupied = ibset(last_possible_occupied, i)
+            end do
+        end block
+        res = UnoccupiedGetter_t(last_possible_occupied)
+    end function
+
+    pure subroutine get_UnoccupiedGetter_t(this, ilutI, ilut_unoccupied, unoccupied)
+        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
+        class(UnoccupiedGetter_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
+        integer, intent(out) :: unoccupied(nBasis - nEl)
+        ilut_unoccupied = not(ilutI)
+        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
+        call decode_bit_det(unoccupied, ilut_unoccupied)
+    end subroutine
 
     subroutine init_bit_rep()
 

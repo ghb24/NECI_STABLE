@@ -1,13 +1,13 @@
 ! Do unit tests for the aliasSampling module
 #include "macros.h"
 program test_aliasTables
-    use constants, only: dp
+    use constants, only: dp, int64
     use fruit, only: assert_true, init_fruit, fruit_summary, fruit_finalize, &
         get_failed_count
     use aliasSampling, only: AliasTable_t, AliasSampler_t
     use Parallel_neci, only: MPIInit, MPIEnd, MPIBarrier, iProcIndex_intra, root, MPIBcast, Node
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
-    use util_mod, only: stop_all, near_zero, operator(.isclose.)
+    use util_mod, only: stop_all, near_zero, operator(.isclose.), ByteSize_t, operator(*)
     better_implicit_none
     integer :: ierr
 
@@ -58,6 +58,8 @@ contains
         call MPIBcast(w, iProcIndex_intra == root, Node)
         ! init the table
         call test_table%setup(root, w)
+
+        call assert_true(test_table%get_memory_demand() == size(w) * ByteSize_t(8_int64) + size(w) * ByteSize_t(4_int64))
         ! draw a huge number of random numbers from the table
         hist = 0
         do i = 1, n_sample
@@ -129,6 +131,8 @@ contains
 
         ! init the table
         call sampler%setup(root, w_in)
+
+        call assert_true(sampler%get_memory_demand() == 2 * size(w_in) * ByteSize_t(8_int64) + size(w) * ByteSize_t(4_int64))
 
         if (iProcIndex_intra == root) w = w_in
         call MPIBcast(w, iProcIndex_intra == root, Node)

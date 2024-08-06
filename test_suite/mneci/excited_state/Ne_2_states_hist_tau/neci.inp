@@ -38,7 +38,7 @@ calc
         start refdet-connections \
         max 0.05
     tau-search \
-        algorithm histogramming 1e-3 \
+        algorithm histogramming 1e-3 1e5 1e4 \
         stop-condition off
     truncinitiator
     addtoinitiator 3

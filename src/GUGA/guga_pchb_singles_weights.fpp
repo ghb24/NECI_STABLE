@@ -11,7 +11,7 @@ module guga_pchb_singles_weights_mod
 
     better_implicit_none
     private
-    public :: get_weight_t, GAS_PCHB_SinglesWeighting_t, GAS_PCHB_SinglesWeighting_vals_t, &
+    public :: get_weight_t, PropVec_PCHB_SinglesWeighting_t, PropVec_PCHB_SinglesWeighting_vals_t, &
         set_get_weight_pointer
 
     abstract interface
@@ -23,28 +23,30 @@ module guga_pchb_singles_weights_mod
     end interface
 
 
-    type, extends(EnumBase_t) :: GAS_PCHB_SinglesWeighting_t
+    type, extends(EnumBase_t) :: PropVec_PCHB_SinglesWeighting_t
         character(20) :: str
+    contains
+        procedure :: to_str
     end type
 
 
-    type :: GAS_PCHB_SinglesWeighting_vals_t
-        type(GAS_PCHB_SinglesWeighting_t) :: &
-            UNIFORM = GAS_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
-            ABS_INTEGRAL = GAS_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL'), &
-            RHF_EXPR = GAS_PCHB_SinglesWeighting_t(3, 'RHF-EXPRESSION')
+    type :: PropVec_PCHB_SinglesWeighting_vals_t
+        type(PropVec_PCHB_SinglesWeighting_t) :: &
+            UNIFORM = PropVec_PCHB_SinglesWeighting_t(1, 'UNIFORM'), &
+            ABS_INTEGRAL = PropVec_PCHB_SinglesWeighting_t(2, 'ABS-INTEGRAL'), &
+            RHF_EXPR = PropVec_PCHB_SinglesWeighting_t(3, 'RHF-EXPRESSION')
     contains
         procedure, nopass :: from_str => weight_from_str
     end type
 
-    type(GAS_PCHB_SinglesWeighting_vals_t), parameter :: weighting_vals = GAS_PCHB_SinglesWeighting_vals_t()
+    type(PropVec_PCHB_SinglesWeighting_vals_t), parameter :: weighting_vals = PropVec_PCHB_SinglesWeighting_vals_t()
 
 
 
 contains
 
     subroutine set_get_weight_pointer(weight_choice, ptr)
-        type(GAS_PCHB_SinglesWeighting_t), intent(in) :: weight_choice
+        type(PropVec_PCHB_SinglesWeighting_t), intent(in) :: weight_choice
         procedure(get_weight_t), pointer, intent(out) :: ptr
         routine_name("set_get_weight_pointer")
 
@@ -61,7 +63,7 @@ contains
 
     elemental function weight_from_str(str) result(res)
         character(*), intent(in) :: str
-        type(GAS_PCHB_SinglesWeighting_t) :: res
+        type(PropVec_PCHB_SinglesWeighting_t) :: res
         routine_name("alg_from_str")
 
         select case(to_upper(str))
@@ -120,6 +122,21 @@ contains
             two_el_term = two_el_term + abs(2 * g(i, a, r, r) - g(i, r, r, a))
         end do
         weight = abs(h(i, a)) + two_el_term
+    end function
+
+    pure function to_str(weighting) result(res)
+        class(PropVec_PCHB_SinglesWeighting_t), intent(in) :: weighting
+        character(:), allocatable :: res
+        routine_name("to_str")
+        if (weighting == weighting_vals%UNIFORM) then
+            res = weighting_vals%UNIFORM%str
+        else if (weighting == weighting_vals%ABS_INTEGRAL) then
+            res = weighting_vals%ABS_INTEGRAL%str
+        else if (weighting == weighting_vals%RHF_EXPR) then
+            res = weighting_vals%RHF_EXPR%str
+        else
+            call stop_all(this_routine, "Should not be here.")
+        end if
     end function
 
 end module
