@@ -18,7 +18,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
 
     use lattice_mod, only: get_helement_lattice
 
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, stop_all
 
     IMPLICIT NONE
     HElement_t(dp) HAMIL(*)
@@ -35,7 +35,7 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     type(ExcitationInformation_t) :: excitInfo
     integer :: ic = 0
     type(CSF_Info_t) :: csf_i, csf_j
-!      LOGICAL TSTAR
+
 ! ==-------------------------------------------------------------------==
     proc_timer%timer_name = '    DETHAM'
     call set_timer(proc_timer)
@@ -59,19 +59,19 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
             IMAXJ = NDET
         ELSE
             IF (TSTAR) THEN
-            IF (KI == 1) THEN
-                IBEGJ = 1
-                IMAXJ = NDET
-                STEP = 1
+                IF (KI == 1) THEN
+                    IBEGJ = 1
+                    IMAXJ = NDET
+                    STEP = 1
+                ELSE
+                    IBEGJ = KI
+                    IMAXJ = KI
+                    STEP = 1
+                END IF
             ELSE
                 IBEGJ = KI
-                IMAXJ = KI
+                IMAXJ = NDET
                 STEP = 1
-            END IF
-            ELSE
-            IBEGJ = KI
-            IMAXJ = NDET
-            STEP = 1
             END IF
         END IF
         IF (STEP == 0) STEP = 1
@@ -81,36 +81,36 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
             call EncodeBitDet(NMRKS(:, KJ), ilutJ)
             if (tGUGA) csf_j = CSF_Info_t(ilutJ)
             if (tHPHF) then
-            if (KI == KJ) then
-                totsum = hphf_diag_helement(NMRKS(:, KI), ilutI)
-            else
-                totsum = hphf_off_diag_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
-            end if
+                if (KI == KJ) then
+                    totsum = hphf_diag_helement(NMRKS(:, KI), ilutI)
+                else
+                    totsum = hphf_off_diag_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
+                end if
 
             else if (tGUGA) then
-            if (KI == KJ) then
-                totsum = calcDiagMatEleGuga_nI(NMRKS(:, KI))
-            else
-                call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, totsum, .true.)
-            end if
+                if (KI == KJ) then
+                    totsum = calcDiagMatEleGuga_nI(NMRKS(:, KI))
+                else
+                    call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, totsum, .true.)
+                end if
 
             else if (t_lattice_model) then
-            if (KI == KJ) then
-                totsum = get_helement_lattice(NMRKS(:, KI), NMRKS(:, KJ), ic)
+                if (KI == KJ) then
+                    totsum = get_helement_lattice(NMRKS(:, KI), NMRKS(:, KJ), ic)
+                else
+                    totsum = get_helement_lattice(NMRKS(:, KI), NMRKS(:, KJ))
+                end if
             else
-                totsum = get_helement_lattice(NMRKS(:, KI), NMRKS(:, KJ))
-            end if
-            else
-            if (KI == KJ) then
-                totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), 0)
-            else
-                totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
-            end if
+                if (KI == KJ) then
+                    totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), 0)
+                else
+                    totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
+                end if
             end if
             if (tGAS) then
-            if (.not. GAS_spec%contains_conf(NMRKS(:, KI)) .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
-                totsum = 0.0_dp
-            end if
+                if (.not. GAS_spec%contains_conf(NMRKS(:, KI)) .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
+                    totsum = 0.0_dp
+                end if
             end if
             IF (ABS(TOTSUM) < 1.0e-10_dp) TOTSUM = 0.0_dp
             IF (.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
@@ -135,6 +135,5 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
 ! ==-------------------------------------------------------------------==
     call halt_timer(proc_timer)
 ! ==-------------------------------------------------------------------==
-    RETURN
 END
 ! ==---------------------------------------------------------------==
