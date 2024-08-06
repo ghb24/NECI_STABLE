@@ -5,7 +5,7 @@ title
     electrons                          9
     system-replicas                    4
     guga                               1
-    nonUniformRandExcits       guga-pchb \
+    nonUniformRandExcits       guga-pchb manual \
         drawing unif:unif unif-unif:fast-fast \
         weighting uniform initial-dobrautz
     freeformat
