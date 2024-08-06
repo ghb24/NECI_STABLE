@@ -124,6 +124,8 @@ contains
 
         hash_size_1 = max(10, int(rep%determ_space_size / 10.0))
 
+        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
+
         if (iProcIndex_intra == 0) then
             allocate(beta_ht(hash_size_1), stat=ierr)
             call init_hash_table(beta_ht)
@@ -961,6 +963,9 @@ contains
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
+
+
+        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
                                  (/int(1 + NifD, int64), int(rep%determ_space_size, int64)/))

@@ -445,6 +445,9 @@ contains
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
+
+        call stop_all(this_routine, 'DEBUGGING STOP ALL. REMOVE THIS!')
+
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
@@ -589,6 +592,9 @@ contains
         integer :: IC
         logical :: CS_I
         logical, allocatable :: cs(:)
+
+
+        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
