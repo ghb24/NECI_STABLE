@@ -25,7 +25,7 @@ module property_vector_index
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
         composition_from_idx, next_composition
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excitation_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
 
@@ -59,7 +59,10 @@ module property_vector_index
         procedure, public :: get_prop_vecs
         procedure(is_allowed_single_t), deferred :: is_allowed_single
         procedure(is_allowed_double_t), deferred :: is_allowed_double
-        generic, public :: is_allowed => is_allowed_single, is_allowed_double
+        procedure(is_allowed_triple_t), deferred :: is_allowed_triple
+        generic, public :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_triple
+
+        procedure, public :: dyn_is_allowed
 
         procedure(idxer_gen_all_excits_t), deferred, public :: gen_all_excits
 
@@ -69,6 +72,8 @@ module property_vector_index
         procedure, public :: prop_vec_dim
         procedure, public :: n_spin_orbs
         procedure, public :: prop_vec_sum
+
+        procedure(write_to_t), public, deferred :: write_to
     end type
 
     type, abstract, extends(PropertyIndexer_t) :: AlsoGUGA_PropertyIndexer_t
@@ -107,6 +112,16 @@ module property_vector_index
             !! Is called once at initialization, so it does not have to be super fast.
             class(PropertyIndexer_t), intent(in) :: this
             type(Excite_2_t), intent(in) :: exc
+            integer, intent(in) :: prop_vec(:)
+        end function
+
+        logical pure function is_allowed_triple_t(this, exc, prop_vec)
+            import :: PropertyIndexer_t, Excite_3_t
+            !! Check if a double excitation is allowed.
+            !!
+            !! Is called once at initialization, so it does not have to be super fast.
+            class(PropertyIndexer_t), intent(in) :: this
+            type(Excite_3_t), intent(in) :: exc
             integer, intent(in) :: prop_vec(:)
         end function
 
@@ -160,6 +175,14 @@ module property_vector_index
             integer, allocatable :: prop_vec(:)
 #endif
         end function
+
+        subroutine write_to_t(this, iunit)
+            !! Write a string representation of this PropVec specification to iunit
+            import :: PropertyIndexer_t
+            implicit none
+            class(PropertyIndexer_t), intent(in) :: this
+            integer, intent(in) :: iunit
+        end subroutine
 
     end interface
 
@@ -306,6 +329,30 @@ contains
         else
             idx = 1
         end if
+    end function
+
+
+    logical pure function dyn_is_allowed(this, exc, prop_vec)
+        !! Check if an excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(PropertyIndexer_t), intent(in) :: this
+        class(Excitation_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        routine_name("dyn_is_allowed")
+
+        select type(exc)
+        type is(Excite_0_t)
+            dyn_is_allowed = .true.
+        type is(Excite_1_t)
+            dyn_is_allowed = this%is_allowed(exc, prop_vec)
+        type is(Excite_2_t)
+            dyn_is_allowed = this%is_allowed(exc, prop_vec)
+        type is(Excite_3_t)
+            dyn_is_allowed = this%is_allowed(exc, prop_vec)
+        class default
+            call stop_all(this_routine, "invalid excitation passed in.")
+        end select
     end function
 
 end module

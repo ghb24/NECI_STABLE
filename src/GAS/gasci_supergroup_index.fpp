@@ -61,7 +61,7 @@ module gasci_supergroup_index
     use growing_buffers, only: buffer_int_2D_t, buffer_int64_1D_t
     use composition_utils, only: n_compositions, get_compositions, composition_idx, &
         composition_from_idx, next_composition
-    use excitation_types, only: Excite_1_t, Excite_2_t
+    use excitation_types, only: Excite_1_t, Excite_2_t, Excite_3_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
@@ -71,7 +71,8 @@ module gasci_supergroup_index
     private
 
     public :: GAS_SuperGroupIndexer_t, get_CAS_indexer
-    public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup
+    public :: get_first_supergroup, get_last_supergroup, get_supergroups, &
+        next_supergroup, get_allowed_composition_indices
 
     type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
@@ -91,9 +92,17 @@ module gasci_supergroup_index
 
         procedure :: is_allowed_single
         procedure :: is_allowed_double
+        procedure :: is_allowed_triple
         procedure :: is_allowed_distinct_double
 
+        procedure :: excite_single
+        procedure :: excite_double
+        procedure :: excite_triple
+        generic, public :: excite => excite_single, excite_double, excite_triple
+
         procedure, public :: gen_all_excits => idxer_gen_all_excits
+
+        procedure, public :: write_to => GAS_write_to
     end type
 
     interface GAS_SuperGroupIndexer_t
@@ -541,6 +550,41 @@ contains
         end if
     end function
 
+    pure function excite_single(this, exc, prop_vec) result(res)
+        !! Check if a single excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
+
+        res = this%GAS_spec%excite(exc, prop_vec)
+    end function
+
+    pure function excite_double(this, exc, prop_vec) result(res)
+        !! Check if a double excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
+
+        res = this%GAS_spec%excite(exc, prop_vec)
+    end function
+
+    pure function excite_triple(this, exc, prop_vec) result(res)
+        !! Check if a double excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+        integer :: res(size(prop_vec))
+
+        res = this%GAS_spec%excite(exc, prop_vec)
+    end function
 
     logical pure function is_allowed_single(this, exc, prop_vec)
         !! Check if a single excitation is allowed.
@@ -563,6 +607,17 @@ contains
         integer, intent(in) :: prop_vec(:)
 
         is_allowed_double = this%GAS_spec%is_allowed(exc, prop_vec)
+    end function
+
+    logical pure function is_allowed_triple(this, exc, prop_vec)
+        !! Check if a double excitation is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: prop_vec(:)
+
+        is_allowed_triple = this%GAS_spec%is_allowed(exc, prop_vec)
     end function
 
     logical pure function is_allowed_distinct_double(this, exc, prop_vec)
@@ -625,5 +680,10 @@ contains
         res = GAS_SuperGroupIndexer_t(CAS_spec(n_el, n_spat_orbs))
     end function
 
+    subroutine GAS_write_to(this, iunit)
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: iunit
 
+        call this%GAS_spec%write_to(iunit)
+    end subroutine
 end module gasci_supergroup_index

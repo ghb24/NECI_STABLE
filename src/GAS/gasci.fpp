@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t']
+#:set ExcitationTypes = ['Excite_1_t', 'Excite_2_t', 'Excite_3_t']
 
 
 module gasci
@@ -13,7 +13,7 @@ module gasci
         operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
-    use excitation_types, only: Excite_1_t, Excite_2_t, excite, canonicalize
+    use excitation_types, only: Excite_1_t, Excite_2_t, Excite_3_t, excite, canonicalize
     use sltcnd_mod, only: sltcnd_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
     use bit_rep_data, only: nIfTot
@@ -30,7 +30,7 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec, finalize_GAS
+        CAS_spec, finalize_GAS, frequency
 
     logical :: tGAS = .false.
         !! Are we restricting excitations
@@ -109,8 +109,14 @@ module gasci
         generic :: count_per_GAS => count_per_GAS_nI, count_per_GAS_csf
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
+        procedure, private :: is_allowed_triple
         procedure, private :: is_allowed_distinct_double
-        generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_distinct_double
+        generic :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_triple, is_allowed_distinct_double
+
+        procedure, private :: excite_single
+        procedure, private :: excite_double
+        procedure, private :: excite_triple
+        generic :: excite => excite_single, excite_double, excite_triple
 
         procedure :: get_available_singles
         procedure :: get_available_doubles
@@ -401,6 +407,66 @@ contains
         end if
     end function
 
+    !Query the supergroup after a single excitation
+    pure function excite_single(this, exc, supergroup) result(excited_supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_1_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: src_space, tgt_space
+        integer :: excited_supergroup(size(supergroup))
+
+        !get source and target space
+        src_space = this%get_iGAS(exc%val(1, 1))
+        tgt_space = this%get_iGAS(exc%val(2, 1))
+
+        excited_supergroup = supergroup
+        excited_supergroup(src_space) = excited_supergroup(src_space) - 1
+        excited_supergroup(tgt_space) = excited_supergroup(tgt_space) + 1
+
+    end function
+
+    !Query the supergroup after a double excitation
+    pure function excite_double(this, exc, supergroup) result(excited_supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_2_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_spaces(2), tgt_spaces(2)
+
+        src_spaces(:) = this%get_iGAS(exc%val(1, :))
+        tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
+
+        excited_supergroup = supergroup
+        !Remove particles form src_spaces
+        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
+        !Add particles to tgt_spaces
+        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+
+    end function
+
+
+    !Query the supergroup after a double excitation
+    pure function excite_triple(this, exc, supergroup) result(excited_supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_spaces(3), tgt_spaces(3)
+
+        src_spaces(:) = this%get_iGAS(exc%val(1, :))
+        tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
+
+        excited_supergroup = supergroup
+        !Remove particles form src_spaces
+        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
+        !Add particles to tgt_spaces
+        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+
+    end function
+
     !> Check if a single excitation is allowed.
     !>
     !> Is called once at initialization, so it does not have to be super fast.
@@ -421,9 +487,7 @@ contains
             is_allowed_single = .true.
         else
             ! Ensure that GAS specifications contain supergroup **after** excitation.
-            excited_supergroup = supergroup
-            excited_supergroup(src_space) = excited_supergroup(src_space) - 1
-            excited_supergroup(tgt_space) = excited_supergroup(tgt_space) + 1
+            excited_supergroup = this%excite_single(exc, supergroup)
 
             is_allowed_single = this%contains_supergroup(excited_supergroup)
         end if
@@ -453,9 +517,7 @@ contains
             is_allowed_double = .true.
         else
             ! Ensure that GAS specifications contain supergroup **after** excitation.
-            excited_supergroup = supergroup
-            excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-            excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+            excited_supergroup = this%excite_double(exc, supergroup)
 
             is_allowed_double = this%contains_supergroup(excited_supergroup)
 
@@ -478,6 +540,34 @@ contains
                     is_allowed_double = all(src_spins == tgt_spins)
                 end block
             end if
+        end if
+    end function
+
+    !> Check if a triple excitation is allowed.
+    !>
+    !> Is called once at initialization, so it does not have to be super fast.
+    !> `recoupling` allows recoupling excitations that change the spin projection
+    !> of individual GAS spaces.
+    logical pure function is_allowed_triple(this, exc, supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(Excite_3_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_spaces(3), tgt_spaces(3)
+
+        !Keep for if-statement
+        src_spaces(:) = this%get_iGAS(exc%val(1, :))
+        tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
+
+        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2) .and. src_spaces(2) == src_spaces(3)) then
+            ! All electrons come from the same space and there are no restrictions
+            ! regarding recoupling or GAS.
+            is_allowed_triple = .true.
+        else
+            ! Ensure that GAS specifications contain supergroup **after** excitation.
+            excited_supergroup = this%excite(exc, supergroup)
+            is_allowed_triple = this%contains_supergroup(excited_supergroup)
         end if
     end function
 
@@ -1464,5 +1554,18 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
     end subroutine gen_all_excits
+
+    pure function frequency(N) result(res)
+        !!! Count the frequency of numbers in the array.
+        integer, intent(in) :: N(:)
+        integer, allocatable :: res(:)
+        integer :: i
+        debug_function_name("gasci::frequency")
+        @:pure_ASSERT(minval(N) == 1)
+        allocate(res(maxval(N)), source=0)
+        do i = 1, size(N)
+            res(N(i)) = res(N(i)) + 1
+        end do
+    end function
 
 end module gasci
