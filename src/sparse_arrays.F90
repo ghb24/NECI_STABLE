@@ -28,6 +28,8 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
+    use property_vector_index, only: indexer
+    use excitation_types, only: get_excitation, Excitation_t, Excite_Further_t
     use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
@@ -46,7 +48,8 @@ module sparse_arrays
         HDiagTag, trial_ht, con_ht, calculate_sparse_ham_par, trial_hashtable, &
         SparseHamilTags, approx_ham, allocate_sparse_ham_row, calc_approx_hamil_sparse_hphf, &
         calculate_sparse_hamiltonian_non_hermitian, var_ht, &
-        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable
+        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable, &
+        is_zero_by_prop_vec
 
 
     type trial_hashtable
@@ -452,8 +455,6 @@ contains
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
-        ! call stop_all(this_routine, 'DEBUGGING STOP ALL. REMOVE THIS!')
-
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
                  rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
                  rep%core_ham_diag(rep%determ_sizes(iProcIndex)))
@@ -512,7 +513,11 @@ contains
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
-                    if (tHPHF) then
+                    if (is_zero_by_prop_vec(nI_tmp, nJ_tmp)) then
+                        hamiltonian_row(j) = 0._dp
+                    else if (tHPHF) then
+                        ! TODO remove this branch it should never be reached.
+                        call stop_all("asdf", "asdf")
                         hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ_tmp, IlutI_tmp, ilutJ_tmp)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
@@ -582,6 +587,8 @@ contains
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(this_routine, HRTag, ierr)
 
+        contains
+
     end subroutine calc_determ_hamil_sparse
 
     subroutine calc_determ_hamil_sparse_hphf(rep)
@@ -600,8 +607,6 @@ contains
         logical :: CS_I
         logical, allocatable :: cs(:)
 
-
-        ! call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
                  rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
@@ -655,6 +660,8 @@ contains
                     end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
+                else if (is_zero_by_prop_vec(nI, nJ)) then
+                    hamiltonian_row(j) = 0._dp
                 else
                     tmp = ieor(SpawnedParts(0:NIfD, i), temp_store(0:NIfD, j))
                     tmp = iand(SpawnedParts(0:NIfD, i), tmp)
@@ -919,5 +926,13 @@ contains
         transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
     end function t_evolve_adjoint
 
+    pure logical function is_zero_by_prop_vec(nI, nJ)
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+
+        is_zero_by_prop_vec = .false.
+        if (allocated(indexer)) then
+            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
+        end if
+    end function
 
 end module sparse_arrays

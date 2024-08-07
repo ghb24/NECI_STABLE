@@ -1,5 +1,6 @@
 SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use global_utilities, only: timer, halt_timer, set_timer
+    use sparse_arrays, only: is_zero_by_prop_vec
     use constants, only: dp, n_int, stdout
     Use Determinants, only: get_helement
     use SystemData, only: BasisFN, t_lattice_model, tGUGA
@@ -10,7 +11,6 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use hphf_integrals, only: hphf_off_diag_helement
     use DetBitOps, only: EncodeBitDet
     use orb_idx_mod, only: SpinOrbIdx_t
-    use gasci, only: GAS_spec => GAS_specification, tGAS
 
     use guga_matrixElements, only: calcDiagMatEleGuga_nI, calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t
@@ -107,11 +107,8 @@ SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
                     totsum = get_helement(NMRKS(:, KI), NMRKS(:, KJ), ilutI, ilutJ)
                 end if
             end if
-            if (tGAS) then
-                if (.not. GAS_spec%contains_conf(NMRKS(:, KI)) .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
-                    ! call stop_all('detham', 'DEBUGGING STOP ALL. REMOVE THIS!')
-                    totsum = 0.0_dp
-                end if
+            if (is_zero_by_prop_vec(NMRKS(:, KI), NMRKS(:, KJ))) then
+                totsum = 0.0_dp
             end if
             IF (ABS(TOTSUM) < 1.0e-10_dp) TOTSUM = 0.0_dp
             IF (.not. near_zero(TOTSUM) .OR. KI == KJ) THEN

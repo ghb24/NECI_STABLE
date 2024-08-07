@@ -18,6 +18,7 @@ module property_vector_index
     !! The algorithm follows the ideas of stochastic PropVec (https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00936),
     !! i.e. the property vectors are indexed by calculating the corresponding composition index.
     use constants, only: int64, n_int
+    use SystemData, only: nEl
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
     use bit_rep_data, only: nIfD
     use hash, only: hash_table_lookup
@@ -60,7 +61,9 @@ module property_vector_index
         procedure(is_allowed_single_t), deferred :: is_allowed_single
         procedure(is_allowed_double_t), deferred :: is_allowed_double
         procedure(is_allowed_triple_t), deferred :: is_allowed_triple
-        generic, public :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_triple
+        procedure(is_allowed_configurations_t), deferred :: is_allowed_configurations
+        generic, public :: is_allowed => is_allowed_single, is_allowed_double, is_allowed_triple, &
+            is_allowed_configurations
 
         procedure, public :: dyn_is_allowed
 
@@ -123,6 +126,15 @@ module property_vector_index
             class(PropertyIndexer_t), intent(in) :: this
             type(Excite_3_t), intent(in) :: exc
             integer, intent(in) :: prop_vec(:)
+        end function
+
+        logical pure function is_allowed_configurations_t(this, nI, nJ)
+            import :: PropertyIndexer_t, n_int, nEl
+            !! Check if an excitation nI -> nJ is allowed.
+            !!
+            !! Is called once at initialization, so it does not have to be super fast.
+            class(PropertyIndexer_t), intent(in) :: this
+            integer, intent(in) :: nI(nEl), nJ(nEl)
         end function
 
         logical pure function is_allowed_distinct_double_t(this, exc, prop_vec)
