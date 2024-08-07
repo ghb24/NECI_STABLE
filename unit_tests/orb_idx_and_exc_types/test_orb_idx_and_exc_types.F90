@@ -2,7 +2,7 @@ module test_orb_idx_mod
     use fruit, only: assert_true, assert_false, run_test_case
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, excite, is_canonical, &
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excite_Further_t, excite, is_canonical, &
         canonicalize, make_canonical
     implicit none
     private
@@ -116,12 +116,42 @@ contains
 
     end subroutine
 
+    subroutine test_to_str()
+        block
+            type(Excite_0_t) :: exc
+            exc = Excite_0_t()
+            call assert_true(exc%to_str() == 'Excite_0_t')
+        end block
+        block
+            type(Excite_1_t) :: exc
+            exc = Excite_1_t(1, 3)
+            call assert_true(exc%to_str() == 'Excite_1_t: [1] -> [3]')
+        end block
+
+        block
+            type(Excite_2_t) :: exc
+            exc = Excite_2_t(1, 3, 2, 7)
+            call assert_true(exc%to_str() == 'Excite_2_t: [1, 2] -> [3, 7]')
+        end block
+        block
+            type(Excite_3_t) :: exc
+            exc = Excite_3_t(1, 3, 2, 7, 5, 11)
+            call assert_true(exc%to_str() == 'Excite_3_t: [1, 2, 5] -> [3, 7, 11]')
+        end block
+        block
+            type(Excite_Further_t) :: exc
+            exc = Excite_Further_t()
+            call assert_true(exc%to_str() == 'Excite_Further_t')
+        end block
+    end subroutine
+
 
     subroutine test_orb_idx_driver()
         call run_test_case(test_calc_spin, "test_calc_spin")
         call run_test_case(test_conversion, "test_conversion")
         call run_test_case(test_excite, "test_excite")
         call run_test_case(test_canonical, "test_canonical")
+        call run_test_case(test_to_str, "test_to_str")
     end subroutine
 
 end module test_orb_idx_mod
