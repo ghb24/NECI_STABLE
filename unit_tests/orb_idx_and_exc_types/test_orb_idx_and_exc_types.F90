@@ -119,7 +119,6 @@ contains
     subroutine test_to_str()
         block
             type(Excite_0_t) :: exc
-            exc = Excite_0_t()
             call assert_true(exc%to_str() == 'Excite_0_t')
         end block
         block
@@ -140,7 +139,6 @@ contains
         end block
         block
             type(Excite_Further_t) :: exc
-            exc = Excite_Further_t()
             call assert_true(exc%to_str() == 'Excite_Further_t')
         end block
     end subroutine
