@@ -503,9 +503,9 @@ considered. The block starts with the `system` keyword and ends with the
     expensive, so it is not done by default.
 
 -   **GAS-PQ-TRUNCATION**<br>
-    Perform PQ-downfolding within a GAS. The respective GAS is partitioned into a explicitly correlated \(P\) space and a perturbative \(Q\) space. 
+    Perform PQ-downfolding within a GAS. The respective GAS is partitioned into an explicitly correlated \(P\) space and a perturbative \(Q\) space.
     Both the total GAS (\(P + Q\)) and the \(P\) space can be defined using *local*, *cumulative* and *flexible* constraints.
-    The total space is denoted identically to `GAS-SPEC`, i.e. two local GAS spaces with up to three interspace excitations
+    The total space is denoted via `GAS-SPEC`, i.e. two local GAS spaces with up to three interspace excitations:
 
         GAS-SPEC LOCAL 2
         4 1 7 
@@ -513,7 +513,7 @@ considered. The block starts with the `system` keyword and ends with the
         4*1 4*2
 
     The \(P\) space is defined almost identically. It is only necessary to change the header from *GAS-SPEC* to *GAS-PQ-TRUNCATION*.
-    A \(P\) space consisting of 4 electrons within both GAS spaces and no interspace excitations would be denoted as. 
+    A \(P\) space consisting of 4 electrons within both GAS spaces and no interspace excitations would be denoted as:
 
         GAS-PQ-TRUNCATION LOCAL 2
         4 4 4
