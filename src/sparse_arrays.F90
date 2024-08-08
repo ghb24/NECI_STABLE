@@ -515,10 +515,6 @@ contains
                 else
                     if (is_zero_by_prop_vec(nI_tmp, nJ_tmp)) then
                         hamiltonian_row(j) = 0._dp
-                    else if (tHPHF) then
-                        ! TODO remove this branch it should never be reached.
-                        call stop_all("asdf", "asdf")
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ_tmp, IlutI_tmp, ilutJ_tmp)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
                                 ilutI_tmp, csf_i, ilutJ_tmp, csf_j, excitInfo, tmp_mat, .true.)
