@@ -5,6 +5,7 @@
 module pq_property_index
 
     use constants, only: int64, n_int
+    use SystemData, only: nEl
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
     use sets_mod, only: subset
     use bit_rep_data, only: nIfD
@@ -42,6 +43,7 @@ module pq_property_index
         procedure :: is_allowed_single
         procedure :: is_allowed_double
         procedure :: is_allowed_triple
+        procedure :: is_allowed_configurations
         procedure :: is_allowed_distinct_double
 
         procedure :: excite_single
@@ -214,6 +216,17 @@ contains
 
         is_allowed_distinct_double = this%is_allowed_double(Excite_2_t(2*i, 2*a, 2*j, 2*b), prop_vec)
 
+    end function
+
+    logical pure function is_allowed_configurations(this, nI, nJ)
+        !! Check if an excitation nI -> nJ is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(PQ_indexer_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+        is_allowed_configurations = &
+            this%total_space%GAS_spec%contains_conf(nI) &
+            .and. this%total_space%GAS_spec%contains_conf(nJ)
     end function
 
     subroutine PQ_gen_all_excits(this, nI, n_excits, det_list, ic)
