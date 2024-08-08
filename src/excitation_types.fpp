@@ -29,6 +29,7 @@ module excitation_types
     use orb_idx_mod, only: size, sum, calc_spin_raw
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
+    use fortran_strings, only: join, Token_t, str
     use util_mod, only: stop_all
     use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
@@ -52,7 +53,17 @@ module excitation_types
 
     !>  Abstract base class for excitations.
     type, abstract :: Excitation_t
+    contains
+        procedure(to_str_t), deferred :: to_str
     end type
+
+    abstract interface
+        pure function to_str_t(this) result(res)
+            import :: Excitation_t
+            class(Excitation_t), intent(in) :: this
+            character(:), allocatable :: res
+        end function
+    end interface
 
     #:for rank, excite_t in zip(excit_ranks, defined_excitations)
     type, extends(Excitation_t) :: ${excite_t}$
@@ -60,12 +71,16 @@ module excitation_types
         !! The array is sorted like:
         !! [srcs, tgts]
         integer :: val(2, ${rank}$) = UNKNOWN
+    contains
+        procedure :: to_str => to_str_${excite_t}$
     end type
     #:endfor
 
     type, extends(Excitation_t) :: Excite_Further_t
         !! Represents an excitation with so many different indices, it has to be zero
         integer :: val(2, 0) = UNKNOWN
+    contains
+        procedure :: to_str => to_str_Excite_Further_t
     end type
 
     #:for Excitation_t in non_trivial_excitations
@@ -576,4 +591,24 @@ contains
             call stop_all("dyn_nI_excite", "Excitation type invalid.")
         end select
     end function
+
+    #:for rank, excite_t in zip(excit_ranks[1:], non_trivial_excitations)
+        pure function to_str_${excite_t}$(this) result(res)
+            class(${excite_t}$), intent(in) :: this
+            character(:), allocatable :: res
+            res = "${excite_t}$: " &
+                // '[' // ${'// ", " // '.join([f"str(this%val(1, {i}))" for i in range(1, rank + 1)]) }$ // ']' &
+                // " -> " &
+                // '[' // ${'// ", " // '.join([f"str(this%val(2, {i}))" for i in range(1, rank + 1)]) }$ // ']'
+        end function
+    #:endfor
+
+    #:for excite_t in trivial_excitations
+        pure function to_str_${excite_t}$(this) result(res)
+            class(${excite_t}$), intent(in) :: this
+            character(:), allocatable :: res
+            @:unused_var(this)
+            res = "${excite_t}$"
+        end function
+    #:endfor
 end module

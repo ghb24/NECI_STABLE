@@ -684,7 +684,7 @@ contains
                 end if
 
             else
-                call calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, excitation, &
+                call calcFullStopL2R_stochastic(nI, ilut, csf_i, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -713,7 +713,7 @@ contains
 
             else
 
-                call calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, excitation, &
+                call calcFullStopR2L_stochastic(nI, ilut, csf_i, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -758,7 +758,7 @@ contains
 
             else
 
-                call calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, excitation, &
+                call calcFullStartL2R_stochastic(nI, ilut, csf_i, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -787,7 +787,7 @@ contains
 
             else
 
-                call calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, excitation, &
+                call calcFullStartR2L_stochastic(nI, ilut, csf_i, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -868,7 +868,7 @@ contains
 
             else
 
-                call calcFullStartFullStopMixedStochastic(ilut, csf_i, excitInfo, &
+                call calcFullStartFullStopMixedStochastic(nI, ilut, csf_i, excitInfo, &
                                                           excitation, branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then

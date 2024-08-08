@@ -3,12 +3,12 @@ module aliasSampling
     !! This module contains the utility to use alias table lookup on lists,
     !! requiring to precompute biases but making the lookup O(1)
 
-
     use constants, only: dp, int64, n_int, bits_n_int, stderr, MPIArg
     use shared_array, only: shared_array_real_t, shared_array_int32_t
     use sets_mod, only: is_set, subset, operator(.in.)
     use parallel_neci, only: iProcIndex_intra, Node, MPIBarrier, &
         mpi_comm_intra, MPIBCast, MPI_INTEGER8, MPI_LOGICAL
+    use util_mod, only: ByteSize_t, defined_sizes
 #ifndef IFORT_
     use parallel_neci, only: MPI_BCast
 #endif
@@ -47,6 +47,7 @@ module aliasSampling
             !! destructor - final would be suited better, but is not supported by all compilers
         procedure, public :: sample => sample_AliasTable_t
             !! get a random value from the alias table
+        procedure, public :: get_memory_demand => get_memory_demand_AliasTable_t
     end type
 
     type :: AliasSampler_t
@@ -82,6 +83,7 @@ module aliasSampling
             !! get the probability to produce a given value
         procedure, public :: constrained_getProb
             !! get the probability to draw a given value from a constrained set
+        procedure, public :: get_memory_demand => get_memory_demand_AliasSampler
     end type AliasSampler_t
 
 
@@ -111,6 +113,7 @@ module aliasSampling
         procedure, private :: constrained_sample_3D_nI, constrained_sample_3D_fast
         procedure :: get_prob => aGetProb_3D
         procedure :: constrained_getProb => constrained_get_prob_3D
+        procedure, public :: get_memory_demand => get_memory_demand_AliasSampler_3D_t
     end type AliasSampler_3D_t
 
 
@@ -129,6 +132,7 @@ module aliasSampling
         procedure, private :: constrained_sample_2D_nI, constrained_sample_2D_fast
         procedure :: get_prob => aGetProb_2D
         procedure :: constrained_getProb => constrained_get_prob_2D
+        procedure, public :: get_memory_demand => get_memory_demand_AliasSampler_2D_t
     end type AliasSampler_2D_t
 
 
@@ -147,6 +151,7 @@ module aliasSampling
         procedure, private :: constrained_sample_1D_nI, constrained_sample_1D_fast
         procedure :: get_prob => aGetProb_1D
         procedure :: constrained_getProb => constrained_get_prob_1D
+        procedure, public :: get_memory_demand => get_memory_demand_AliasSampler_1D_t
     end type AliasSampler_1D_t
 
     real(dp), parameter :: redrawing_cutoff = 0.1_dp
@@ -296,6 +301,17 @@ contains
 
     end subroutine init_AliasTable_t
 
+    elemental function get_memory_demand_AliasTable_t(this) result(res)
+        class(AliasTable_t), intent(in) :: this
+        type(ByteSize_t) :: res
+
+        if (associated(this%bias%ptr)) then
+            res = this%bias%get_memory_demand() + this%alias%get_memory_demand()
+        else
+            res = ByteSize_t(0_int64)
+        end if
+    end function
+
     !> clear the memory used by the alias table
     subroutine finalize_AliasTable_t(this)
         class(AliasTable_t), intent(inout) :: this
@@ -400,6 +416,16 @@ contains
         call this%table%init(rank_with_info, arr)
         call this%init_probs(rank_with_info, arr)
     end subroutine init_AliasSampler_t
+
+    elemental function get_memory_demand_AliasSampler(this) result(res)
+        class(AliasSampler_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        if (associated(this%probs%ptr)) then
+            res = this%table%get_memory_demand() + this%probs%get_memory_demand()
+        else
+            res = ByteSize_t(0_int64)
+        end if
+    end function
 
     !> load the probability distribution from arr into this%probs
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
@@ -607,6 +633,12 @@ contains
         call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize, name)
     end subroutine setupSamplerArray_1D
 
+    elemental function get_memory_demand_AliasSampler_1D_t(this) result(res)
+        class(AliasSampler_1D_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        res = this%alias_sampler%get_memory_demand()
+    end function
+
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
@@ -709,6 +741,12 @@ contains
         character(*), intent(in) :: name
         call this%alias_sampler%shared_alloc([dims(1), dims(2), 1], entrySize, name)
     end subroutine setupSamplerArray_2D
+
+    elemental function get_memory_demand_AliasSampler_2D_t(this) result(res)
+        class(AliasSampler_2D_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        res = this%alias_sampler%get_memory_demand()
+    end function
 
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
@@ -842,6 +880,19 @@ contains
             end do
         end do
     end subroutine
+
+    elemental function get_memory_demand_AliasSampler_3D_t(this) result(res)
+        class(AliasSampler_3D_t), intent(in) :: this
+        type(ByteSize_t) :: res
+
+        if (associated(this%allProbs%ptr)) then
+            res = this%allProbs%get_memory_demand() &
+                    + this%allBiasTable%get_memory_demand() &
+                    + this%allAliasTable%get_memory_demand()
+        else
+            res = ByteSize_t(0_int64)
+        end if
+    end function
 
     !> @brief
     !> Initialise one sampler of an array

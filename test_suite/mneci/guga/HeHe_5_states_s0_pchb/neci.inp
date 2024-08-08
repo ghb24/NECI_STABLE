@@ -2,7 +2,7 @@ title
 
 system read
     electrons 4
-    nonuniformrandexcits guga-pchb \
+    nonuniformrandexcits guga-pchb manual \
         drawing unif:unif unif-unif:fast-fast \
         weighting uniform initial-dobrautz
     system-replicas 3

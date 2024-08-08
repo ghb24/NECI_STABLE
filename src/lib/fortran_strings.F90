@@ -68,20 +68,22 @@ contains
         str = trim(tmp)
     end function
 
-    pure function realdp_to_str(x, after_comma) result(res)
+   pure function realdp_to_str(x, after_comma, scientific) result(res)
         real(dp), intent(in) :: x
         integer, intent(in) :: after_comma
+        logical, intent(in) :: scientific
         character(100) :: tmp
         character(:), allocatable :: res
-        write(tmp, '(e100.'//str(after_comma)//')') x
+        write(tmp, '('//trim(merge('ES', 'F ', scientific))//'100.'//str(after_comma)//')') x
         res = trim(adjustl(tmp))
     end function
 
-    pure function realsp_to_str(x, after_comma) result(res)
+    pure function realsp_to_str(x, after_comma, scientific) result(res)
         real(sp), intent(in) :: x
         integer, intent(in) :: after_comma
+        logical, intent(in) :: scientific
         character(:), allocatable :: res
-        res = str(real(x, dp), after_comma)
+        res = str(real(x, dp), after_comma, scientific)
     end function
 
     pure function bool_to_str(cond) result(res)

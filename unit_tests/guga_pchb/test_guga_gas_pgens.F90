@@ -25,14 +25,14 @@ module test_guga_gas_pgens_mod
     use guga_init, only: init_guga
     use guga_bitRepOps, only: CSF_Info_t, EncodeBitDet_guga, StepVector_t, stepvector_vals
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, DistinctDouble_t, distinct_doubles
-    use guga_pchb_class, only: PCHB_t, options, FCI_PCHB_options_t, &
+    use guga_pchb_class, only: PCHB_t, FCI_PCHB_options_t, &
         FCI_PCHB_options_vals_t, options_vals
     use guga_base_class, only: test_pgen, Entry_t, analyze_entries, AnalyzedEntries_t, output
     use util_mod, only: near_zero, operator(.implies.)
 
 
-    use guga_gas_pchb_doubles_main, only: PCHB_DoublesOptions_t
-    use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t
+    use guga_prop_vec_pchb_doubles_main, only: PCHB_DoublesOptions_t
+    use guga_prop_vec_pchb_doubles_select_holes, only: PropVec_PCHB_FastFast_t
 
     use fruit, only: assert_true, assert_equals, run_test_case
 
@@ -66,14 +66,14 @@ contains
 
         options =  [ &
                     PCHB_DoublesOptions_t(&
-                        options_vals%doubles%particle_selection%UNIF_UNIF, &
-                        options_vals%doubles%hole_selection%FAST_FAST, &
-                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
+                        options_vals%prop_vec_pchb%doubles%particle_selection%UNIF_UNIF, &
+                        options_vals%prop_vec_pchb%doubles%hole_selection%FAST_FAST, &
+                        options_vals%prop_vec_pchb%doubles%weighting%INITIAL_DOBRAUTZ &
                     ), &
                     PCHB_DoublesOptions_t(&
-                        options_vals%doubles%particle_selection%FULL_FULL, &
-                        options_vals%doubles%hole_selection%FAST_FAST, &
-                        options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
+                        options_vals%prop_vec_pchb%doubles%particle_selection%FULL_FULL, &
+                        options_vals%prop_vec_pchb%doubles%hole_selection%FAST_FAST, &
+                        options_vals%prop_vec_pchb%doubles%weighting%INITIAL_DOBRAUTZ &
                     ) &
         ]
 
@@ -105,7 +105,7 @@ contains
                 type(PCHB_DoublesOptions_t), intent(in) :: chosen_options
 
                 integer :: file_id
-                type(GAS_PCHB_FastFast_t) :: orbital_picker
+                type(PropVec_PCHB_FastFast_t) :: orbital_picker
                 type(Entry_t), allocatable :: entries(:)
 
                 block

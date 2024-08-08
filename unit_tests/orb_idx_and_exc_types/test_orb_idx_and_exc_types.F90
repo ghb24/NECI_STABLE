@@ -3,9 +3,8 @@ module test_orb_idx_mod
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
-    use excitation_types, only: Excitation_t, Excite_0_t, Excite_1_t, &
-        Excite_2_t, Excite_3_t, excite, is_canonical, &
-        canonicalize, make_canonical, get_excitation, Excite_Further_t
+    use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excite_Further_t, excite, is_canonical, &
+        canonicalize, make_canonical
     implicit none
     private
     public :: test_orb_idx_driver
@@ -118,105 +117,31 @@ contains
 
     end subroutine
 
-    subroutine test_get_excitation()
-        nEl = 4
-
+    subroutine test_to_str()
         block
-            class(Excitation_t), allocatable :: exc
-            integer :: nI(4), nJ(4)
-            logical :: tParity
-
-            nI = [1, 2, 3, 4]
-            nJ = [1, 2, 3, 4]
-
-            call get_excitation(nI, nJ, exc, tParity)
-
-            select type(exc)
-            type is(Excite_0_t)
-                call assert_true(.true.)
-            class default
-                call assert_true(.false.)
-            end select
+            type(Excite_0_t) :: exc
+            call assert_true(exc%to_str() == 'Excite_0_t')
+        end block
+        block
+            type(Excite_1_t) :: exc
+            exc = Excite_1_t(1, 3)
+            call assert_true(exc%to_str() == 'Excite_1_t: [1] -> [3]')
         end block
 
         block
-            class(Excitation_t), allocatable :: exc
-            integer :: nI(4), nJ(4)
-            logical :: tParity
-
-            nI = [1, 2, 3, 4]
-            nJ = [1, 3, 4, 6]
-
-            call get_excitation(nI, nJ, exc, tParity)
-
-            select type(exc)
-            type is(Excite_1_t)
-                call assert_true(.true.)
-                call assert_true(all(exc%val(:, 1) == [2, 6]))
-            class default
-                call assert_true(.false.)
-            end select
+            type(Excite_2_t) :: exc
+            exc = Excite_2_t(1, 3, 2, 7)
+            call assert_true(exc%to_str() == 'Excite_2_t: [1, 2] -> [3, 7]')
         end block
-
         block
-            class(Excitation_t), allocatable :: exc
-            integer :: nI(4), nJ(4)
-            logical :: tParity
-
-            nI = [1, 2, 3, 4]
-            nJ = [1, 4, 5, 6]
-
-            call get_excitation(nI, nJ, exc, tParity)
-
-            select type(exc)
-            type is(Excite_2_t)
-                call assert_true(.true.)
-                call assert_true(all(exc%val(:, 1) == [2, 5]))
-                call assert_true(all(exc%val(:, 2) == [3, 6]))
-            class default
-                call assert_true(.false.)
-            end select
+            type(Excite_3_t) :: exc
+            exc = Excite_3_t(1, 3, 2, 7, 5, 11)
+            call assert_true(exc%to_str() == 'Excite_3_t: [1, 2, 5] -> [3, 7, 11]')
         end block
-
         block
-            class(Excitation_t), allocatable :: exc
-            integer :: nI(4), nJ(4)
-            logical :: tParity
-
-            nI = [1, 2, 3, 4]
-            nJ = [1, 5, 6, 8]
-
-            call get_excitation(nI, nJ, exc, tParity)
-
-            select type(exc)
-            type is(Excite_3_t)
-                call assert_true(.true.)
-                call assert_true(all(exc%val(:, 1) == [2, 5]))
-                call assert_true(all(exc%val(:, 2) == [3, 6]))
-                call assert_true(all(exc%val(:, 3) == [4, 8]))
-            class default
-                call assert_true(.false.)
-            end select
+            type(Excite_Further_t) :: exc
+            call assert_true(exc%to_str() == 'Excite_Further_t')
         end block
-
-        block
-            class(Excitation_t), allocatable :: exc
-            integer :: nI(4), nJ(4)
-            logical :: tParity
-
-            nI = [1, 2, 3, 4]
-            nJ = [5, 6, 8, 9]
-
-            call get_excitation(nI, nJ, exc, tParity)
-
-            select type(exc)
-            type is(Excite_Further_t)
-                call assert_true(.true.)
-            class default
-                call assert_true(.false.)
-            end select
-        end block
-
     end subroutine
 
 
@@ -225,7 +150,7 @@ contains
         call run_test_case(test_conversion, "test_conversion")
         call run_test_case(test_excite, "test_excite")
         call run_test_case(test_canonical, "test_canonical")
-        call run_test_case(test_get_excitation, "test_get_excitation")
+        call run_test_case(test_to_str, "test_to_str")
     end subroutine
 
 end module test_orb_idx_mod
