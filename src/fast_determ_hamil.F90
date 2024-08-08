@@ -126,7 +126,7 @@ contains
 
         hash_size_1 = max(10, int(rep%determ_space_size / 10.0))
 
-        ! call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
+        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
 
         if (iProcIndex_intra == 0) then
             allocate(beta_ht(hash_size_1))
@@ -961,8 +961,6 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
 
 
-        ! call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
-
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
                                  (/int(1 + NifD, int64), int(rep%determ_space_size, int64)/))
         beta_list(0:, 1:) => beta_list_ptr(1:, 1:)
@@ -1439,13 +1437,17 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end if
             end do
@@ -1463,13 +1465,17 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end if
             end do
@@ -1486,13 +1492,17 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
-                    hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_k)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nK)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end do
             end do
