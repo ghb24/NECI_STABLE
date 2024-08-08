@@ -1564,31 +1564,6 @@ contains
 
         call MPIBarrier(ierr, tTimeIn=.false.)
 
-
-        contains
-
-            function my_get_helement(nI, nJ, ic, ilutI, ilutJ) result(hel)
-                integer, intent(in) :: nI(nEl), nJ(nEl), ic
-                integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
-                HElement_t(dp) :: hel
-                routine_name("my_get_helement")
-
-                class(Excitation_t), allocatable :: exc
-                logical :: tParity
-
-                call get_excitation(nI, nJ, ic, exc, tParity)
-                if (allocated(indexer)) then
-                    if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))) then
-                        hel = 0._dp
-                        return
-                    end if
-                end if
-                hel = dyn_sltcnd_excit(nI, exc, tParity)
-                if (tImportanceSampling) then
-                    hel = hel * calcImportanceRatio(nJ, ilutJ, nI, ilutI)
-                end if
-            end function
-
     end subroutine calc_determ_hamil_opt
 
     pure subroutine find_intersec(nelem_in_1, nelem_in_2, arr_1, arr_2, intersec, nelem_out)
