@@ -41,7 +41,16 @@ module sparse_arrays
     use util_mod, only: stop_all
     use basic_float_math, only: conjgt
 
-    implicit none
+    better_implicit_none
+
+    private
+    public :: calc_determ_hamil_sparse, calc_determ_hamil_sparse_hphf, sparse_ham, hamil_diag, &
+        HDiagTag, trial_ht, con_ht, calculate_sparse_ham_par, trial_hashtable, &
+        SparseHamilTags, approx_ham, allocate_sparse_ham_row, calc_approx_hamil_sparse_hphf, &
+        calculate_sparse_hamiltonian_non_hermitian, var_ht, &
+        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable, &
+        is_zero_by_prop_vec
+
 
     type trial_hashtable
         ! All the states with this hash value.
@@ -86,8 +95,8 @@ contains
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian_non_hermitian"
 
-        allocate(sparse_ham(num_states))
-        allocate(SparseHamilTags(2, num_states))
+        allocate(sparse_ham(num_states), SparseHamilTags(2, num_states))
+
         allocate(hamiltonian_row(num_states), stat=ierr)
         call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
         allocate(hamil_diag(num_states), stat=ierr)
@@ -179,8 +188,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(CSF_Info_t) :: csf_i, csf_j
 
-        allocate(sparse_ham(num_states))
-        allocate(SparseHamilTags(2, num_states))
+        allocate(sparse_ham(num_states), SparseHamilTags(2, num_states))
         allocate(hamiltonian_row(num_states), stat=ierr)
         call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
         allocate(hamil_diag(num_states), stat=ierr)
@@ -447,11 +455,12 @@ contains
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)))
+
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, this_routine, HRTag, ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, this_routine, TempStoreTag, ierr)
 
@@ -504,12 +513,8 @@ contains
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
-                    if (is_zero(nI_tmp, nJ_tmp)) then
+                    if (is_zero_by_prop_vec(nI_tmp, nJ_tmp)) then
                         hamiltonian_row(j) = 0._dp
-                    else if (tHPHF) then
-                        ! TODO remove this branch it should never be reached.
-                        call stop_all("asdf", "asdf")
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI_tmp, nJ_tmp, IlutI_tmp, ilutJ_tmp)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
                                 ilutI_tmp, csf_i, ilutJ_tmp, csf_j, excitInfo, tmp_mat, .true.)
@@ -580,25 +585,6 @@ contains
 
         contains
 
-            logical function is_zero(nI, nJ)
-                integer, intent(in) :: nI(nEl), nJ(nEl)
-                HElement_t(dp) :: hel
-
-                class(Excitation_t), allocatable :: exc
-                logical :: tParity
-
-                is_zero = .false.
-                if (allocated(indexer)) then
-                    call get_excitation(nI, nJ, exc, tParity)
-                    select type(exc)
-                    type is (Excite_Further_t)
-                        is_zero = .true.
-                    class default
-                        is_zero = .not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))
-                    end select
-                end if
-            end function
-
     end subroutine calc_determ_hamil_sparse
 
     subroutine calc_determ_hamil_sparse_hphf(rep)
@@ -617,15 +603,17 @@ contains
         logical :: CS_I
         logical, allocatable :: cs(:)
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
+
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)), &
+                 temp_store_nI(nel, rep%determ_space_size), &
+                 cs(rep%determ_space_size))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, t_r, HRTag, ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, t_r, TempStoreTag, ierr)
-        allocate(temp_store_nI(nel, rep%determ_space_size), stat=ierr)
-        allocate(cs(rep%determ_space_size), stat=ierr)
+
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -668,6 +656,8 @@ contains
                     end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
+                else if (is_zero_by_prop_vec(nI, nJ)) then
+                    hamiltonian_row(j) = 0._dp
                 else
                     tmp = ieor(SpawnedParts(0:NIfD, i), temp_store(0:NIfD, j))
                     tmp = iand(SpawnedParts(0:NIfD, i), tmp)
@@ -714,9 +704,6 @@ contains
         call LogMemDealloc(t_r, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
-        deallocate(temp_store_nI, stat=ierr)
-        deallocate(cs, stat=ierr)
-
     end subroutine calc_determ_hamil_sparse_hphf
 
     subroutine calc_approx_hamil_sparse_hphf(rep)
@@ -935,5 +922,13 @@ contains
         transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
     end function t_evolve_adjoint
 
+    pure logical function is_zero_by_prop_vec(nI, nJ)
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+
+        is_zero_by_prop_vec = .false.
+        if (allocated(indexer)) then
+            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
+        end if
+    end function
 
 end module sparse_arrays

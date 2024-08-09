@@ -1,7 +1,7 @@
 #include "macros.h"
 #:include "../macros.fpph"
 
-module guga_gas_pchb_doubles_main
+module guga_prop_vec_pchb_doubles_main
     use constants, only: stdout
     use SystemData, only: tUHF
     use util_mod, only: EnumBase_t, stop_all
@@ -9,10 +9,11 @@ module guga_gas_pchb_doubles_main
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t
 
     use guga_base_class, only: DoublesGUGABase_t
-    use guga_gas_pchb_doubles_select_holes, only: GAS_PCHB_FastFast_t, &
+    use guga_prop_vec_pchb_doubles_select_holes, only: PropVec_PCHB_FastFast_t, &
+        PropVec_PCHB_FullFull_t, &
         PCHB_HoleAlgorithm_t, PCHB_HoleAlgorithm_vals_t, &
         WeightingChoice_t, WeightingChoice_vals_t
-    use guga_gas_pchb_doubles_select_particles, only: &
+    use guga_prop_vec_pchb_doubles_select_particles, only: &
         PCHB_ParticleSelection_t, &
         PCHB_ParticleSelection_vals_t
 
@@ -51,14 +52,19 @@ contains
         logical, intent(in) :: use_lookup, create_lookup
             !! Use the supergroup lookup
         class(DoublesGUGABase_t), allocatable, intent(inout) :: generator
-        routine_name("gasci_pchb_doubles_main::allocate_and_init")
+        routine_name("allocate_and_init")
 
         if (options%hole_selection == doubles_options_vals%hole_selection%FAST_FAST) then
-            allocate(GAS_PCHB_FastFast_t :: generator)
+            allocate(PropVec_PCHB_FastFast_t :: generator)
+        else if (options%hole_selection == doubles_options_vals%hole_selection%FULL_FULL) then
+            allocate(PropVec_PCHB_FullFull_t :: generator)
         end if
 
         select type(generator)
-        type is(GAS_PCHB_FastFast_t)
+        type is(PropVec_PCHB_FastFast_t)
+            call generator%init(&
+                indexer, options%particle_selection, options%weighting, use_lookup, create_lookup)
+        type is(PropVec_PCHB_FullFull_t)
             call generator%init(&
                 indexer, options%particle_selection, options%weighting, use_lookup, create_lookup)
         class default

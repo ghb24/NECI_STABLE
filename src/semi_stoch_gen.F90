@@ -44,12 +44,13 @@ module semi_stoch_gen
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
     use determinants, only: get_helement
     use enumerate_excitations, only: generate_connected_space
-    use fast_determ_hamil, only: initialise_shared_rht, &
-        calc_approx_hamil_sparse_hphf, calc_determ_hamil_sparse_hphf, &
-        initialise_shared_rht, calc_determ_hamil_sparse, &
-        calculate_sparse_hamiltonian_non_hermitian, var_ht, &
-        calc_determ_hamil_opt_hphf, &
-        calc_determ_hamil_opt, calculate_sparse_hamiltonian
+    use shared_rhash, only: initialise_shared_rht
+    use sparse_arrays, only: calc_determ_hamil_sparse_hphf, &
+        calc_approx_hamil_sparse_hphf, calc_determ_hamil_sparse, &
+        calculate_sparse_hamiltonian, var_ht, &
+        calculate_sparse_hamiltonian_non_hermitian
+    use fast_determ_hamil, only: calc_determ_hamil_opt, &
+        calc_determ_hamil_opt_hphf
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, &
         isProperCSF_flexible, write_guga_list, CSF_Info_t

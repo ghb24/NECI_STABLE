@@ -336,7 +336,14 @@ considered. The block starts with the `system` keyword and ends with the
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
         Has to be followed by a specification of the drawing and weighting schemes.
-        The notation follows [@weser_exploiting_2023].
+
+        With `LOCALISED` and `DELOCALISED` the fastest PCHB sampler is chosen automatically.
+        Specify `DELOCALISED` for Hartree-Fock like orbitals and
+        `LOCALISED` for localised orbitals.
+        With `MANUAL` one can select the PCHB sampler themselves.
+
+        The manual notation follows [@weser_exploiting_2023] and the corresponding notation
+        for Slater-determinant based PCHB.
         **Uniform**, **fast-weighted**, and **fully-weighted**
         sampling schemes for particles and holes are labeled
         `unif`, `fast` and `full`, respectively.
@@ -345,9 +352,13 @@ considered. The block starts with the `system` keyword and ends with the
         singles (possible values are `uniform`, `abs-integral`, `rhf-expression`),
         then for the doubles (possible values are `uniform`, `initial-dobrautz`).
 
-        An example is
+        A simple example is:
 
-            nonuniformrandexcits guga-gas-pchb \
+            nonuniformrandexcits guga-gas-pchb localised
+
+        A more complex example is
+
+            nonuniformrandexcits guga-gas-pchb manual \
                 drawing full:full full-full:fast-fast \
                 weighting rhf-expression initial-dobrautz
 
@@ -502,6 +513,25 @@ considered. The block starts with the `system` keyword and ends with the
     Note that, depending on the GAS specifications, this operation can be actually
     expensive, so it is not done by default.
 
+-   **GAS-PQ-TRUNCATION**<br>
+    Perform PQ-downfolding within a GAS. The respective GAS is partitioned into an explicitly correlated \(P\) space and a perturbative \(Q\) space.
+    Both the total GAS (\(P + Q\)) and the \(P\) space can be defined using *local*, *cumulative* and *flexible* constraints.
+    The total space is denoted via `GAS-SPEC`, i.e. two local GAS spaces with up to three interspace excitations:
+
+        GAS-SPEC LOCAL 2
+        4 1 7 
+        4 1 7
+        4*1 4*2
+
+    The \(P\) space is defined almost identically. It is only necessary to change the header from *GAS-SPEC* to *GAS-PQ-TRUNCATION*.
+    A \(P\) space consisting of 4 electrons within both GAS spaces and no interspace excitations would be denoted as:
+
+        GAS-PQ-TRUNCATION LOCAL 2
+        4 4 4
+        4 4 4
+        4*1 4*2
+
+    Note that `GAS-SPEC` has to be defined **before** `GAS-PQ-TRUNCATION`.
 
 #### Hubbard model and UEG options
 
@@ -959,7 +989,7 @@ and ends with the `endcalc` keyword.
     Truncate spawns which are larger than a threshold value \(n\). Both
     arguments are optional, \(n\) defaults to \(3\). If UNOCC is given
     the truncation is restricted to spawns onto unoccupied. Useful in
-    combination with hist-tau-search.
+    combination with histogramming tau-search.
 
 
 

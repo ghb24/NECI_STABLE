@@ -181,7 +181,7 @@ MODULE Calc
         readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
         ignore_diagonal_estimate
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
-        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
+        user_input_histogramming_spec, HistogrammingSpec_t
     use unit_test_helpers, only: batch_run_excit_gen_tester
     use util_mod, only: addToIntArray, get_free_unit, NECI_ICOPY, int_fmt, &
         near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush
@@ -1439,29 +1439,32 @@ contains
                         case("HISTOGRAMMING")
                             input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
                             t_fill_frequency_hists = .true.
-                            if (can_be_real(tokens%glimpse(''))) then
-                                frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
-                                if (frq_ratio_cutoff < 0.9_dp) then
-                                    write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
-                                    write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
-                                    write(stderr, *) 'If you want c = 0.999 just write:'
-                                    write(stderr, *) '  tau-search \'
-                                    write(stderr, *) '      algorithm histogramming 1e-3'
-                                    write(stderr, *) 'If you really want c < 0.9 contact the developers.'
-                                    call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
-                                end if
-                            end if
-                            if (can_be_real(tokens%glimpse(''))) then
-                                n_frequency_bins = nint(to_realdp(tokens%next()))
-                                if (n_frequency_bins > 10**6) then
-                                    write(stdout, "(A)") &
-                                        '("WARNING: maybe too many bins used for the histograms! This might cause MPI problems!")'
-                                end if
-                            end if
-                            if (can_be_real(tokens%glimpse(''))) then
-                                max_frequency_bound = to_realdp(tokens%next())
-                            end if
+                            if (tokens%remaining_items() > 0) then
+                                if (can_be_real(tokens%glimpse(''))) then
+                                block
+                                    real(dp) :: frq_ratio_cutoff, max_frequency_bound
+                                    integer :: n_frequency_bins
+                                    frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                                    if (frq_ratio_cutoff < 0.9_dp) then
+                                        write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
+                                        write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
+                                        write(stderr, *) 'If you want c = 0.999 just write:'
+                                        write(stderr, *) '  tau-search \'
+                                        write(stderr, *) '      algorithm histogramming 1e-3'
+                                        write(stderr, *) 'If you really want c < 0.9 contact the developers.'
+                                        call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
+                                    end if
+                                    n_frequency_bins = nint(to_realdp(tokens%next()))
+                                    if (n_frequency_bins > 10**6) then
+                                        write(stdout, "(A)") &
+                                            '("WARNING: maybe too many bins used for the histograms! This might cause MPI problems!")'
+                                    end if
+                                    max_frequency_bound = to_realdp(tokens%next())
+                                    user_input_histogramming_spec = HistogrammingSpec_t(max_frequency_bound, n_frequency_bins, frq_ratio_cutoff)
 
+                                end block
+                                end if
+                            end if
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select

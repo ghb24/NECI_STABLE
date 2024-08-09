@@ -547,7 +547,7 @@ contains
         end if
     end function
 
-    !> Check if a double excitation is allowed.
+    !> Check if a triple excitation is allowed.
     !>
     !> Is called once at initialization, so it does not have to be super fast.
     !> `recoupling` allows recoupling excitations that change the spin projection

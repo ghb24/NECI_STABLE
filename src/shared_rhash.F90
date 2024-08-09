@@ -275,7 +275,7 @@ contains
 
     !> Synchronize the shared resource
     subroutine sync(this)
-        class(shared_rhash_t), intent(in) :: this
+        class(shared_rhash_t), intent(inout) :: this
 
         call this%indices%sync()
         call this%hval_offsets%sync()

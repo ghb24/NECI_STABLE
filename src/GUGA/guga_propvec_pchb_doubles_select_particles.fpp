@@ -2,7 +2,7 @@
 #:include "../macros.fpph"
 #:include "../algorithms.fpph"
 
-module guga_gas_pchb_doubles_select_particles
+module guga_prop_vec_pchb_doubles_select_particles
     use constants, only: dp, n_int, stdout
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
@@ -179,7 +179,7 @@ contains
         logical, intent(in) :: use_lookup
         class(ParticleSelector_t), allocatable, intent(inout) :: particle_selector
 
-        routine_name("gasci_pchb_doubles_select_particles::allocate_and_init")
+        routine_name("allocate_and_init")
         if (PCHB_particle_selection == PCHB_particle_selection_vals%UNIF_UNIF) then
             allocate(UniformParticles_t :: particle_selector)
         else if (PCHB_particle_selection == PCHB_particle_selection_vals%FULL_FULL) then
@@ -436,54 +436,55 @@ contains
 
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 
-        associate(i_u => 2 * i - 1, i_d => 2 * i, &
-                  j_u => 2 * j - 1, j_d => 2 * j)
 
-            if (i == j) then
-                if (csf_i%occ_int(i) /= 2) then
-                    p = 0._dp
-                    return
-                else
-                    p = 2 * p_first(i_u) * p_second(i_u, i_d)
-                end if
+        if (i == j) then
+            if (csf_i%occ_int(i) /= 2) then
+                p = 0._dp
+                return
             else
-                p = &
-                        p_first(i_u) * p_second(i_u, j_u) &
-                        + p_first(i_u) * p_second(i_u, j_d) &
-                        + p_first(i_d) * p_second(i_d, j_u) &
-                        + p_first(i_d) * p_second(i_d, j_d) &
-                        + p_first(j_u) * p_second(j_u, i_u) &
-                        + p_first(j_u) * p_second(j_u, i_d) &
-                        + p_first(j_d) * p_second(j_d, i_u) &
-                        + p_first(j_d) * p_second(j_d, i_d)
+                associate(i_u => 2 * i - 1, i_d => 2 * i)
+                p = 2 &
+                    * this%i_sampler%constrained_getProb(&
+                        i_sg, nI, sum(this%I_sampler%get_prob(i_sg, nI)), i_u) &
+                    * this%j_sampler%constrained_getProb(&
+                        i_u, i_sg, nI, sum(this%j_sampler%get_prob(i_u, i_sg, nI)), i_d)
+                end associate
             end if
-        end associate
+        else
+        block
+            ! We have to account for occupation number, particles from
+            ! doubly occupied orbitals are twice as likely to be picked.
+            ! This is achieved by using "fake" spin orbitals.
+            ! We also have to account for that we can pick `I, J` or `J, I`,
+            ! i.e. reverse the order.
+            integer :: spin_srcs(2)
+            real(dp) :: p_first(2), p_second(2)
+            real(dp) :: renorm_first, renorm_second(2)
 
-        contains
+            ! If the stepvector value is 3, i.e. doubly occupied,
+            ! then the "fake" spin orb index could take both values, u or d.
+            ! We decide on d, because it allows a simple ternary logical operation.
+            spin_srcs(1) = merge(2 * i, 2 * i - 1, csf_i%stepvector(i) > 1)
+            spin_srcs(2) = merge(2 * j, 2 * j - 1, csf_i%stepvector(j) > 1)
 
-            real(dp) pure function p_first(I)
-                integer, intent(in) :: I
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if (I .in. nI) then
-                    p_first = this%i_sampler%constrained_getProb(&
-                        i_sg, nI, sum(this%I_sampler%get_prob(i_sg, nI)), I)
-                else
-                    p_first = 0._dp
-                end if
-            end function
+            renorm_first = sum(this%I_sampler%get_prob(i_sg, nI))
 
-            real(dp) pure function p_second(I, J)
-                integer, intent(in) :: I, J
-                    !! Spin orbital index, i.e. u-d-index
-                ! TODO replace with Ilut lookup
-                if ((I .in. nI) .and. (J .in. nI)) then
-                    p_second = this%j_sampler%constrained_getProb(&
-                                I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
-                else
-                    p_second = 0._dp
-                end if
-            end function
+            p_first(1) = this%I_sampler%constrained_getProb(&
+                i_sg, nI, renorm_first, spin_srcs(1))
+            p_first(2) = this%I_sampler%constrained_getProb(&
+                i_sg, nI, renorm_first, spin_srcs(2))
+
+            renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+            renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
+
+            p_second(1) = this%J_sampler%constrained_getProb(&
+                spin_srcs(1), i_sg, nI, renorm_second(1), spin_srcs(2))
+            p_second(2) = this%J_sampler%constrained_getProb(&
+                spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
+
+            p = sum(csf_i%occ_int([i, j]) * p_first(:) * csf_i%occ_int([j, i]) * p_second(:))
+        end block
+        end if
     end function
 
 
@@ -504,26 +505,36 @@ contains
             !! The probability of drawing \( p(\{I, J\}) \Big |_{D_i} \).
             !! This is the probability of drawing two particles from
             !! a given determinant \(D_i\) regardless of order.
+        debug_function_name("draw_PC_WeightedParticles_t")
 
         integer :: spin_srcs(2), dummy
-        real(dp) :: r_dummy, renorm
+        real(dp) :: p_second(2), renorm_second(2)
 
 
         spin_srcs(1) = nI(int(genrand_real2_dSFMT() * nEl) + 1)
-        srcs(1) = gtID(spin_srcs(1))
 
-        renorm = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+        renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
         ! Note that p(I | I) is automatically zero and cannot be drawn
         call this%J_sampler%constrained_sample(&
-            spin_srcs(1), i_sg, nI, ilutI, renorm, dummy, spin_srcs(2), r_dummy)
+            spin_srcs(1), i_sg, nI, ilutI, renorm_second(1), dummy, spin_srcs(2), p_second(1))
         if (spin_srcs(2) == 0) then
-            srcs(:) = 0; spin_srcs(:) = 0; p = 1._dp; srcs(:) = 0
+            srcs(:) = 0; spin_srcs(:) = 0; p = 1._dp
             return
         end if
-        srcs(2) = gtID(spin_srcs(2))
+        srcs(:) = gtID(spin_srcs(:))
+        if (srcs(1) == srcs(2)) then
+            @:ASSERT(csf_i%occ_int(srcs(1)) == 2)
+            p = 2._dp / real(nEl, dp) * p_second(1)
+        else
+            renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
+            p_second(2) = this%J_sampler%constrained_getProb(&
+                spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
 
-        if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
-        p = this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2))
+            p = sum(csf_i%occ_int(srcs) / real(nEl, dp) * csf_i%occ_int(srcs(2:1:-1)) * p_second(:))
+
+            if (srcs(1) > srcs(2)) call swap(srcs(1), srcs(2))
+        end if
+        @:ASSERT(p .isclose. this%get_pgen(nI, csf_i, i_sg, srcs(1), srcs(2)), srcs, nI, csf_i%stepvector)
     end subroutine
 
 
@@ -552,56 +563,44 @@ contains
 
         @:pure_ASSERT(csf_I%stepvector(i) /= 0 .and. csf_I%stepvector(j) /= 0)
 
-        associate(i_u => 2 * i - 1, i_d => 2 * i, &
-                  j_u => 2 * j - 1, j_d => 2 * j)
-
-            if (i == j) then
-                if (csf_i%occ_int(i) /= 2) then
-                    p = 0_dp
-                    return
-                else
-                    p = 2 * p_first(i_u) * p_second(i_u, i_d)
-
-                    @:pure_ASSERT(near_zero(p_second(i_u, i_u)) &
-                            .and. near_zero(p_second(i_d, i_d)))
-
-                    @:pure_ASSERT(p_first(i_u) * p_second(i_u, i_d) &
-                            .isclose. p_first(i_d) * p_second(i_d, i_u))
-                end if
+        if (i == j) then
+            if (csf_i%occ_int(i) /= 2) then
+                p = 0_dp
+                return
             else
-                p = &
-                        p_first(i_u) * p_second(i_u, j_u) &
-                        + p_first(i_u) * p_second(i_u, j_d) &
-                        + p_first(i_d) * p_second(i_d, j_u) &
-                        + p_first(i_d) * p_second(i_d, j_d) &
-                        + p_first(j_u) * p_second(j_u, i_u) &
-                        + p_first(j_u) * p_second(j_u, i_d) &
-                        + p_first(j_d) * p_second(j_d, i_u) &
-                        + p_first(j_d) * p_second(j_d, i_d)
+            associate(i_u => 2 * i - 1, i_d => 2 * i)
+                p = 2._dp / real(nEl, dp) &
+                    * this%j_sampler%constrained_getProb(&
+                        i_u, i_sg, nI, sum(this%j_sampler%get_prob(i_u, i_sg, nI)), i_d)
+            end associate
             end if
-        end associate
+        else
+        block
+            ! We have to account for occupation number, particles from
+            ! doubly occupied orbitals are twice as likely to be picked.
+            ! This is achieved by using "fake" spin orbitals.
+            ! We also have to account for that we can pick `I, J` or `J, I`,
+            ! i.e. reverse the order.
+            integer :: spin_srcs(2)
+            real(dp) :: p_second(2)
+            real(dp) :: renorm_second(2)
 
-        contains
+            ! If the stepvector value is 3, i.e. doubly occupied,
+            ! then the "fake" spin orb index could take both values, u or d.
+            ! We decide on d, because it allows a simple ternary logical operation.
+            spin_srcs(1) = merge(2 * i, 2 * i - 1, csf_i%stepvector(i) > 1)
+            spin_srcs(2) = merge(2 * j, 2 * j - 1, csf_i%stepvector(j) > 1)
 
-            real(dp) pure function p_first(I)
-                integer, intent(in) :: I
-                    !! Spin orbital index, i.e. u-d-index
-                if (I .in. nI) then
-                    p_first = 1._dp / nEl
-                else
-                    p_first = 0._dp
-                end if
-            end function
+            renorm_second(1) = sum(this%J_sampler%get_prob(spin_srcs(1), i_sg, nI))
+            renorm_second(2) = sum(this%J_sampler%get_prob(spin_srcs(2), i_sg, nI))
 
-            real(dp) pure function p_second(I, J)
-                integer, intent(in) :: I, J
-                    !! Spin orbital index, i.e. u-d-index
-                if ((I .in. nI) .and. (J .in. nI)) then
-                    p_second = this%j_sampler%constrained_getProb(&
-                                I, i_sg, nI, sum(this%j_sampler%get_prob(I, i_sg, nI)), J)
-                else
-                    p_second = 0._dp
-                end if
-            end function
+            p_second(1) = this%J_sampler%constrained_getProb(&
+                spin_srcs(1), i_sg, nI, renorm_second(1), spin_srcs(2))
+            p_second(2) = this%J_sampler%constrained_getProb(&
+                spin_srcs(2), i_sg, nI, renorm_second(2), spin_srcs(1))
+
+            p = sum(csf_i%occ_int([i, j]) / real(nEl, dp) * csf_i%occ_int([j, i]) * p_second(:))
+        end block
+        end if
     end function
 end module

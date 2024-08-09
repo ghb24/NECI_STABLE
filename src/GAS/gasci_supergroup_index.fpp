@@ -53,6 +53,7 @@
 ! for all allowed super groups.
 module gasci_supergroup_index
     use constants, only: int64, n_int
+    use SystemData, only: nEl
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, CAS_spec
@@ -71,7 +72,8 @@ module gasci_supergroup_index
     private
 
     public :: GAS_SuperGroupIndexer_t, get_CAS_indexer
-    public :: get_first_supergroup, get_last_supergroup, get_supergroups, next_supergroup, get_allowed_composition_indices
+    public :: get_first_supergroup, get_last_supergroup, get_supergroups, &
+        next_supergroup, get_allowed_composition_indices
 
     type, extends(AlsoGUGA_PropertyIndexer_t) :: GAS_SuperGroupIndexer_t
         class(GASSpec_t), allocatable :: GAS_spec
@@ -92,6 +94,7 @@ module gasci_supergroup_index
         procedure :: is_allowed_single
         procedure :: is_allowed_double
         procedure :: is_allowed_triple
+        procedure :: is_allowed_configurations
         procedure :: is_allowed_distinct_double
 
         procedure :: excite_single
@@ -625,6 +628,17 @@ contains
         integer, intent(in) :: prop_vec(:)
 
         is_allowed_distinct_double = this%GAS_spec%is_allowed(exc, prop_vec)
+    end function
+
+    logical pure function is_allowed_configurations(this, nI, nJ)
+        !! Check if an excitation nI -> nJ is allowed.
+        !!
+        !! Is called once at initialization, so it does not have to be super fast.
+        class(GAS_SuperGroupIndexer_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+        is_allowed_configurations = &
+            this%GAS_spec%contains_conf(nI) &
+            .and. this%GAS_spec%contains_conf(nJ)
     end function
 
 
