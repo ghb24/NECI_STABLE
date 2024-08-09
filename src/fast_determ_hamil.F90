@@ -14,9 +14,7 @@ module fast_determ_hamil
                               hphf_off_diag_helement_opt, hphf_off_diag_special_case
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
     use sltcnd_mod, only: dyn_sltcnd_excit
-    use sparse_arrays, only: calc_approx_hamil_sparse_hphf, calc_determ_hamil_sparse, &
-        calc_determ_hamil_sparse_hphf, calculate_sparse_hamiltonian, calculate_sparse_hamiltonian_non_hermitian, &
-        var_ht
+    use sparse_arrays
     use SystemData, only: tHPHF, nel
     use timing_neci, only: get_total_time
     use util_mod, only: get_free_unit
