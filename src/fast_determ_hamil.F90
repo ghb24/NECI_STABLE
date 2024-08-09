@@ -126,8 +126,6 @@ contains
 
         hash_size_1 = max(10, int(rep%determ_space_size / 10.0))
 
-        call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
-
         if (iProcIndex_intra == 0) then
             allocate(beta_ht(hash_size_1))
             call init_hash_table(beta_ht)
@@ -648,13 +646,21 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                             rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                block
+                    integer :: nJ(nEl)
+                    call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                                                 rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end if
             end do
 
@@ -691,14 +697,21 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                                rep%core_space(:, ind_j), IC, OpenOrbsI)
-                            if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%push_back(ind_j)
-                                call hamil_row%push_back(hel)
+                        block
+                            integer :: nJ(nEl)
+                            call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                            if (is_zero_by_prop_vec(nI_paired, nJ)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_j), IC, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_j)
+                                    call hamil_row%push_back(hel)
+                                end if
                             end if
+                        end block
                         end if
-
                     end do
                 end if
             end if
@@ -716,12 +729,20 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                                     rep%core_space(:, ind_j), IC, CS_I, CS_J)
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                block
+                    integer :: nJ(nEl)
+                    call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                                                         rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end if
 
             end do
@@ -759,14 +780,21 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                                rep%core_space(:, ind_j), IC, OpenOrbsI)
-                            if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%push_back(ind_j)
-                                call hamil_row%push_back(hel)
+                        block
+                            integer :: nJ(nEl)
+                            call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                            if (is_zero_by_prop_vec(nI_paired, nJ)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_j), IC, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_j)
+                                    call hamil_row%push_back(hel)
+                                end if
                             end if
+                        end block
                         end if
-
                     end do
                 end if
             end if
@@ -781,15 +809,22 @@ contains
                                    intersec_inds, nintersec)
 
                 do k = 1, nintersec
+                block
+                    integer :: nK(nEl)
                     ind_k = alpha_dets%sub(ind_alpha_conn, intersec_inds(k))
                     CS_K = cs%ptr(ind_k)
-
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                        rep%core_space(:, ind_k), 2, CS_I, CS_K)
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_k)
-                        call hamil_row%push_back(hel)
+                    call decode_bit_det(nK, rep%core_space(:, ind_k))
+                    if (is_zero_by_prop_vec(nI, nK)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                            rep%core_space(:, ind_k), 2, CS_I, CS_K)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end do
             end do
 
@@ -818,13 +853,20 @@ contains
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) cycle
 
-                        hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                            rep%core_space(:, ind_k), 2, OpenOrbsI)
-                        if (abs(hel) > 0.0_dp) then
-                            call hamil_pos%push_back(ind_k)
-                            call hamil_row%push_back(hel)
-                        end if
-
+                        block
+                            integer :: nK(nEl)
+                            call decode_bit_det(nK, rep%core_space(:, ind_k))
+                            if (is_zero_by_prop_vec(nI_paired, nK)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_k), 2, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_k)
+                                    call hamil_row%push_back(hel)
+                                end if
+                            end if
+                        end block
                     end do
                 end do
                 !end if
