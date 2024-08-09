@@ -201,7 +201,7 @@ contains
             !! The total spin projection.
         integer, intent(in) :: iunit
 
-        call indexer%write_to(iunit)
+        call GAS_spec%write_to(iunit)
 
         @:unused_var(N, S_z)
 
