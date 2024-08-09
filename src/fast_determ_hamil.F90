@@ -26,7 +26,9 @@ module fast_determ_hamil
         buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     use util_mod, only: stop_all, neci_flush
-    implicit none
+    better_implicit_none
+    private
+    public :: calc_determ_hamil_opt_hphf, calc_determ_hamil_opt
 
     type auxiliary_array
         integer, pointer :: pos(:) => null()
@@ -125,9 +127,9 @@ contains
         hash_size_1 = max(10, int(rep%determ_space_size / 10.0))
 
         if (iProcIndex_intra == 0) then
-            allocate(beta_ht(hash_size_1), stat=ierr)
+            allocate(beta_ht(hash_size_1))
             call init_hash_table(beta_ht)
-            allocate(alpha_ht(hash_size_1), stat=ierr)
+            allocate(alpha_ht(hash_size_1))
             call init_hash_table(alpha_ht)
 
             call set_timer(aux_time)
@@ -218,17 +220,17 @@ contains
                 end do
             end do
 
-            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), stat=ierr)
-            allocate(nbeta_m1_contribs(nbeta * nOccBeta), stat=ierr)
-            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha), stat=ierr)
-            allocate(nalpha_m1_contribs(nalpha * nOccAlpha), stat=ierr)
+            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), &
+                     nbeta_m1_contribs(nbeta * nOccBeta), &
+                     alpha_m1_list(0:NIfD, nalpha * nOccAlpha), &
+                     nalpha_m1_contribs(nalpha * nOccAlpha))
 
             hash_size_2 = max(10, int(nbeta * nOccBeta / 10.0))
             hash_size_3 = max(10, int(nalpha * nOccAlpha / 10.0))
 
-            allocate(beta_m1_ht(hash_size_2), stat=ierr)
+            allocate(beta_m1_ht(hash_size_2))
             call init_hash_table(beta_m1_ht)
-            allocate(alpha_m1_ht(hash_size_3), stat=ierr)
+            allocate(alpha_m1_ht(hash_size_3))
             call init_hash_table(alpha_m1_ht)
 
             ! --- Find the size of beta-1 arrays -----------------
@@ -298,14 +300,14 @@ contains
             ! Now we know the size of the auxiliary arrays
 
             ! --- Allocate the auxiliary arrays for node-root  ---------------
-            allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
-            allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
+            allocate(beta_m1_contribs(nbeta_m1))
+            allocate(alpha_m1_contribs(nalpha_m1))
 
             do i = 1, nbeta_m1
-                allocate(beta_m1_contribs(i)%pos(nbeta_m1_contribs(i)), stat=ierr)
+                allocate(beta_m1_contribs(i)%pos(nbeta_m1_contribs(i)))
             end do
             do i = 1, nalpha_m1
-                allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)), stat=ierr)
+                allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)))
             end do
         end if
 
@@ -426,16 +428,13 @@ contains
                 end do
             end do
 
-            deallocate(beta_m1_list)
-            deallocate(alpha_m1_list)
+            deallocate(beta_m1_list, alpha_m1_list)
 
             call clear_hash_table(beta_m1_ht)
-            deallocate(beta_m1_ht, stat=ierr)
-            nullify (beta_m1_ht)
+            deallocate(beta_m1_ht)
 
             call clear_hash_table(alpha_m1_ht)
-            deallocate(alpha_m1_ht, stat=ierr)
-            nullify (alpha_m1_ht)
+            deallocate(alpha_m1_ht)
 
             nbeta_beta%ptr = 0
             nalpha_alpha%ptr = 0
@@ -573,10 +572,10 @@ contains
             ! Deallocate the arrays which we don't need for the following.
 
             do i = nbeta_m1, 1, -1
-                deallocate(beta_m1_contribs(i)%pos, stat=ierr)
+                deallocate(beta_m1_contribs(i)%pos)
             end do
             do i = nalpha_m1, 1, -1
-                deallocate(alpha_m1_contribs(i)%pos, stat=ierr)
+                deallocate(alpha_m1_contribs(i)%pos)
             end do
 
             deallocate(nbeta_m1_contribs)
@@ -586,13 +585,10 @@ contains
 
             ! Clear thread local random access hashtables
             call clear_hash_table(beta_ht)
-            deallocate(beta_ht, stat=ierr)
-            nullify (beta_ht)
+            deallocate(beta_ht)
 
             call clear_hash_table(alpha_ht)
-            deallocate(alpha_ht, stat=ierr)
-            nullify (alpha_ht)
-
+            deallocate(alpha_ht)
         end if
 
         ! Sync the ilut lists
@@ -606,13 +602,13 @@ contains
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
 
-        allocate(intersec_inds(nbeta), stat=ierr)
+        allocate(intersec_inds(nbeta))
 
         call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
         call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
             write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
@@ -650,13 +646,21 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                             rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                block
+                    integer :: nJ(nEl)
+                    call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                                                 rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end if
             end do
 
@@ -693,14 +697,21 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                                rep%core_space(:, ind_j), IC, OpenOrbsI)
-                            if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%push_back(ind_j)
-                                call hamil_row%push_back(hel)
+                        block
+                            integer :: nJ(nEl)
+                            call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                            if (is_zero_by_prop_vec(nI_paired, nJ)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_j), IC, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_j)
+                                    call hamil_row%push_back(hel)
+                                end if
                             end if
+                        end block
                         end if
-
                     end do
                 end if
             end if
@@ -718,12 +729,20 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                                     rep%core_space(:, ind_j), IC, CS_I, CS_J)
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                block
+                    integer :: nJ(nEl)
+                    call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                                                         rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end if
 
             end do
@@ -761,14 +780,21 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                                rep%core_space(:, ind_j), IC, OpenOrbsI)
-                            if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%push_back(ind_j)
-                                call hamil_row%push_back(hel)
+                        block
+                            integer :: nJ(nEl)
+                            call decode_bit_det(nJ, rep%core_space(:, ind_j))
+                            if (is_zero_by_prop_vec(nI_paired, nJ)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_j), IC, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_j)
+                                    call hamil_row%push_back(hel)
+                                end if
                             end if
+                        end block
                         end if
-
                     end do
                 end if
             end if
@@ -783,15 +809,22 @@ contains
                                    intersec_inds, nintersec)
 
                 do k = 1, nintersec
+                block
+                    integer :: nK(nEl)
                     ind_k = alpha_dets%sub(ind_alpha_conn, intersec_inds(k))
                     CS_K = cs%ptr(ind_k)
-
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                        rep%core_space(:, ind_k), 2, CS_I, CS_K)
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_k)
-                        call hamil_row%push_back(hel)
+                    call decode_bit_det(nK, rep%core_space(:, ind_k))
+                    if (is_zero_by_prop_vec(nI, nK)) then
+                        hel = 0._dp
+                    else
+                        hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                            rep%core_space(:, ind_k), 2, CS_I, CS_K)
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
+                end block
                 end do
             end do
 
@@ -820,13 +853,20 @@ contains
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) cycle
 
-                        hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
-                            rep%core_space(:, ind_k), 2, OpenOrbsI)
-                        if (abs(hel) > 0.0_dp) then
-                            call hamil_pos%push_back(ind_k)
-                            call hamil_row%push_back(hel)
-                        end if
-
+                        block
+                            integer :: nK(nEl)
+                            call decode_bit_det(nK, rep%core_space(:, ind_k))
+                            if (is_zero_by_prop_vec(nI_paired, nK)) then
+                                hel = 0._dp
+                            else
+                                hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                    rep%core_space(:, ind_k), 2, OpenOrbsI)
+                                if (abs(hel) > 0.0_dp) then
+                                    call hamil_pos%push_back(ind_k)
+                                    call hamil_row%push_back(hel)
+                                end if
+                            end if
+                        end block
                     end do
                 end do
                 !end if
@@ -962,6 +1002,7 @@ contains
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
 
+
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
                                  (/int(1 + NifD, int64), int(rep%determ_space_size, int64)/))
         beta_list(0:, 1:) => beta_list_ptr(1:, 1:)
@@ -979,9 +1020,9 @@ contains
         if (iProcIndex_intra == 0) then
 
             ! Thread local random access hashtables for initialization
-            allocate(beta_ht(hash_size_1), stat=ierr)
+            allocate(beta_ht(hash_size_1))
             call init_hash_table(beta_ht)
-            allocate(alpha_ht(hash_size_1), stat=ierr)
+            allocate(alpha_ht(hash_size_1))
             call init_hash_table(alpha_ht)
 
             ! --- Set up auxiliary arrays ------------------------------
@@ -1041,17 +1082,17 @@ contains
             end do
 
             ! Allocate beta-1 and alpha-1 arrays
-            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), stat=ierr)
-            allocate(nbeta_m1_contribs(nbeta * nOccBeta), stat=ierr)
-            allocate(alpha_m1_list(0:NIfD, nalpha * nOccAlpha), stat=ierr)
-            allocate(nalpha_m1_contribs(nalpha * nOccAlpha), stat=ierr)
+            allocate(beta_m1_list(0:NIfD, nbeta * nOccBeta), &
+                     nbeta_m1_contribs(nbeta * nOccBeta), &
+                     alpha_m1_list(0:NIfD, nalpha * nOccAlpha), &
+                     nalpha_m1_contribs(nalpha * nOccAlpha))
 
             hash_size_2 = max(10, int(nbeta * nOccBeta / 10.0))
             hash_size_3 = max(10, int(nalpha * nOccAlpha / 10.0))
 
-            allocate(beta_m1_ht(hash_size_2), stat=ierr)
+            allocate(beta_m1_ht(hash_size_2))
             call init_hash_table(beta_m1_ht)
-            allocate(alpha_m1_ht(hash_size_3), stat=ierr)
+            allocate(alpha_m1_ht(hash_size_3))
             call init_hash_table(alpha_m1_ht)
 
             ! --- Find the size of beta-1 arrays -----------------
@@ -1120,14 +1161,14 @@ contains
             ! Now we know the size of the auxiliary arrays
 
             ! --- Allocate the auxiliary arrays ---------------
-            allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
-            allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
+            allocate(beta_m1_contribs(nbeta_m1), &
+                     alpha_m1_contribs(nalpha_m1))
 
             do i = 1, nbeta_m1
-                allocate(beta_m1_contribs(i)%pos(nbeta_m1_contribs(i)), stat=ierr)
+                allocate(beta_m1_contribs(i)%pos(nbeta_m1_contribs(i)))
             end do
             do i = 1, nalpha_m1
-                allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)), stat=ierr)
+                allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)))
             end do
 
         end if
@@ -1234,16 +1275,13 @@ contains
                 end do
             end do
 
-            deallocate(beta_m1_list)
-            deallocate(alpha_m1_list)
+            deallocate(beta_m1_list, alpha_m1_list)
 
             call clear_hash_table(beta_m1_ht)
-            deallocate(beta_m1_ht, stat=ierr)
-            nullify (beta_m1_ht)
+            deallocate(beta_m1_ht)
 
             call clear_hash_table(alpha_m1_ht)
-            deallocate(alpha_m1_ht, stat=ierr)
-            nullify (alpha_m1_ht)
+            deallocate(alpha_m1_ht)
 
             nbeta_beta%ptr = 0
             nalpha_alpha%ptr = 0
@@ -1376,25 +1414,23 @@ contains
             ! Deallocate the arrays which we don't need for the following.
 
             do i = nbeta_m1, 1, -1
-                deallocate(beta_m1_contribs(i)%pos, stat=ierr)
+                deallocate(beta_m1_contribs(i)%pos)
             end do
             do i = nalpha_m1, 1, -1
-                deallocate(alpha_m1_contribs(i)%pos, stat=ierr)
+                deallocate(alpha_m1_contribs(i)%pos)
             end do
 
-            deallocate(nbeta_m1_contribs)
-            deallocate(nalpha_m1_contribs)
-            deallocate(beta_m1_contribs)
-            deallocate(alpha_m1_contribs)
+            deallocate(nbeta_m1_contribs, &
+                       nalpha_m1_contribs, &
+                       beta_m1_contribs, &
+                       alpha_m1_contribs)
 
             ! Clear thread local random access hashtables
             call clear_hash_table(beta_ht)
-            deallocate(beta_ht, stat=ierr)
-            nullify (beta_ht)
+            deallocate(beta_ht)
 
             call clear_hash_table(alpha_ht)
-            deallocate(alpha_ht, stat=ierr)
-            nullify (alpha_ht)
+            deallocate(alpha_ht)
         end if
         ! Sync the ilut lists
         call MPI_Win_Sync(beta_list_win, MPIerr)
@@ -1407,13 +1443,13 @@ contains
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
 
-        allocate(intersec_inds(nbeta), stat=ierr)
+        allocate(intersec_inds(nbeta))
 
         call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
         call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
-        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
-        allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
+        allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
+                 rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
             write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
@@ -1443,13 +1479,17 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j),nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end if
             end do
@@ -1467,13 +1507,17 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_j)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nJ)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nJ, rep%core_space(:, ind_j), nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_j)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end if
             end do
@@ -1490,13 +1534,17 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
-                    hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
-                    if(tImportanceSampling)then
-                        hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
-                    endif
-                    if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%push_back(ind_k)
-                        call hamil_row%push_back(hel)
+                    if (is_zero_by_prop_vec(nI, nK)) then
+                        hel = 0._dp
+                    else
+                        hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
+                        if(tImportanceSampling)then
+                            hel = hel*calcImportanceRatio(nK, rep%core_space(:, ind_k), nI,rep%core_space(:, i_full))
+                        endif
+                        if (abs(hel) > 0.0_dp) then
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
+                        end if
                     end if
                 end do
             end do
