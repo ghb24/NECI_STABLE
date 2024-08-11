@@ -62,6 +62,7 @@ module gasci
 
     type(GAS_SpecKind_vals_t), parameter :: GAS_spec_kind_vals = GAS_SpecKind_vals_t()
 
+
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
     ! If possible keep it like this!
