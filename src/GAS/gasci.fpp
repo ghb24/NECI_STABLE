@@ -8,9 +8,8 @@
 module gasci
     use constants, only: n_int, dp, int64
     use SystemData, only: nBasis, tGUGA
-    use util_mod, only: cumsum, stop_all, operator(.div.)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
+        operator(.isclose.), custom_findloc, EnumBase_t, lex_geq, stop_all
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
     use excitation_types, only: Excite_1_t, Excite_2_t, Excite_3_t, excite, canonicalize
@@ -30,7 +29,8 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec, finalize_GAS, P_specification, frequency
+        CAS_spec, finalize_GAS, P_specification, frequency, &
+        GAS_SpecKind_t, GAS_SpecKind_vals_t, GAS_spec_kind_vals
 
     logical :: tGAS = .false.
         !! Are we restricting excitations
@@ -49,6 +49,18 @@ module gasci
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
     type(GAS_exc_gen_t), allocatable :: GAS_exc_gen
+
+    type, extends(EnumBase_t) :: GAS_SpecKind_t
+    end type
+
+    type :: GAS_SpecKind_vals_t
+        type(GAS_SpecKind_t) :: &
+            LOCAL = GAS_SpecKind_t(1), &
+            CUMULATIVE = GAS_SpecKind_t(2), &
+            FLEXIBLE = GAS_SpecKind_t(3)
+    end type
+
+    type(GAS_SpecKind_vals_t), parameter :: GAS_spec_kind_vals = GAS_SpecKind_vals_t()
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.

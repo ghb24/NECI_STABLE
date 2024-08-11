@@ -2036,6 +2036,7 @@ contains
 
                 tGAS = .true.
                 block
+                    use gasci, only: GAS_SpecKind_t, GAS_spec_kind_vals
                     logical :: recoupling
                     integer :: nGAS, iGAS, i_sg, n_sg
                     integer :: i_orb
@@ -2043,19 +2044,21 @@ contains
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
                                             spat_GAS_orbs(:), beta_orbs(:), supergroups(:, :)
+
+                    type(GAS_SpecKind_t) :: GAS_spec_kind
+
                     w = to_upper(tokens%next())
                     if (w == 'LOCAL') then
-                        allocate(LocalGASSpec_t :: GAS_specification)
+                        GAS_spec_kind = GAS_spec_kind_vals%LOCAL
                     else if (w == 'CUMULATIVE') then
-                        allocate(CumulGASSpec_t :: GAS_specification)
+                        GAS_spec_kind = GAS_spec_kind_vals%CUMULATIVE
                     else if (w == 'FLEXIBLE') then
-                        allocate(FlexibleGASSpec_t :: GAS_specification)
+                        GAS_spec_kind = GAS_spec_kind_vals%FLEXIBLE
                     else
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
 
-                    select type(GAS_specification)
-                    type is (FlexibleGASSpec_t)
+                    if (GAS_spec_kind == GAS_spec_kind_vals%FLEXIBLE) then
                         nGAS = to_int(tokens%next())
                         n_sg = to_int(tokens%next())
                         allocate(supergroups(nGAS, n_sg), source=0)
@@ -2068,7 +2071,7 @@ contains
                                 call stop_all(t_r, 'Error in GAS spec.')
                             end if
                         end do
-                    class default
+                    else
                         nGAS = to_int(tokens%next())
                         allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                         do iGAS = 1, nGAS
@@ -2080,7 +2083,7 @@ contains
                                 call stop_all(t_r, 'Error in GAS spec.')
                             end if
                         end do
-                    end select
+                    end if
 
 
                     if (file_reader%nextline(tokens, skip_empty=.false.)) then
@@ -2101,17 +2104,15 @@ contains
                     end if
 
                     if (nEl == 0) call stop_all(this_routine, "Please specify electrons first.")
-                    select type(GAS_specification)
-                    type is(CumulGASSpec_t)
-                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                    type is(LocalGASSpec_t)
-                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling)
-                    type is(FlexibleGASSpec_t)
-                        GAS_specification = FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling)
+
+                    if (GAS_spec_kind == GAS_spec_kind_vals%CUMULATIVE) then
+                        allocate(GAS_specification, source=CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling))
+                    else if (GAS_spec_kind == GAS_spec_kind_vals%LOCAL) then
+                        allocate(GAS_specification, source=LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, nEl, recoupling))
+                    else if (GAS_spec_kind == GAS_spec_kind_vals%FLEXIBLE) then
+                        allocate(GAS_specification, source=FlexibleGASSpec_t(supergroups, spat_GAS_orbs, recoupling))
                         call GAS_specification%write_to(stdout)
-                    class default
-                       call stop_all(t_r, "Invalid type for GAS specification.")
-                    end select
+                    end if
 
                     indexer = GAS_SuperGroupIndexer_t(GAS_specification)
 
