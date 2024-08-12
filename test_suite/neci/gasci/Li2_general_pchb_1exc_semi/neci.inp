@@ -22,8 +22,8 @@ calc
     definedet 1 2 3 11 12 14
 
 
-    totalwalkers 1000
-    semi-stochastic 500
+    totalwalkers 10000
+    semi-stochastic 1000
     pops-core 1000
 
     methods
@@ -32,7 +32,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 2000
+    nmcyc 800
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
