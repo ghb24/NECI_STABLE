@@ -448,16 +448,18 @@ contains
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(2), tgt_spaces(2)
+        integer :: src_spaces(2), tgt_spaces(2), i
 
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 
         excited_supergroup = supergroup
-        !Remove particles form src_spaces
-        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-        !Add particles to tgt_spaces
-        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+        do i = 1, 2
+            !Remove particles form src_spaces
+            excited_supergroup(src_spaces(i)) = excited_supergroup(src_spaces(i)) - 1
+            !Add particles to tgt_spaces
+            excited_supergroup(tgt_spaces(i)) = excited_supergroup(tgt_spaces(i)) + 1
+        end do
 
     end function
 
@@ -469,16 +471,18 @@ contains
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(3), tgt_spaces(3)
+        integer :: src_spaces(3), tgt_spaces(3), i
 
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 
         excited_supergroup = supergroup
-        !Remove particles form src_spaces
-        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-        !Add particles to tgt_spaces
-        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+        do i = 1, 3
+            !Remove particles form src_spaces
+            excited_supergroup(src_spaces(i)) = excited_supergroup(src_spaces(i)) - 1
+            !Add particles to tgt_spaces
+            excited_supergroup(tgt_spaces(i)) = excited_supergroup(tgt_spaces(i)) + 1
+        end do
 
     end function
 
