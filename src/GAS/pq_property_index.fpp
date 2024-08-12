@@ -7,7 +7,7 @@ module pq_property_index
     use constants, only: int64, n_int
     use SystemData, only: nEl
     use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
-    use sets_mod, only: subset
+    use sets_mod, only: subset, operator(.in.)
     use bit_rep_data, only: nIfD
     use hash, only: hash_table_lookup
     use guga_bitRepOps, only: CSF_Info_t
@@ -18,7 +18,7 @@ module pq_property_index
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
     use property_vector_index, only: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t
-    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
+    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t, get_allowed_composition_indices
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, CAS_spec
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw
 
@@ -31,7 +31,7 @@ module pq_property_index
 
         ! This type extends the PropertyIndexer to perfrom PQ downfolding
         ! In order to do this we require a total space, P space and
-        ! a vector contained_in_P that keeps track if a property vector is 
+        ! a vector contained_in_P that keeps track if a property vector is
         ! in the P space or not.
 
         class(GAS_SuperGroupIndexer_t), allocatable :: total_space, P_space
@@ -39,7 +39,6 @@ module pq_property_index
 
     contains
 
-        procedure :: get_contained_in_P
         procedure :: is_allowed_single
         procedure :: is_allowed_double
         procedure :: is_allowed_triple
@@ -68,30 +67,12 @@ module pq_property_index
 
 contains
 
-    pure function get_contained_in_P(this) result(contained_in_P)
-
-        ! This function asserts for all composition indices in the total space
-        ! wether they are contained in the P space or not.
-
-        use sets_mod, only: operator(.in.)
-        class(PQ_indexer_t), intent(in) :: this
-        integer :: i
-        logical :: contained_in_P(size(this%total_space%allowed_composition_indices))
-
-        do i = 1, size(contained_in_P)
-            contained_in_P(i) = this%total_space%allowed_composition_indices(i) .in. this%P_space%allowed_composition_indices
-        end do
-        
-    end function
-
     pure function excite_single(this, exc, prop_vec) result(res)
         class(PQ_indexer_t), intent(in) :: this
         type(Excite_1_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         integer :: res(size(prop_vec))
-
         res = this%total_space%excite(exc, prop_vec)
-
     end function
 
     pure function excite_double(this, exc, prop_vec) result(res)
@@ -99,9 +80,7 @@ contains
         type(Excite_2_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         integer :: res(size(prop_vec))
-
         res = this%total_space%excite(exc, prop_vec)
-
     end function
 
     pure function excite_triple(this, exc, prop_vec) result(res)
@@ -109,9 +88,7 @@ contains
         type(Excite_3_t), intent(in) :: exc
         integer, intent(in) :: prop_vec(:)
         integer :: res(size(prop_vec))
-
         res = this%total_space%excite(exc, prop_vec)
-
     end function
 
     logical pure function is_allowed_single(this, exc, prop_vec)
@@ -128,17 +105,11 @@ contains
         valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
         if (valid_excitation) then
-
             exc_prop_vec = this%excite(exc, prop_vec)
-
-            is_allowed_single = (&
-                                this%contained_in_P(this%idx_prop_vec(prop_vec)) &
-                                .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec)) &
-                                )
+            is_allowed_single = this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec))
         else
-
             is_allowed_single = .false.
-
         end if
 
     end function
@@ -157,18 +128,11 @@ contains
         valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
         if (valid_excitation) then
-
             exc_prop_vec = this%excite(exc, prop_vec)
-
-            is_allowed_double = this%contained_in_P(&
-                                                    this%idx_prop_vec(prop_vec)) &
-                                                    .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec) &
-                                                    )
-
+            is_allowed_double = this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                                .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec))
         else
-
             is_allowed_double = .false.
-
         end if
 
     end function
@@ -187,17 +151,12 @@ contains
         valid_excitation = this%total_space%is_allowed(exc, prop_vec)
 
         if (valid_excitation) then
-
             exc_prop_vec = this%excite(exc, prop_vec)
-
-            is_allowed_triple = this%contained_in_P( &
-                                                    this%idx_prop_vec(prop_vec)) &
-                                                    .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec) &
-                                                    )
+            is_allowed_triple = &
+                this%contained_in_P(this%idx_prop_vec(prop_vec)) &
+                .or. this%contained_in_P(this%idx_prop_vec(exc_prop_vec))
         else
-
             is_allowed_triple = .false.
-
         end if
 
     end function
@@ -224,9 +183,18 @@ contains
         !! Is called once at initialization, so it does not have to be super fast.
         class(PQ_indexer_t), intent(in) :: this
         integer, intent(in) :: nI(nEl), nJ(nEl)
-        is_allowed_configurations = &
+        logical :: is_GAS_allowed
+
+        is_GAS_allowed = &
             this%total_space%GAS_spec%contains_conf(nI) &
             .and. this%total_space%GAS_spec%contains_conf(nJ)
+        if (is_GAS_allowed) then
+            is_allowed_configurations = &
+                this%P_space%GAS_spec%contains_conf(nI) &
+                .or. this%P_space%GAS_spec%contains_conf(nJ)
+        else
+            is_allowed_configurations = .false.
+        end if
     end function
 
     subroutine PQ_gen_all_excits(this, nI, n_excits, det_list, ic)
@@ -271,7 +239,6 @@ contains
 
         ! This function constructs the PQ indexer
 
-        use gasci_supergroup_index, only: get_allowed_composition_indices
         class(GAS_SuperGroupIndexer_t), intent(in) :: P_indexer, total_indexer
         type(PQ_indexer_t) :: idxer
         character(*), parameter :: this_routine = 'construct_PQ_indexer_t'
@@ -288,13 +255,9 @@ contains
         ! Otherwise PQ downfolding is not possible
 
         if (total_indexer%GAS_spec%is_connected()) then
-
             idxer%allowed_composition_indices = idxer%total_space%allowed_composition_indices
-
         else
-
             call stop_all(this_routine, "The total GAS Space cannot be disconnected")
-
         end if
 
         ! idxer%P_space%allowed_composition_indices = [-1] for a disconnected P_specification
@@ -302,9 +265,8 @@ contains
         ! Otherwise P_space can't be subset of total_space
 
         if (.not. P_indexer%GAS_spec%is_connected()) then
-
-            idxer%P_space%allowed_composition_indices = get_allowed_composition_indices(P_indexer%GAS_spec)
-
+            idxer%P_space%allowed_composition_indices = &
+                get_allowed_composition_indices(P_indexer%GAS_spec)
         end if
 
         ! Assert if P is subset of total
@@ -317,7 +279,16 @@ contains
         idxer%prop_vec_sum_ = idxer%total_space%prop_vec_sum()
         idxer%n_spin_orbs_ = idxer%total_space%n_spin_orbs()
         idxer%prop_vec_dim_ = idxer%total_space%prop_vec_dim()
-        idxer%contained_in_P = idxer%get_contained_in_P()
+
+        allocate(idxer%contained_in_P(size(idxer%total_space%allowed_composition_indices)), source=.false.)
+        block
+            integer :: i
+            do i = 1, size(idxer%contained_in_P)
+                idxer%contained_in_P(i) = &
+                    idxer%total_space%allowed_composition_indices(i) &
+                    .in. idxer%P_space%allowed_composition_indices
+            end do
+        end block
 
         @:pure_ASSERT(idxer%prop_vec_sum_ == total_indexer%GAS_spec%nEl())
         @:pure_ASSERT(idxer%n_spin_orbs_ == total_indexer%GAS_spec%n_spin_orbs())
