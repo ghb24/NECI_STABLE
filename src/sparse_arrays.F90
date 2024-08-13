@@ -28,7 +28,7 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
-    use property_vector_index, only: indexer
+    use property_vector_index, only: is_zero_by_prop_vec
     use excitation_types, only: get_excitation, Excitation_t, Excite_Further_t
     use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calc_guga_matrix_element
@@ -48,8 +48,7 @@ module sparse_arrays
         HDiagTag, trial_ht, con_ht, calculate_sparse_ham_par, trial_hashtable, &
         SparseHamilTags, approx_ham, allocate_sparse_ham_row, calc_approx_hamil_sparse_hphf, &
         calculate_sparse_hamiltonian_non_hermitian, var_ht, &
-        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable, &
-        is_zero_by_prop_vec
+        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable
 
 
     type trial_hashtable
@@ -921,14 +920,5 @@ contains
 
         transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
     end function t_evolve_adjoint
-
-    pure logical function is_zero_by_prop_vec(nI, nJ)
-        integer, intent(in) :: nI(nEl), nJ(nEl)
-
-        is_zero_by_prop_vec = .false.
-        if (allocated(indexer)) then
-            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
-        end if
-    end function
 
 end module sparse_arrays

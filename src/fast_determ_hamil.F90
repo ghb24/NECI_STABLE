@@ -15,6 +15,7 @@ module fast_determ_hamil
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
     use sltcnd_mod, only: dyn_sltcnd_excit
     use sparse_arrays
+    use property_vector_index, only: is_zero_by_prop_vec
     use SystemData, only: tHPHF, nel
     use timing_neci, only: get_total_time
     use util_mod, only: get_free_unit

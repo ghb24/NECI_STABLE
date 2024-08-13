@@ -18,7 +18,7 @@ module hphf_integrals
     use bit_reps, only: decode_bit_det
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: stop_all
-    use property_vector_index, only: indexer
+    use property_vector_index, only: indexer, is_zero_by_prop_vec
     implicit none
     private
     public :: hphf_off_diag_helement, hphf_spawn_sign, hphf_off_diag_helement_opt, &
@@ -193,15 +193,9 @@ contains
         logical :: tSign
 
         call decode_bit_det(nJ, ilutnJ)
-        if (allocated(indexer)) then
-            block
-                class(Excitation_t), allocatable :: exc
-                call get_excitation(nI, nJ, exc, tSign)
-                if (.not. indexer%dyn_is_allowed(exc, indexer%to_prop_vec(nI))) then
-                    hel = 0._dp
-                    return
-                end if
-            end block
+        if (is_zero_by_prop_vec(nI, nJ)) then
+            hel = 0._dp
+            return
         end if
 
         if (t_lattice_model) then
@@ -448,5 +442,4 @@ contains
         end if
 
     end function
-
 end module

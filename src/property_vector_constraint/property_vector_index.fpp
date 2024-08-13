@@ -34,7 +34,7 @@ module property_vector_index
 
     private
     public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t,&
-         indexer, lookup_property_indexer
+         indexer, lookup_property_indexer, is_zero_by_prop_vec
 
     type, abstract :: PropertyIndexer_t
         integer(int64), allocatable :: allowed_composition_indices(:)
@@ -365,6 +365,15 @@ contains
         class default
             call stop_all(this_routine, "invalid excitation passed in.")
         end select
+    end function
+
+    pure logical function is_zero_by_prop_vec(nI, nJ)
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+
+        is_zero_by_prop_vec = .false.
+        if (allocated(indexer)) then
+            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
+        end if
     end function
 
 end module
