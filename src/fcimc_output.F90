@@ -1628,7 +1628,7 @@ contains
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
                     call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
-                    if (tGUGA) tRoHistOneElInts
+                    if (tGUGA) then
                         excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
