@@ -11,7 +11,8 @@ module fcimc_output
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, StepsPrint, &
-                           maxInitExLvlWrite, AllInitsPerExLvl, t_force_replica_output
+                           maxInitExLvlWrite, AllInitsPerExLvl, t_force_replica_output, &
+                           tPrintCIVec, iNumCITermsPrinted
 
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
@@ -1510,8 +1511,12 @@ contains
                 this_run = GLOBAL_RUN
                 offset = 0
             end if
-            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, & ! @jphaupt
+            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
                 norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
+            if (tPrintCIVec) then
+                call global_most_populated_states(iNumCITermsPrinted, this_run, GlobalLargestWalkers, &
+                    norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
+            end if
 
             ! This has to be done by all procs
             if(tAdiActive) call update_ref_signs()
@@ -1612,9 +1617,11 @@ contains
 #endif
                 end if
 
-                iunit = get_free_unit()
-                open(iunit, file="NECIVEC", status="UNKNOWN")
-                write(iunit, '(A15, A30)') '# CI coeff.', 'excitation'
+                if (tPrintCIVec) then
+                    iunit = get_free_unit()
+                    open(iunit, file="NECIVEC", status="UNKNOWN")
+                    write(iunit, '(A15, A30)') '# CI coeff.', 'excitation'
+                end if
 
                 do i=1,iHighPopWrite
                     call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
@@ -1636,17 +1643,23 @@ contains
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                         !Weight is proportional to (nw/sqrt(2))**2
                         write(stdout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
-                        do j=1,lenof_out
-                        write(iunit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
-                        end do
+                        if (tPrintCIVec) then
+                            do j=1,lenof_out
+                                write(iunit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
+                            end do
+                        end if
                     else
-                        write(stdout,"(F9.5)",advance='no') (HighSign/norm) ! @jphaupt
-                        do j=1,lenof_out
-                        write(iunit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
-                        end do
+                        write(stdout,"(F9.5)",advance='no') (HighSign/norm)
+                        if (tPrintCIVec) then
+                            do j=1,lenof_out
+                                write(iunit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
+                            end do
+                        end if
                     end if
-                    write(iunit, "(A4)", advance='no') "    "
-                    call WriteDetBit(iunit, GlobalLargestWalkers(:,i), .true.)
+                    if (tPrintCIVec) then
+                        write(iunit, "(A4)", advance='no') "    "
+                        call WriteDetBit(iunit, GlobalLargestWalkers(:,i), .true.)
+                    end if
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
                             write(stdout,"(A3)",advance='no') 'Y'
