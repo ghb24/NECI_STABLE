@@ -18,7 +18,7 @@ module NatOrbsMod
                           nOccBeta, tSeparateOccVirt, tRotateOccOnly, tRotateVirtOnly, &
                           tFindCINatOrbs, tUseMP2VarDenMat, nBasisMax, ALAT, iSpinSkip, &
                           t_3_body_excits
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, extract_sign
     use bit_reps, only: decode_bit_det
     use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelCounts2_rotTag, &
                               SymLabelListInv_rot, NoOrbs, SpatOrbs, FillOneRDM_time, &
@@ -29,6 +29,8 @@ module NatOrbsMod
     use util_mod, only: get_free_unit, stop_all, neci_flush
     use procedure_pointers, only: get_umat_el
     use DetBitOps, only: GetBitExcitation
+    use Determinants, only: WriteDetBit
+    use semi_stoch_procs, only: GLOBAL_RUN, global_most_populated_states, core_space_weight
 
     implicit none
 
@@ -1530,37 +1532,53 @@ contains
         ! < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron
         ! reduced density matrix.
 
-        real(dp) :: Norm, OrbOccs(nBasis), AllOrbOccs(nBasis)
+        real(dp) :: Norm, OrbOccs(nBasis), AllOrbOccs(nBasis), walker_norm
         integer :: i, iunit
         logical :: tWarning
+        integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
+        integer :: this_run
+        real(dp), dimension(lenof_sign) :: refsign, currsign
+        real(dp) :: currsignreal
+
+        allocate(GlobalLargestWalkers(0:NIfTot,nBasis), source=0_n_int)
 
         AllOrbOccs = 0.0_dp
 
         call MPIReduce(OrbOccs, MPI_SUM, AllOrbOccs)
+        this_run = GLOBAL_RUN ! @jphaupt todo in case of replica
+        call global_most_populated_states(nBasis, this_run, GlobalLargestWalkers, norm=walker_norm)
 
+        call extract_sign(GlobalLargestWalkers(:,1), refsign)
         ! Want to normalise the orbital contributions for convenience.
         tWarning = .false.
         if (iProcIndex == 0) then
+            iunit = get_free_unit()
+            ! normalise to nel
             Norm = 0.0_dp
             do i = 1, nBasis
                 Norm = Norm + AllOrbOccs(i)
+
                 if ((AllOrbOccs(i) < 0) .or. (Norm < 0)) then
-                    write(stdout, *) 'WARNING: Integer overflow when calculating the orbital occupations.'
+                    write(stderr, *) 'WARNING: Integer overflow when calculating the orbital occupations.'
                     tWarning = .true.
                 end if
             end do
             if (Norm > 1.0e-8_dp) then
                 do i = 1, nBasis
-                    AllOrbOccs(i) = AllOrbOccs(i) / Norm
+                    AllOrbOccs(i) = nEl * AllOrbOccs(i) / Norm
                 end do
             end if
 
-            iunit = get_free_unit()
             open(iunit, file='ORBOCCUPATIONS', status='UNKNOWN')
-            write(iunit, '(A15,A30)') '# Orbital no.', 'Normalised occupation'
+            ! write(iunit, '(A15,A30)') '# Orbital no.', 'Normalised occupation'
+            write(iunit, '(A15,A30,A30,A30)') '# Orbital no.', 'occupation', 'Normalised CI coeff.', 'excitation'
             if (tWarning) write(iunit, *) 'WARNING: integer OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
             do i = 1, nBasis
-                write(iunit, '(I15,F30.10)') i, AllOrbOccs(i)
+                call extract_sign(GlobalLargestWalkers(:,i), currsign)
+                currsignreal = core_space_weight(currsign, this_run)
+                write(iunit, '(I15,F30.10,E30.12)', advance='no') i, AllOrbOccs(i), currsignreal/walker_norm
+                write(iunit, '(A4)', advance='no') '    '
+                call WriteDetBit(iunit,GlobalLargestWalkers(:,i),.true.)
             end do
             close(iunit)
         end if

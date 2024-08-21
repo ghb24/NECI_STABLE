@@ -1621,13 +1621,13 @@ contains
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
                     call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
-                    if (tGUGA) then ! @jphaupt
+                    if (tGUGA) tRoHistOneElInts
                         excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
                         Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                     end if
-                    write(stdout,"(I5)",advance='no') Excitlev ! @jphaupt
+                    write(stdout,"(I5)",advance='no') Excitlev
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                     write(stdout,"(I5)",advance='no') nopen
                     do j=1,lenof_out
@@ -1646,7 +1646,7 @@ contains
                         end do
                     end if
                     write(iunit, "(A4)", advance='no') "    "
-                    call WriteDetBit(iunit,GlobalLargestWalkers(:,i),.true.)
+                    call WriteDetBit(iunit, GlobalLargestWalkers(:,i), .true.)
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
                             write(stdout,"(A3)",advance='no') 'Y'
