@@ -14,6 +14,7 @@ MODULE ReadInput_neci
     use tau_main, only: tau_start_val, possible_tau_start, &
         min_tau, max_tau, tau, readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
         tau_search_method, possible_tau_search_methods
+    use tau_search_hist, only: user_input_histogramming_spec, histogramming_spec, get_settings
     use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms, &
         tHartreeGutzwiller
 
@@ -650,7 +651,7 @@ contains
         end if
 
         if (tGUGA_GAS()) then
-            if (GUGA_selected_exc_generator /= GUGA_exc_generator_vals%GAS_PCHB) then
+            if (GUGA_selected_exc_generator /= GUGA_exc_generator_vals%PropVec_PCHB) then
                 call stop_all(this_routine, 'GAS-CI and GAS-SPEC required.')
             end if
         end if
@@ -780,6 +781,10 @@ contains
                     call stop_all(this_routine, &
                                   "MaxWalkerBloom has to be smaller equal than max_allowed_spawn.")
                 end if
+            end if
+
+            if (tau_search_method == possible_tau_search_methods%histogramming) then
+                histogramming_spec = get_settings(user_input_histogramming_spec, GUGA_selected_exc_generator)
             end if
         end block time_step
 

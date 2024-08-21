@@ -5,7 +5,7 @@ title
     electrons                          9
     system-replicas                    4
     guga                               1
-    nonUniformRandExcits       guga-pchb \
+    nonUniformRandExcits       guga-pchb manual \
         drawing unif:unif unif-unif:fast-fast \
         weighting uniform initial-dobrautz
     freeformat
@@ -47,7 +47,7 @@ title
         max 1e-3 \
         readpops-but-tau-not-from-popsfile
     tau-search \
-        algorithm histogramming 1e-6 100000 2000 \
+        algorithm histogramming \
         stop-condition off \
         maxwalkerbloom         1
 

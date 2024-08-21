@@ -1786,17 +1786,17 @@ contains
                     case ("GUGA-PCHB")
                     ! use an explicit guga-pchb keyword and flag
                     block
-                        use guga_pchb_class, only: options, from_tokens
+                        use guga_pchb_class, only: FCI_PCHB_user_input, from_tokens
                         GUGA_selected_exc_generator = GUGA_exc_generator_vals%FCI_PCHB
-                        options = from_tokens(tokens, use_lookup=.true.)
+                        FCI_PCHB_user_input = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("GUGA-GAS-PCHB")
                     ! use an explicit guga-pchb keyword and flag
                     block
-                        use guga_gas_pchb_main, only: options, from_tokens
-                        GUGA_selected_exc_generator = GUGA_exc_generator_vals%GAS_PCHB
-                        options = from_tokens(tokens, use_lookup=.true.)
+                        use guga_prop_vec_pchb_main, only: PropVec_PCHB_user_input, from_tokens
+                        GUGA_selected_exc_generator = GUGA_exc_generator_vals%PropVec_PCHB
+                        PropVec_PCHB_user_input = from_tokens(tokens, use_lookup=.true.)
                     end block
 
                     case ("UEG")
@@ -1817,6 +1817,12 @@ contains
                     // "singles on-fly-heat-bath` instead."
                 write(stdout, *) "For GUGA please use `GUGA-PCHB-WEIGHTED-SINGLES`."
                 call stop_all(this_routine, trim(w)//" is deprecated.")
+
+            case("GUGA-PCHB-SCALE-DOWN-EXCH-SINGLES")
+                block
+                    use guga_prop_vec_pchb_singles_main, only: scale_down_exch_singles
+                    scale_down_exch_singles = to_realdp(tokens%next())
+                end block
 
             ! enable intermediately some pchb+guga testing
             case("ANALYZE-PCHB")

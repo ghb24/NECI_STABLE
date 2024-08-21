@@ -336,7 +336,14 @@ considered. The block starts with the `system` keyword and ends with the
         more reasonable defaults than for the usual `mol-guga-weighted`
         excitation generation option.
         Has to be followed by a specification of the drawing and weighting schemes.
-        The notation follows [@weser_exploiting_2023].
+
+        With `LOCALISED` and `DELOCALISED` the fastest PCHB sampler is chosen automatically.
+        Specify `DELOCALISED` for Hartree-Fock like orbitals and
+        `LOCALISED` for localised orbitals.
+        With `MANUAL` one can select the PCHB sampler themselves.
+
+        The manual notation follows [@weser_exploiting_2023] and the corresponding notation
+        for Slater-determinant based PCHB.
         **Uniform**, **fast-weighted**, and **fully-weighted**
         sampling schemes for particles and holes are labeled
         `unif`, `fast` and `full`, respectively.
@@ -345,9 +352,13 @@ considered. The block starts with the `system` keyword and ends with the
         singles (possible values are `uniform`, `abs-integral`, `rhf-expression`),
         then for the doubles (possible values are `uniform`, `initial-dobrautz`).
 
-        An example is
+        A simple example is:
 
-            nonuniformrandexcits guga-gas-pchb \
+            nonuniformrandexcits guga-gas-pchb localised
+
+        A more complex example is
+
+            nonuniformrandexcits guga-gas-pchb manual \
                 drawing full:full full-full:fast-fast \
                 weighting rhf-expression initial-dobrautz
 
@@ -959,7 +970,7 @@ and ends with the `endcalc` keyword.
     Truncate spawns which are larger than a threshold value \(n\). Both
     arguments are optional, \(n\) defaults to \(3\). If UNOCC is given
     the truncation is restricted to spawns onto unoccupied. Useful in
-    combination with hist-tau-search.
+    combination with histogramming tau-search.
 
 
 

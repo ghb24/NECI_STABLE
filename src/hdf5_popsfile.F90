@@ -748,7 +748,7 @@ contains
         if (tau_start_val == possible_tau_start%from_popsfile) then
             if (tau_set) then
                 if (temp_tau < min_tau .or. temp_tau > max_tau) then
-                    call stop_all(this_routine, "The read tau "//str(temp_tau, after_comma=5)//" is smaller than min_tau or larger than max_tau")
+                    call stop_all(this_routine, "The read tau "//str(temp_tau, after_comma=5, scientific=.true.)//" is smaller than min_tau or larger than max_tau")
                 end if
                 call assign_value_to_tau(temp_tau, 'Initialization from HDF5 file.')
             else
@@ -1613,7 +1613,9 @@ contains
 
                     ! Add this site to the main list
                     CurrWalkers = CurrWalkers + 1
-                    dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                    associate(L => lbound(SpawnedParts2, 1))
+                        dets(:, CurrWalkers) = SpawnedParts2(L : L + size(dets, 1) - 1, j)
+                    end associate
                     call add_pops_norm_contrib(dets(:, CurrWalkers))
                     call extract_sign(SpawnedParts2(:, j), sgn)
                     norm = norm + sgn**2

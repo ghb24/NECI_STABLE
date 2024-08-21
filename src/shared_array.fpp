@@ -3,11 +3,13 @@
 ! fpp types
 #:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer(int32)','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
 module shared_array
+    use iso_c_binding, only: c_sizeof
     use constants, only: int32, int64, dp, MPIArg
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use mpi_f08, only: MPI_Barrier, MPI_Win_Sync, MPI_Win
     use MPI_wrapper, only: mpi_comm_intra
     use MemoryManager, only: LogMemALloc, LogMemDealloc, TagIntType
+    use util_mod, only: ByteSize_t
     better_implicit_none
     private
     ! Shared memory array types are defined here
@@ -26,6 +28,7 @@ module shared_array
         procedure :: shared_alloc => safe_shared_memory_alloc_${data_name}$
         procedure :: shared_dealloc => safe_shared_memory_dealloc_${data_name}$
         procedure :: sync => sync_${data_name}$
+        procedure :: get_memory_demand => get_memory_demand_${data_name}$
     end type shared_array_${data_name}$_t
 #:endfor
 contains
@@ -41,7 +44,7 @@ contains
     !> @param[in] size  size of the memory segment to be allocated
     subroutine safe_shared_memory_alloc_${data_name}$ (this, size, name)
 
-        class(shared_array_${data_name}$_t) :: this
+        class(shared_array_${data_name}$_t), intent(inout) :: this
         integer(int64), intent(in) :: size
         character(*), intent(in), optional :: name
         character(*), parameter :: t_r = "shared_alloc"
@@ -64,7 +67,7 @@ contains
     ! WARNING: THIS ASSUMES THAT IF ptr IS ASSOCIATED, IT POINTS TO AN MPI SHARED MEMORY
     !          WINDOW win
     subroutine safe_shared_memory_dealloc_${data_name}$ (this)
-        class(shared_array_${data_name}$_t) :: this
+        class(shared_array_${data_name}$_t), intent(inout) :: this
         character(*), parameter :: t_r = "shared_dealloc"
 
         ! assume that if ptr is associated, it points to mpi shared memory
@@ -77,13 +80,25 @@ contains
     !! This has to be called between read/write epochs to ensure all tasks of a node are
     !! looking at the same shared data
     subroutine sync_${data_name}$ (this)
-        class(shared_array_${data_name}$_t) :: this
+        class(shared_array_${data_name}$_t), intent(inout) :: this
         integer(MPIArg) :: ierr
 
         call MPI_Win_Sync(this%win, ierr)
         call MPI_Barrier(mpi_comm_intra, ierr)
 
     end subroutine sync_${data_name}$
+
+
+    elemental function get_memory_demand_${data_name}$(this) result(res)
+        class(shared_array_${data_name}$_t), intent(in) :: this
+        type(ByteSize_t) :: res
+
+        if (associated(this%ptr)) then
+            res = ByteSize_t(size(this%ptr) * int(c_sizeof(this%ptr(1)), int64))
+        else
+            res = ByteSize_t(0_int64)
+        end if
+    end function
 #:endfor
 
 end module shared_array

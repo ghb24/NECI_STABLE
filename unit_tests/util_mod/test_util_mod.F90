@@ -3,7 +3,8 @@ module test_util_mod
     use fruit, only: run_test_case, assert_equals, assert_true
     use util_mod, only: stop_all
     use constants, only: int64, dp
-    use util_mod, only: choose_i64
+    use util_mod, only: choose_i64, ByteSize_t, defined_ByteSize_t, defined_sizes, &
+        operator(*), operator(/)
     use indexing_mod, only: fuse_symm_idx, inv_fuse_symm_idx, &
         fuse_idx, inv_fuse_idx, &
         triangle_number, inv_triangle_number
@@ -18,6 +19,8 @@ contains
         call run_test_case(test_binomial, "test_binomial")
 
         call run_test_case(test_fuse, "test_fuse")
+
+        call run_test_case(test_byte_sizes, "test_byte_sizes")
 
     end subroutine
 
@@ -108,6 +111,38 @@ contains
                 end do
             end do
         end block non_symmetric_matrix
+    end subroutine
+
+
+    subroutine test_byte_sizes()
+
+        use iso_c_binding, only: c_sizeof
+
+        call assert_true(2 * defined_sizes%GB == 2_int64 * defined_sizes%GB)
+
+        call assert_true(2 * defined_sizes%GiB >= 2_int64 * defined_sizes%GB)
+
+        call assert_true(2 * defined_sizes%GiB == defined_sizes%GiB + defined_sizes%GiB)
+
+        call assert_true(2.1_dp * defined_sizes%GiB == defined_sizes%GiB + 1.1_dp * defined_sizes%GiB)
+
+        call assert_true(defined_sizes%GiB == (2**30_int64 * defined_sizes%GB) / 1e9_dp)
+
+        block
+            integer(int64), allocatable, target :: x(:)
+            integer(int64), pointer :: y(:)
+
+            allocate(x(10))
+            call assert_true(ByteSize_t(size(x) * int(c_sizeof(x(1)), int64)) == ByteSize_t(size(x) * 8_int64))
+
+            y => x(1:5)
+            call assert_true(ByteSize_t(size(y) * int(c_sizeof(y(1)), int64)) == ByteSize_t(size(y) * 8_int64))
+
+        end block
+
+
+
+
     end subroutine
 
 

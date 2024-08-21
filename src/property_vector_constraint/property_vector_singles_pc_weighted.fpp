@@ -6,7 +6,7 @@ module property_vector_singles_pc_weighted
     use fortran_strings, only: to_upper
     use util_mod, only: stop_all, EnumBase_t, operator(.div.)
     use bit_rep_data, only: NIfTot, nIfD
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, UnoccupiedGetter_t
     use SymExcitDataMod, only: ScratchSize
     use SystemData, only: nEl, nBasis
     use excitation_generators, only: SingleExcitationGenerator_t
@@ -90,18 +90,12 @@ module property_vector_singles_pc_weighted
             !! Use a lookup for the prop_vec index in global_det_data.
         logical, public :: create_lookup = .false.
 
-        integer(n_int), private :: last_possible_occupied
-            !! The last element of the ilut array has some elements
-            !! which are not used, if the number of spinorbitals is not a multiple of
-            !! bitsize_n_int.
-            !! To correctly zero them this bitmask is 1 wherever a determinant
-            !! could be occupied in the last element, and 0 otherwise.
+        type(UnoccupiedGetter_t), private :: unoccupied
     contains
         private
         procedure, public :: init
         procedure, public :: finalize
         procedure, public :: gen_all_excits => gen_all_excits_PC_Weighted_t
-        procedure :: get_unoccupied
     end type
 
     type, extends(PC_Weighted_t) :: PC_SinglesFullyWeighted_t
@@ -197,7 +191,6 @@ contains
     end function
 
     pure function to_str(options) result(res)
-        !! Parse a given keyword into the possible drawing schemes.
         class(PC_singles_drawing_t), intent(in) :: options
         character(9) :: res
         routine_name("from_keyword")
@@ -238,13 +231,7 @@ contains
         prop_vecs = this%indexer%get_prop_vecs()
         n_prop_vecs = size(prop_vecs, 2)
 
-        this%last_possible_occupied = 0_n_int
-        block
-            integer :: i
-            do i = 0, ilut_off(nBasis)
-                this%last_possible_occupied = ibset(this%last_possible_occupied, i)
-            end do
-        end block
+        this%unoccupied = UnoccupiedGetter_t(nBasis)
 
         call this%I_sampler%shared_alloc(n_prop_vecs, nBI, 'PC_singles_I')
         call this%A_sampler%shared_alloc([nBi, n_prop_vecs], nBI, 'PC_singles_A')
@@ -277,17 +264,6 @@ contains
                 type(Excite_1_t), intent(in) :: exc
                 symmetry_allowed = SpinOrbSymLabel(exc%val(1, 1)) == SpinOrbSymLabel(exc%val(2, 1))
             end function
-    end subroutine
-
-    pure subroutine get_unoccupied(this, ilutI, ilut_unoccupied, unoccupied)
-        !! Return a bitmask and enumeration of the unoccupied spin orbitals.
-        class(PC_Weighted_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilutI(0 : nIfD)
-        integer(n_int), intent(out) :: ilut_unoccupied(0 : nIfD)
-        integer, intent(out) :: unoccupied(nBasis - nEl)
-        ilut_unoccupied = not(ilutI)
-        ilut_unoccupied(nIfd) = iand(ilut_unoccupied(nIfd), this%last_possible_occupied)
-        call decode_bit_det(unoccupied, ilut_unoccupied)
     end subroutine
 
     subroutine PC_SinglesFullyWeighted_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -332,7 +308,7 @@ contains
             real(dp) :: renorm_tgt
             integer :: dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
-            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
@@ -377,7 +353,7 @@ contains
         @:ASSERT(ic == 1)
         @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
-        call this%get_unoccupied(ilutI, ilut_unoccupied, unoccupied)
+        call this%unoccupied%get(ilutI, ilut_unoccupied, unoccupied)
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_gen = this%I_sampler%get_prob(i_sg, src) &
                         / sum(this%I_sampler%get_prob(i_sg, nI)) &
@@ -425,7 +401,7 @@ contains
             real(dp) :: renorm_tgt
             integer :: dummy, unoccupied(nBasis - nEl)
             integer(n_int) :: ilut_unoccupied(0 : nIfD)
-            call this%get_unoccupied(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
+            call this%unoccupied%get(ilutI(0 : nIfD), ilut_unoccupied, unoccupied)
             renorm_tgt = 1._dp - sum(this%A_sampler%get_prob(src, i_sg, nI))
             if (do_direct_calculation(renorm_tgt)) then
                 renorm_tgt = sum(this%A_sampler%get_prob(src, i_sg, unoccupied))
@@ -470,7 +446,7 @@ contains
         @:ASSERT(ic == 1)
         @:unused_var(ClassCount2, ClassCountUnocc2)
         i_sg = this%indexer%idx_nI(nI)
-        call this%get_unoccupied(ilutI, ilut_unoccupied, unoccupied)
+        call this%unoccupied%get(ilutI, ilut_unoccupied, unoccupied)
         p_src = 1._dp / real(nEl, dp)
         associate (src => ex(1, 1), tgt => ex(2, 1))
             p_tgt = this%weights(tgt, src, i_sg) / sum(this%weights(unoccupied, src, i_sg))
