@@ -70,6 +70,8 @@ contains
         iBlockEquilProjE = 0
         ErrorDebug = 0
         iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
+        tPrintCIVec = .false.
+        iNumCITermsPrinted = 0
         t_force_replica_output = .false.
         tDiagWalkerSubspace = .false.
         iDiagSubspaceIter = 1
@@ -280,17 +282,21 @@ contains
                 t_print_frq_histograms = .true.
 
             case ("REBLOCKSHIFT")
-                !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+                ! Abort all other calculations, and just block data again with given equilibration time (in iterations)
                 tJustBlocking = .true.
                 iBlockEquilShift = to_int(tokens%next())
             case ("REBLOCKPROJE")
-                !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+                ! Abort all other calculations, and just block data again with given equilibration time (in iterations)
                 tJustBlocking = .true.
                 iBlockEquilProjE = to_int(tokens%next())
             case ("HIGHLYPOPWRITE")
-                !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+                ! At the end of an FCIMC calculation, how many highly populated determinants should we write out?
                 iHighPopWrite = to_int(tokens%next())
-            case("REPLICAS-POPWRITE")
+            case ("PRINT-CIVEC")
+                ! At the end of the calculation, produces a file CIVEC with the CI vector printed
+                tPrintCIVec = .true.
+                iNumCITermsPrinted = to_int(tokens%next())
+            case ("REPLICAS-POPWRITE")
                 ! Print out the highest populated determinants from all replicas
                 t_force_replica_output = .true.
                 if( tokens%remaining_items() > 0) iHighPopWrite = to_int(tokens%next())
