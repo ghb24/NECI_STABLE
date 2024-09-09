@@ -369,10 +369,15 @@ contains
 
     pure logical function is_zero_by_prop_vec(nI, nJ)
         integer, intent(in) :: nI(nEl), nJ(nEl)
+        routine_name("is_zero_by_prop_vec")
+
+        call stop_all(this_routine, "is_zero was called")
 
         is_zero_by_prop_vec = .false.
+
         if (allocated(indexer)) then
             is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
+            call stop_all(this_routine, "indexer is allocated")
         end if
     end function
 
