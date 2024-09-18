@@ -71,6 +71,7 @@ macro( neci_add_library )
     set( options )
     set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE WARNERR)
     set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES FYPP_SOURCES RELAX_WARNINGS PRIVATE_INCLUDES LIBS )
+    set( min_python_ver 3.6 )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -104,7 +105,7 @@ macro( neci_add_library )
 
     set( ${_p_TARGET}_TEMPLATED_SOURCES )
     if ( _p_TEMPLATED_SOURCES )
-        find_package(Python3 REQUIRED)
+        find_package(Python3 ${min_python_ver} REQUIRED)
 
         # Ensure that the templates get put somewhere unique for each target
         set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
@@ -141,7 +142,7 @@ macro( neci_add_library )
     # Convert all templated files to f90 files.
     set( ${_p_TARGET}_FYPP_SOURCES )
     if (_p_FYPP_SOURCES )
-        find_package(Python3 REQUIRED)
+        find_package(Python3 ${min_python_ver} REQUIRED)
         # This will also search in default locations e.g. $PATH, env ...
         find_program (_fypp fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/)
         if (NOT _fypp)
