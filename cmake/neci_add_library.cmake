@@ -71,6 +71,7 @@ macro( neci_add_library )
     set( options )
     set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE WARNERR)
     set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES FYPP_SOURCES RELAX_WARNINGS PRIVATE_INCLUDES LIBS )
+
     set( min_python_ver 3.6 )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
