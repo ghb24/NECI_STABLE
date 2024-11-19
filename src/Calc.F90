@@ -1728,10 +1728,6 @@ contains
                     tStartCoreGroundState = .false.
                 end if
 
-                if (semistoch_shift_iter == 0) then
-                    call stop_all(t_r, "semi-stochastic minimum value is 1")
-                end if
-
             case("DAVIDSON-MAX-ITERS")
                 ! Set the max number of iteration for Davidson method: defaulted to 50
                 if (allocated(user_input_max_davidson_iters)) then
