@@ -14,7 +14,7 @@ module sym_mod
 !                    tagSymConjTab, SymReps, SymClasses2, tagSymClasses2, &
 !                    tagSymReps
     use SymData
-    use util_mod, only: int_fmt, stop_all, neci_flush
+    use util_mod, only: int_fmt, stop_all, pure_stop_all, neci_flush
     use global_utilities
     use sort_mod
     implicit none
@@ -72,7 +72,7 @@ contains
 !                  return
 !              end if
             ! change for the real-space hubbard
-            IF (.not. allocated(SYMTABLE)) call stop_all(this_routine, 'SYMMETRY TABLE NOT ALLOCATED')
+            IF (.not. allocated(SYMTABLE)) call pure_stop_all(this_routine, 'SYMMETRY TABLE NOT ALLOCATED')
             IS1 = ISYM1
             I = 1
             SYMPROD%s = 0

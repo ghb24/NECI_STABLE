@@ -10,13 +10,14 @@ module Determinants
     use SystemData, only: alat, arr, arr, basisfn, basisfnsize, basisfnsizeb, &
         brr, ecore, g1, irreporboffset, k_lattice_constant, k_lattice_vectors, &
         k_momentum, lms, lnosymmetry, nbasis, nbasismax, &
-        nclosedorbs, nel, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
+        nclosedorbs, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
         symmetrysizeb, symrestrict, t_guga_noreorder, t_lattice_model, tcpmd, &
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
         tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder, &
         t_heisenberg_model, tHPHF, exchange_j
+    use SystemData, only: nEl
     use bit_rep_data, only: nIfTot
     use bit_reps, only: decode_bit_det
     use blas_interface_mod, only: dcopy

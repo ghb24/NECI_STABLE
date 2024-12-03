@@ -31,7 +31,7 @@ module property_vector_pchb_main
     !! orbitals.
 
     use constants, only: stdout
-    use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
+    use util_mod, only: stop_all, pure_stop_all, EnumBase_t, operator(.implies.)
     use timing_neci, only: set_timer, halt_timer
     use FciMCData, only: PropVec_PCHB_init_time
     use SystemData, only: tUHF, nBasis
@@ -184,7 +184,7 @@ contains
         else if (PropVec_PCHB_user_input%option_selection == PropVec_PCHB_user_input_vals%option_selection%MANUAL) then
             res = PropVec_PCHB_user_input%options
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
         end associate
 

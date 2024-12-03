@@ -3,7 +3,7 @@ module pchb_excitgen
     use constants, only: n_int, dp, maxExcit, stdout
     use SystemData, only: nel, nBasis
     use fortran_strings, only: to_upper, join, Token_t
-    use util_mod, only: operator(.div.), EnumBase_t, stop_all, operator(.implies.)
+    use util_mod, only: operator(.div.), EnumBase_t, stop_all, pure_stop_all, operator(.implies.)
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
     use SystemData, only: tUHF
     use gasci_supergroup_index, only: get_CAS_indexer
@@ -116,7 +116,7 @@ contains
                     PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
             )
         case default
-            call stop_all(this_routine, trim(w)//" not a valid singles generator for GAS PCHB.")
+            call pure_stop_all(this_routine, trim(w)//" not a valid singles generator for GAS PCHB.")
         end select
         end associate
     end function
@@ -134,7 +134,7 @@ contains
         else if (options%algorithm == vals%algorithm%PC_WEIGHTED) then
             res = options%PC_weighted%drawing%to_str()
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
         end associate
     end function
@@ -239,7 +239,7 @@ contains
         else if (FCI_PCHB_user_input%option_selection == FCI_PCHB_user_input_vals%option_selection%MANUAL) then
             res = FCI_PCHB_user_input%options
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
         end associate
 

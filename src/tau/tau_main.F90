@@ -6,7 +6,7 @@ module tau_main
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, iProcIndex, root
     use FciMCData, only: iter, tSinglePartPhase, VaryShiftIter
     use CalcData, only: tPrecond
-    use util_mod, only: clamp
+    use util_mod, only: clamp, pure_stop_all
 
     better_implicit_none
 
@@ -179,7 +179,7 @@ contains
             else if (stop_method == possible_tau_stop_methods%n_opts) then
                 res = search_data%n_opts >= stop_options%max_n_opts
             else
-                call stop_all(this_routine, "has to be implemented")
+                call pure_stop_all(this_routine, "has to be implemented")
             end if
         end if
     end function

@@ -5,6 +5,7 @@ submodule (Determinants) Determinants_impls
     use GenRandSymExcitNUMod, only: SpinOrbSymSetup
     use sym_mod, only: writesymtable, gensymstatepairs
     use SystemData, only: nEl
+    use bit_rep_data, only: nIfTot
 
     better_implicit_none
 

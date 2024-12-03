@@ -4,7 +4,7 @@
 module property_vector_singles_pc_weighted
     use constants, only: dp, stdout, n_int, bits_n_int, maxExcit
     use fortran_strings, only: to_upper
-    use util_mod, only: stop_all, EnumBase_t, operator(.div.)
+    use util_mod, only: stop_all, pure_stop_all, EnumBase_t, operator(.div.)
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det, UnoccupiedGetter_t
     use SymExcitDataMod, only: ScratchSize
@@ -186,7 +186,7 @@ contains
         case(PC_singles_drawing_vals%UNIF_FAST%str)
             res = PC_singles_drawing_vals%UNIF_FAST
         case default
-            call stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
+            call pure_stop_all(this_routine, trim(w)//" not a valid PC-WEIGHTED singles drawing scheme")
         end select
     end function
 
@@ -201,7 +201,7 @@ contains
         else if (options == PC_singles_drawing_vals%UNIF_FAST) then
             res = PC_singles_drawing_vals%UNIF_FAST%str
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
     end function
 
