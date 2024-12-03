@@ -2184,7 +2184,7 @@ contains
         end do
 
         print *, ""
-        print *, "connected determinants correct!"
+        print *, "connected Determinants correct!"
         print *, ""
 
         ! also do the tests on non-connected CSFs..
@@ -2242,7 +2242,7 @@ contains
         end do
 
         print *, ""
-        print *, "non-connected determinants correctly 0!"
+        print *, "non-connected Determinants correctly 0!"
         print *, ""
 
         ! i should also test more than double excitaitons to see if i correctly

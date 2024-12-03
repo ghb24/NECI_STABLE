@@ -4,9 +4,6 @@ submodule (Determinants) Determinants_impls
     use SymExcitDataMod, only: ScratchSize, ScratchSize3
     use GenRandSymExcitNUMod, only: SpinOrbSymSetup
     use sym_mod, only: writesymtable, gensymstatepairs
-    use SystemData, only: nEl
-    use bit_rep_data, only: nIfTot
-
     better_implicit_none
 
 contains
@@ -23,6 +20,7 @@ contains
 
 
     module subroutine DetInit()
+        use SystemData, only: nEl
         real(dp) :: DNDET
         integer :: i, j
         integer(int64) :: nDet
@@ -206,4 +204,4 @@ contains
     end subroutine
 
 
-end submodule Determinants_impls
+end submodule

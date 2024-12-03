@@ -7,7 +7,7 @@ module gndts_blk_mod
         GETSYM, LCHKSYM, WRITEALLSYM, getsym, ROUNDSYM, LCHKSYM
     use util_mod, only: NECI_ICOPY
     use calcrho_mod, only: igetexcitlevel
-    use determinants, only: calcT
+    use Determinants, only: calcT
     use error_handling_neci, only: stop_all
     better_implicit_none
     private

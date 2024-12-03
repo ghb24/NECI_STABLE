@@ -17,8 +17,6 @@ module Determinants
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
         tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder, &
         t_heisenberg_model, tHPHF, exchange_j
-    use SystemData, only: nEl
-    use bit_rep_data, only: nIfTot
     use bit_reps, only: decode_bit_det
     use blas_interface_mod, only: dcopy
     use constants, only: Pi, Pi2, THIRD, dp, n_int, bits_n_int, int64, maxExcit, stdout
@@ -86,6 +84,7 @@ module Determinants
 contains
 
     Subroutine DetPreFreezeInit_old()
+        use SystemData, only: nEl
         integer :: ierr, ms, iEl, flagAlpha, msTmp
         integer :: i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl)
         type(BasisFn) s
@@ -232,6 +231,7 @@ contains
     End Subroutine DetPreFreezeInit_old
 
     Subroutine DetPreFreezeInit()
+        use SystemData, only: nEl
 
         integer ierr, ms, iEl, flagAlpha
         integer i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl), lmsMax
@@ -334,6 +334,8 @@ contains
     End Subroutine DetPreFreezeInit
 
     function calcImportanceRatio(nI_, iLutnI_, nJ, iLutnJ) result(ratio)
+        use SystemData, only: nEl
+        use bit_rep_data, only: nIfTot
         integer, intent(in) :: nI_(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutnI_(0:niftot), iLutnJ(0:niftot)
         integer(kind=n_int) :: iLutnI(0:niftot)
@@ -520,6 +522,7 @@ contains
     end function
 
     function calcImportanceGuide(nI) result(val)
+        use SystemData, only: nEl
         integer, intent(in) :: nI(nel)
         real(dp) :: val
 
@@ -550,6 +553,8 @@ contains
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         !      IC           - The number of orbitals I,J differ by
         ! Ret: hel          - The desired matrix element.
+        use SystemData, only: nEl
+        use bit_rep_data, only: nIfTot
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -607,6 +612,8 @@ contains
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         ! Out: ICret        - The number of orbitals I,J differ by
         ! Ret: hel          - The desired matrix element.
+        use SystemData, only: nEl
+        use bit_rep_data, only: nIfTot
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -684,6 +691,7 @@ contains
         !      ex           - The excitation matrix
         !      tParity      - The parity of the excitation
         ! Ret: hel          - The H matrix element
+        use SystemData, only: nEl
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
         integer, intent(in) :: ExcitMat(2, ic)
@@ -742,6 +750,8 @@ contains
         !      ex           - Excitation matrix
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
+        use SystemData, only: nEl
+        use bit_rep_data, only: nIfTot
 
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -785,6 +795,8 @@ contains
         ! without reference to the fock eigenvalues.
         ! This is calculated by subtracting the required two electron terms
         ! from the diagonal matrix elements.
+        use SystemData, only: nEl
+
         integer, intent(in) :: nI(NEl), HFDet(NEl)
         HElement_t(dp) :: hel
 
@@ -802,6 +814,8 @@ contains
         !  consistent with GetHElement3, i.e. offer the most abstraction possible.
         ! In:
         !    nI(nEl)  list of occupied spin orbitals in the determinant.
+        use SystemData, only: nEl
+
         integer nI(nEl)
         HElement_t(dp) hEl
         call GetH0Element(nI, nEl, Arr(1:nBasis, 1:2), nBasis, ECore, hEl)
@@ -813,6 +827,7 @@ contains
 
 
     SUBROUTINE GENFDET(FDET)
+        use SystemData, only: nEl
         integer, intent(out) :: fdet(nel)
         logical :: invalid
 
@@ -940,6 +955,8 @@ contains
 
 
     subroutine DetFreezeBasis(GG)
+        use SystemData, only: nEl
+
         integer i, j
         integer GG(*), Lz
         type(BasisFn) s
@@ -1022,6 +1039,7 @@ contains
 
     !Write out the determinant in bit notation
     SUBROUTINE WriteDetBit(nUnit, iLutnI, lTerm)
+        use bit_rep_data, only: nIfTot
         integer, intent(in) :: nUnit
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: lTerm
@@ -1054,6 +1072,7 @@ contains
     ! This takes a the ground state FDet generated for the UEG and changes its total momentum
     ! According to input options
     subroutine ModifyMomentum(FDet)
+        use SystemData, only: nEl
         integer :: i, j ! Loop variables
         integer, intent(inout) :: FDet(NEl)
         integer :: k_total(3) ! Stores the total momentum of FDet
@@ -1442,6 +1461,7 @@ contains
 
     SUBROUTINE WRITEBASIS(NUNIT, G1, NHG, ARR, BRR)
         ! Write out the current basis to unit nUnit
+        use SystemData, only: nEl
         integer, intent(in) :: nunit
         type(basisfn), intent(in) :: g1(nhg)
         integer, intent(in) :: nhg, brr(nhg)
@@ -1505,4 +1525,4 @@ contains
         RETURN
     END SUBROUTINE WRITEBASIS
 
-end module Determinants
+end module

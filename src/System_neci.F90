@@ -2213,7 +2213,7 @@ contains
             write(stdout, '(A)') "  Using Brillouin's Theorem to ignore single excitations"
         end if
         if (tStoreAsExcitations) THEN
-            write(stdout, '(A)') "  Storing determinants as excitations from the HF determinant.  WARNING this may not work!"
+            write(stdout, '(A)') "  Storing Determinants as excitations from the HF determinant.  WARNING this may not work!"
             IF (nEL < 8) call stop_all(this_routine, '  tStoreAsExcitations requires nEl>=8.')
         end if
 
