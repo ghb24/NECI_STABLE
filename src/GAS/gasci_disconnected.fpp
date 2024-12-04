@@ -15,7 +15,7 @@ module gasci_disconnected
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pDoubles, pSingles, excit_gen_store_type
     use get_excit, only: make_double, make_single
-    use Determinants_, only: get_helement
+    use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb, get_pgen_pick_biased_elecs
     use excitation_types, only: Excitation_t, Excite_1_t, Excite_2_t, &
                                 get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN, canonicalize

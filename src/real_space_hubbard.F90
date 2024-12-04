@@ -53,7 +53,8 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: &
-        get_free_unit, operator(.isclose.), stop_all, clamp, operator(.div.)
+        get_free_unit, operator(.isclose.), stop_all, clamp, operator(.div.), &
+        pure_stop_all
 
     use bit_reps, only: decode_bit_det
 
@@ -802,7 +803,7 @@ contains
 
             if (t_print_tmat) then
                 iunit = get_free_unit()
-                open(iunit, file='TMAT')
+                open(iunit, file='tmat')
                 iunit2 = get_free_unit()
                 open(iunit2, file = 'spatial-tmat', status = 'replace')
             end if
@@ -833,8 +834,8 @@ contains
                                     ! no hop over boundary
                                     if (diff(1) == 1) then
                                         ! then we hop left
-                                        ! twisted BCs are given in units of
-                                        ! 2pi/L so a twist of 1 corresponds to
+                                        ! twisted bcs are given in units of
+                                        ! 2pi/l so a twist of 1 corresponds to
                                         ! the same system!
                                         imag = exp(-cmplx(0.0, &
                                                           2 * pi / lat%get_length(1) * twisted_bc(1), dp))
@@ -892,10 +893,10 @@ contains
 
                             if (lat%get_ndim() > 2) then
                                 call stop_all(this_routine, &
-                                              "twisted BCs only implemented up to 2D")
+                                              "twisted bcs only implemented up to 2d")
                             end if
 
-#ifdef CMPLX_
+#ifdef cmplx_
                             mat_el = imag * bhub
 #else
                             mat_el = h_cast(imag) * bhub
@@ -914,17 +915,17 @@ contains
 
                         end do
 
-                        ASSERT(all(next > 0))
-                        ASSERT(all(next <= nbasis / 2))
+                        assert(all(next > 0))
+                        assert(all(next <= nbasis / 2))
                     end associate
-                    ASSERT(lat%get_nsites() == nbasis / 2)
-                    ASSERT(ind > 0)
-                    ASSERT(ind <= nbasis / 2)
+                    assert(lat%get_nsites() == nbasis / 2)
+                    assert(ind > 0)
+                    assert(ind <= nbasis / 2)
 
                 end do
 
             else if (any(t_anti_periodic)) then
-                ! implement anti-periodic BCs specifically
+                ! implement anti-periodic bcs specifically
                 ! t_anti_periodic is a vector for the x and y flag
                 ! seperately
                 if (associated(tmat2d)) deallocate(tmat2d)
@@ -976,7 +977,7 @@ contains
 
                             if (lat%get_ndim() > 2) then
                                 call stop_all(this_routine, &
-                                              "anti-periodic BCs only implemented up to 2D")
+                                              "anti-periodic bcs only implemented up to 2d")
                             end if
 
                             mat_el = hop * bhub
@@ -994,16 +995,16 @@ contains
 
                         end do
 
-                        ASSERT(all(next > 0))
-                        ASSERT(all(next <= nbasis / 2))
+                        assert(all(next > 0))
+                        assert(all(next <= nbasis / 2))
                     end associate
-                    ASSERT(lat%get_nsites() == nbasis / 2)
-                    ASSERT(ind > 0)
-                    ASSERT(ind <= nbasis / 2)
+                    assert(lat%get_nsites() == nbasis / 2)
+                    assert(ind > 0)
+                    assert(ind <= nbasis / 2)
 
                 end do
 
-                if (t_nn_hopping) call stop_all(this_routine, "N-n hopping not implemented with twisted bcs.")
+                if (t_nn_hopping) call stop_all(this_routine, "n-n hopping not implemented with twisted bcs.")
             else
                 ! what do i need to do?
                 ! loop over the indices in the lattice and get the neighbors
@@ -1021,8 +1022,8 @@ contains
                         ! alpha:
                         tmat2d(2 * ind, 2 * next) = bhub
 
-                        ASSERT(all(next > 0))
-                        ASSERT(all(next <= nbasis / 2))
+                        assert(all(next > 0))
+                        assert(all(next <= nbasis / 2))
 
                         if (t_print_tmat) then
                             do j = 1, size(next)
@@ -1032,9 +1033,9 @@ contains
                             end do
                         end if
                     end associate
-                    ASSERT(lat%get_nsites() == nbasis / 2)
-                    ASSERT(ind > 0)
-                    ASSERT(ind <= nbasis / 2)
+                    assert(lat%get_nsites() == nbasis / 2)
+                    assert(ind > 0)
+                    assert(ind <= nbasis / 2)
 
                     if (t_nn_hopping) then
                         associate(next => lat%get_nn_neighbors(i))
@@ -2643,14 +2644,14 @@ contains
             hel = h_cast(0.0_dp)
         end if
 
-        ASSERT(i > 0)
-        ASSERT(i <= nbasis / 2)
-        ASSERT(j > 0)
-        ASSERT(j <= nbasis / 2)
-        ASSERT(k > 0)
-        ASSERT(k <= nbasis / 2)
-        ASSERT(l > 0)
-        ASSERT(l <= nbasis / 2)
+        pure_ASSERT(i > 0)
+        pure_ASSERT(i <= nbasis / 2)
+        pure_ASSERT(j > 0)
+        pure_ASSERT(j <= nbasis / 2)
+        pure_ASSERT(k > 0)
+        pure_ASSERT(k <= nbasis / 2)
+        pure_ASSERT(l > 0)
+        pure_ASSERT(l <= nbasis / 2)
 
     end function get_umat_el_hub
 
