@@ -31,7 +31,8 @@ module guga_prop_vec_pchb_main
     !! orbitals.
 
     use constants, only: stdout, stderr
-    use util_mod, only: stop_all, EnumBase_t, operator(.implies.)
+    use util_mod, only: stop_all, EnumBase_t, operator(.implies.), &
+        pure_stop_all
     use SystemData, only: nBasis
     use fortran_strings, only: split, to_upper, join, Token_t
     use input_parser_mod, only: TokenIterator_t
@@ -227,7 +228,7 @@ contains
         else if (PropVec_PCHB_user_input%option_selection == PropVec_PCHB_user_input_vals%option_selection%MANUAL) then
             res = PropVec_PCHB_user_input%options
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
         end associate
     end function

@@ -11,7 +11,7 @@ module guga_prop_vec_pchb_doubles_select_holes
         distinct_doubles, DistinctDouble_t, DistinctDoubleTypeVals_t, ijab_Index_t, &
         ijkl_Index_t, fused_to_DistinctDouble
     use guga_bitrepops, only: CSF_Info_t
-    use util_mod, only: near_zero, stop_all, operator(.isclose.), EnumBase_t, &
+    use util_mod, only: near_zero, stop_all, pure_stop_all, operator(.isclose.), EnumBase_t, &
         swap, ByteSize_t
     use sets_mod, only: operator(.in.)
     use indexing_mod, only: fuse_symm_idx
@@ -377,7 +377,7 @@ contains
         case(algorithm_vals%FULL_FULL%str)
             res = algorithm_vals%FULL_FULL
         case default
-            call stop_all(this_routine, 'Invalid input: '//str)
+            call pure_stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 

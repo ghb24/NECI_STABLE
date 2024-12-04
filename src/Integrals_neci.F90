@@ -36,7 +36,7 @@ module Integrals_neci
 
     USE OneEInts, only: TMAT2D, GetTMatEl
 
-    use util_mod, only: get_free_unit, stop_all, neci_flush
+    use util_mod, only: get_free_unit, stop_all, neci_flush, pure_stop_all
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
@@ -1760,7 +1760,7 @@ contains
             hel = 0
         end if
 #ifdef CMPLX_
-        call stop_all(t_r, "Should not be requesting a complex integral")
+        call pure_stop_all(t_r, "Should not be requesting a complex integral")
 #endif
 
     end function
@@ -1811,7 +1811,7 @@ contains
             hel = 0
         end if
 #ifdef CMPLX_
-        call stop_all(t_r, "Should not be requesting a complex integral")
+        call pure_stop_all(t_r, "Should not be requesting a complex integral")
 #endif
 
     end function

@@ -2,7 +2,7 @@
 #include "macros.h"
 module guga_prop_vec_pchb_singles_main
     use util_mod, only: EnumBase_t, stop_all, operator(.implies.), &
-        operator(.div.), operator(.isclose.), near_zero
+        operator(.div.), operator(.isclose.), near_zero, pure_stop_all
     use SystemData, only: nEl, nSpatOrbs, nBasis
     use MPI_wrapper, only: root
     use constants, only: n_int, dp, bits_n_int, stdout
@@ -415,7 +415,7 @@ contains
         case(option_vals%algorithm%UNIF_XNEW%str)
             res = option_vals%algorithm%UNIF_XNEW
         case default
-            call stop_all(this_routine, 'Invalid input: '//str)
+            call pure_stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
@@ -995,7 +995,7 @@ contains
         else if (algorithm == option_vals%algorithm%UNIF_XNEW) then
             res = option_vals%algorithm%UNIF_XNEW%str
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
     end function
 

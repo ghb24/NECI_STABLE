@@ -29,7 +29,8 @@ module tJ_model
 
     use umatcache, only: gtid
 
-    use util_mod, only: operator(.div.), near_zero, get_free_unit, stop_all
+    use util_mod, only: operator(.div.), near_zero, get_free_unit, stop_all, &
+        pure_stop_all
 
     use util_mod_numerical, only: binary_search_first_ge
 
@@ -1798,7 +1799,7 @@ contains
         character(*), parameter :: this_routine = "get_umat_heisenberg_spin_free"
 #endif
 
-        ASSERT(allocated(spin_free_exchange))
+        pure_ASSERT(allocated(spin_free_exchange))
 
         if (i == j) then
             hel = h_cast(0.0_dp)
@@ -1826,7 +1827,7 @@ contains
         ! and k and l must be in the same orbital as one of the electrons
         ! and what about <ij|kl> = -<ij|lk> symmetry? hm..
         ! i have to think about that and the influence on the matrix element
-        ASSERT(allocated(exchange_matrix))
+        pure_ASSERT(allocated(exchange_matrix))
 
         if (i == j) then
             hel = h_cast(0.0_dp)
