@@ -803,7 +803,7 @@ contains
 
             if (t_print_tmat) then
                 iunit = get_free_unit()
-                open(iunit, file='tmat')
+                open(iunit, file='TMAT')
                 iunit2 = get_free_unit()
                 open(iunit2, file = 'spatial-tmat', status = 'replace')
             end if
@@ -834,8 +834,8 @@ contains
                                     ! no hop over boundary
                                     if (diff(1) == 1) then
                                         ! then we hop left
-                                        ! twisted bcs are given in units of
-                                        ! 2pi/l so a twist of 1 corresponds to
+                                        ! twisted BCs are given in units of
+                                        ! 2pi/L so a twist of 1 corresponds to
                                         ! the same system!
                                         imag = exp(-cmplx(0.0, &
                                                           2 * pi / lat%get_length(1) * twisted_bc(1), dp))
@@ -893,10 +893,10 @@ contains
 
                             if (lat%get_ndim() > 2) then
                                 call stop_all(this_routine, &
-                                              "twisted bcs only implemented up to 2d")
+                                              "twisted BCs only implemented up to 2D")
                             end if
 
-#ifdef cmplx_
+#ifdef CMPLX_
                             mat_el = imag * bhub
 #else
                             mat_el = h_cast(imag) * bhub
@@ -915,17 +915,17 @@ contains
 
                         end do
 
-                        assert(all(next > 0))
-                        assert(all(next <= nbasis / 2))
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis / 2))
                     end associate
-                    assert(lat%get_nsites() == nbasis / 2)
-                    assert(ind > 0)
-                    assert(ind <= nbasis / 2)
+                    ASSERT(lat%get_nsites() == nbasis / 2)
+                    ASSERT(ind > 0)
+                    ASSERT(ind <= nbasis / 2)
 
                 end do
 
             else if (any(t_anti_periodic)) then
-                ! implement anti-periodic bcs specifically
+                ! implement anti-periodic BCs specifically
                 ! t_anti_periodic is a vector for the x and y flag
                 ! seperately
                 if (associated(tmat2d)) deallocate(tmat2d)
@@ -977,7 +977,7 @@ contains
 
                             if (lat%get_ndim() > 2) then
                                 call stop_all(this_routine, &
-                                              "anti-periodic bcs only implemented up to 2d")
+                                              "anti-periodic BCs only implemented up to 2D")
                             end if
 
                             mat_el = hop * bhub
@@ -995,16 +995,16 @@ contains
 
                         end do
 
-                        assert(all(next > 0))
-                        assert(all(next <= nbasis / 2))
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis / 2))
                     end associate
-                    assert(lat%get_nsites() == nbasis / 2)
-                    assert(ind > 0)
-                    assert(ind <= nbasis / 2)
+                    ASSERT(lat%get_nsites() == nbasis / 2)
+                    ASSERT(ind > 0)
+                    ASSERT(ind <= nbasis / 2)
 
                 end do
 
-                if (t_nn_hopping) call stop_all(this_routine, "n-n hopping not implemented with twisted bcs.")
+                if (t_nn_hopping) call stop_all(this_routine, "N-n hopping not implemented with twisted bcs.")
             else
                 ! what do i need to do?
                 ! loop over the indices in the lattice and get the neighbors
@@ -1022,8 +1022,8 @@ contains
                         ! alpha:
                         tmat2d(2 * ind, 2 * next) = bhub
 
-                        assert(all(next > 0))
-                        assert(all(next <= nbasis / 2))
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis / 2))
 
                         if (t_print_tmat) then
                             do j = 1, size(next)
@@ -1033,9 +1033,9 @@ contains
                             end do
                         end if
                     end associate
-                    assert(lat%get_nsites() == nbasis / 2)
-                    assert(ind > 0)
-                    assert(ind <= nbasis / 2)
+                    ASSERT(lat%get_nsites() == nbasis / 2)
+                    ASSERT(ind > 0)
+                    ASSERT(ind <= nbasis / 2)
 
                     if (t_nn_hopping) then
                         associate(next => lat%get_nn_neighbors(i))
