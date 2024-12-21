@@ -68,7 +68,7 @@ jobs:
         echo "Automatic doc depolyment is not supprted at the moment."
         echo "Branch" ${{ env.BRANCH_NAME }}
 
-        #        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
+#        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
 #        # this uses configurations and ssh-keys in ${JENKINS_HOME}/.ssh/
 #        DIR_NAME="${GIT_BRANCH#origin/}"
 #        ssh homepage_server "mkdir -p /srv/www/htdocs/alavi/neci/${DIR_NAME}"
