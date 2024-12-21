@@ -1,0 +1,134 @@
+name: build and test
+
+on:
+  push:
+    branches: [ "master", "stable", "devel" ]
+  pull_request:
+    branches: [ "master", "stable", "devel" ]
+
+env:
+  BUILD_ROOT: /home/cicdadmin/neci-build
+
+jobs:
+  build:
+    timeout-minutes: 60
+
+    runs-on: self-hosted
+
+    defaults:
+        run:
+          working-directory: ${{ env.BUILD_ROOT }}
+
+    strategy:
+      matrix:
+        BUILD_TYPE: [
+          "gfortran",
+          "gfortran-debug",
+          "gfortran-fastdebug",
+          "gfortran-debug-integer8",
+          "gfortran-debug-nohdf5",
+          "gfortran-self_build_hdf5",
+          #          "ifort21",
+          #          "ifort21-debug"
+        ]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: build all
+      run: |
+        mkdir -p build_${{ github.sha }}
+        cd build_${{ github.sha }}
+        rm -rf ${{ matrix.BUILD_TYPE }}
+        mkdir ${{ matrix.BUILD_TYPE }}
+        cd ${{ matrix.BUILD_TYPE }}
+
+        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
+        source ${{ github.workspace }}/tools/auto_cmake.sh "${{ matrix.BUILD_TYPE }}" "${{ github.workspace }}"
+        source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
+
+  test_suite:
+    needs: build
+    timeout-minutes: 300
+    runs-on: self-hosted
+
+    defaults:
+        run:
+          working-directory: ${{ github.workspace }}
+
+    strategy:
+      matrix:
+        BUILD_TYPE: [
+          "gfortran",
+          "gfortran-fastdebug",
+          #          "ifort21",
+        ]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: run test suite
+      run: |
+        EXE_DIR=${{ env.BUILD_ROOT }}/build_${{ github.sha }}/${{ matrix.BUILD_TYPE }}/bin
+
+        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
+
+        cd test_suite
+
+        /home/cicdadmin/testcode/bin/testcode.py -vvv \
+          -e neci="$EXE_DIR/neci" \
+          -e mneci="$EXE_DIR/mneci" \
+          -e kneci="$EXE_DIR/kneci" \
+          -e kmneci="$EXE_DIR/kmneci" \
+          -e dneci="$EXE_DIR/dneci"
+
+  unit_test:
+    needs: build
+    timeout-minutes: 60
+    runs-on: self-hosted
+
+    defaults:
+        run:
+          working-directory: ${{ env.BUILD_ROOT }}
+
+    strategy:
+      matrix:
+        BUILD_TYPE: [
+          "gfortran",
+          "gfortran-fastdebug",
+          "gfortran-debug",
+          #          "ifort21",
+          #          "ifort21-debug",
+        ]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: run unit test
+      run: |
+        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
+
+        cd build_${{ github.sha }}/${{ matrix.BUILD_TYPE }}/unit_tests
+
+        ctest --tests-regex 'test_neci_.*' -j 2
+        ctest --tests-regex 'test_dneci_.*' -j 2
+        ctest --tests-regex 'test_kneci_.*' -j 2
+        ctest --tests-regex 'test_mneci_.*' -j 2
+        ctest --tests-regex 'test_kmneci_.*' -j 2
+
+  remove_artifacts:
+    needs: [test_suite, unit_test]
+    if: always()
+    runs-on: self-hosted
+
+    steps:
+    - name: remove artifacts
+      run: |
+        echo "Removing build artifacts..."
+        rm -rf ${{ env.BUILD_ROOT }}/build_${{ github.sha }}
