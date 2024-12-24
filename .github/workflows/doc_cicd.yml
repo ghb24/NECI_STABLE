@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfortran-doc",
+          "gfort3doc",
         ]
 
     steps:
@@ -55,7 +55,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfortran-doc",
+          "gfort3doc",
         ]
 
     steps:

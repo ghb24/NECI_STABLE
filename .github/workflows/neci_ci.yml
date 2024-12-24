@@ -22,12 +22,14 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfortran",
-          "gfortran-debug",
-          "gfortran-fastdebug",
-          "gfortran-debug-integer8",
-          "gfortran-debug-nohdf5",
-          "gfortran-self_build_hdf5",
+          "gfort3",
+          "gfort3-debug",
+          "gfort3-fastdebug",
+          "gfort3-debug-integer8",
+          "gfort3-debug-nohdf5",
+          "gfort3-self_build_hdf5",
+          "gfort5",
+          "gfort5-debug",
           #          "ifort21",
           #          "ifort21-debug"
         ]
@@ -61,8 +63,9 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfortran",
-          "gfortran-fastdebug",
+          "gfort3",
+          "gfort3-fastdebug",
+          "gfort5",
           #          "ifort21",
         ]
 
@@ -98,9 +101,11 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfortran",
-          "gfortran-fastdebug",
-          "gfortran-debug",
+          "gfort3",
+          "gfort3-fastdebug",
+          "gfort3-debug",
+          "gfort5-fastdebug",
+          "gfort5-debug",
           #          "ifort21",
           #          "ifort21-debug",
         ]

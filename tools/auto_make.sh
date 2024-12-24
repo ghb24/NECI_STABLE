@@ -6,7 +6,7 @@
 # cmake --build . --target neci test_neci -j 6 -v --
 echo "Calling make for $@"
 
-if [ "gfortran-self_build_hdf5" == "$@" ]; then
+if [ "gfort3-self_build_hdf5" == "$@" ] || [ "gfort5-self_build_hdf5" == "$@" ]; then
 
 	make VERBOSE=1 hdf5
 
@@ -23,7 +23,7 @@ if [ "gfortran-self_build_hdf5" == "$@" ]; then
 		cmake --build . -j 4 --
 	fi
 
-elif [ "gfortran-doc" == "$@" ] || [ "gfortran-short-doc" == "$@" ]; then
+elif [ "gfort3-doc" == "$@" ] || [ "gfort3-short-doc" == "$@" ] || [ "gfort5-doc" == "$@" ] || [ "gfort5-short-doc" == "$@" ]; then
     # make VERBOSE=1 -j 2 doc
     cmake --build . -j 4 --target doc -v --
 else
