@@ -22,14 +22,14 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort3",
-          "gfort3-debug",
-          "gfort3-fastdebug",
-          "gfort3-debug-integer8",
-          "gfort3-debug-nohdf5",
-          "gfort3-self_build_hdf5",
-          "gfort5",
-          "gfort5-debug",
+          "gfort7",
+          "gfort7-debug",
+          "gfort7-fastdebug",
+          "gfort7-debug-integer8",
+          "gfort7-debug-nohdf5",
+          "gfort7-self_build_hdf5",
+          "gfort14",
+          "gfort14-debug",
           #          "ifort21",
           #          "ifort21-debug"
         ]
@@ -63,9 +63,9 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort3",
-          "gfort3-fastdebug",
-          "gfort5",
+          "gfort7",
+          "gfort7-fastdebug",
+          "gfort14",
           #          "ifort21",
         ]
 
@@ -101,11 +101,11 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort3",
-          "gfort3-fastdebug",
-          "gfort3-debug",
-          "gfort5-fastdebug",
-          "gfort5-debug",
+          "gfort7",
+          "gfort7-fastdebug",
+          "gfort7-debug",
+          "gfort14-fastdebug",
+          "gfort14-debug",
           #          "ifort21",
           #          "ifort21-debug",
         ]

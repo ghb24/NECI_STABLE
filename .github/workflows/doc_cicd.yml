@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort3doc",
+          "gfort7",
         ]
 
     steps:
@@ -55,7 +55,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort3doc",
+          "gfort7",
         ]
 
     steps:

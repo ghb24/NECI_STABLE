@@ -17,15 +17,15 @@ if [ "ifort21-debug" == "$@" ] || [ "ifort21" == "$@" ]; then
 elif [ "ifort18-debug" == "$@" ] || [ "ifort18" == "$@" ]; then
     export HDF5_ROOT=/opt/hdf-1.12.2_ifort18_mpi
     source /usr/local/server/IntelStudio_2018/parallel_studio_xe_2018.4.057/psxevars.sh intel64
-elif [ "gfort3-debug" == "$@" ] || [ "gfort3-fastdebug" == "$@" ] || [ "gfort3" == "$@" ] || [ "gfort3-short-doc" == "$@" ] || [ "gfort3-doc" == "$@" ] || [ "gfort3-debug-integer8" == "$@" ]; then
+elif [ "gfort7-debug" == "$@" ] || [ "gfort7-fastdebug" == "$@" ] || [ "gfort7" == "$@" ] || [ "gfort7-short-doc" == "$@" ] || [ "gfort7-doc" == "$@" ] || [ "gfort7-debug-integer8" == "$@" ]; then
     module load hdf5/1.14.5
     module load openmpi/3.1.6
-elif [ "gfort5-debug" == "$@" ] || [ "gfort5-fastdebug" == "$@" ] || [ "gfort5" == "$@" ] || [ "gfort5-short-doc" == "$@" ] || [ "gfort5-doc" == "$@" ] || [ "gfort5-debug-integer8" == "$@" ]; then
+elif [ "gfort14-debug" == "$@" ] || [ "gfort14-fastdebug" == "$@" ] || [ "gfort14" == "$@" ] || [ "gfort14-short-doc" == "$@" ] || [ "gfort14-doc" == "$@" ] || [ "gfort14-debug-integer8" == "$@" ]; then
     module load hdf5/1.14.5
     module load openmpi/5.0.6
-elif [ "gfort3-self_build_hdf5" == "$@" ] || [ "gfort3-debug-nohdf5" == "$@" ]; then
+elif [ "gfort7-self_build_hdf5" == "$@" ] || [ "gfort7-debug-nohdf5" == "$@" ]; then
     module load openmpi/3.1.6
-elif [ "gfort5-self_build_hdf5" == "$@" ] || [ "gfort5-debug-nohdf5" == "$@" ]; then
+elif [ "gfort14-self_build_hdf5" == "$@" ] || [ "gfort14-debug-nohdf5" == "$@" ]; then
     module load openmpi/5.0.6
 else
 	echo "Module configuration not set"
