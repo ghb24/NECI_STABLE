@@ -30,6 +30,7 @@ jobs:
           "gfort7-self_build_hdf5",
           "gfort14",
           "gfort14-debug",
+          "gfort14-fastdebug",
           #          "ifort21",
           #          "ifort21-debug"
         ]
