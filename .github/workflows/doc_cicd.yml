@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort7",
+          "gfort7-doc",
         ]
 
     steps:
@@ -56,7 +56,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TYPE: [
-          "gfort7",
+          "gfort7-doc",
         ]
 
     steps:
@@ -68,8 +68,8 @@ jobs:
       run: |
         rm -rf ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
         mkdir -p ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
-        echo ${{ github.workspace }}
-        mv ${{ github.workspace }}/documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
+        pwd
+        mv documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
 
 #        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
 #        # this uses configurations and ssh-keys in ${JENKINS_HOME}/.ssh/
