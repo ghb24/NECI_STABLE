@@ -68,7 +68,8 @@ jobs:
       run: |
         rm -rf ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
         mkdir -p ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
-        mv documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
+        echo ${{ github.workspace }}
+        mv ${{ github.workspace }}/documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
 
 #        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
 #        # this uses configurations and ssh-keys in ${JENKINS_HOME}/.ssh/
