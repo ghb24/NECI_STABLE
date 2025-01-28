@@ -8,6 +8,7 @@ on:
 
 env:
   BUILD_ROOT: /home/cicdadmin/neci-build
+  DOC_PATH: /home/cicdadmin/neci-build/documentation
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
 jobs:
@@ -65,8 +66,9 @@ jobs:
 
     - name: deploy doc
       run: |
-        echo "Automatic doc depolyment is not supprted at the moment."
-        echo "Branch" ${{ env.BRANCH_NAME }}
+        rm -rf ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
+        mkdir -p ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
+        mv documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
 
 #        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
 #        # this uses configurations and ssh-keys in ${JENKINS_HOME}/.ssh/
