@@ -68,7 +68,6 @@ jobs:
       run: |
         rm -rf ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
         mkdir -p ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
-        pwd
         mv documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
 
 #        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
