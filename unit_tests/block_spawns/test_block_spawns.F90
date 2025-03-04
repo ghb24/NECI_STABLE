@@ -7,7 +7,7 @@ module test_block_spawns_mod
                             blocklist_hash_table
     use SystemData, only: nEL, nbasis
     use bit_reps, only: decode_bit_det
-    use bit_rep_data, only: nifd
+    use bit_rep_data, only: niftot
     use util_mod, only: get_free_unit, delete_file
     use hash, only: RandomHash2
     use DetBitOps, only: EncodeBitDet
@@ -71,7 +71,7 @@ contains
 
     subroutine test_is_excitation_aborted()
         integer :: nI(nEL)
-        integer(kind=n_int) :: ilut(0:nifd)
+        integer(kind=n_int) :: ilut(0:niftot)
 
         nI = [1, 2, 3, 4, 5, 6]
         call EncodeBitDet(nI, ilut)
