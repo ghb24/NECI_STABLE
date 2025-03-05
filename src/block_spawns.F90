@@ -8,7 +8,7 @@ module block_spawns
     use input_parser_mod, only: TokenIterator_t, FileReader_t, parse_definedet,&
                                 ManagingFileReader_t
     use DetBitOps, only: EncodeBitDet
-    use bit_rep_data, only: niftot
+    use bit_rep_data, only: nifd, niftot
     use bit_reps, only: decode_bit_det
     use FciMCData, only: ll_node
     use hash, only: init_hash_table, fill_in_hash_table, clear_hash_table, &
@@ -94,7 +94,7 @@ contains
 
         if (allocated(block_list)) then
             call hash_table_lookup(&
-                excited_nJ, excited_ilut, niftot, blocklist_hash_table, &
+                excited_nJ, excited_ilut, nifd, blocklist_hash_table, &
                 block_list, idx, DetHash, tAbort)
         end if
 
