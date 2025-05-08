@@ -52,9 +52,9 @@ and create a `build_directory` outside the `source_directory`.
 
 Then you can type
 ```bash
+testline
 cd ${build_directory}
 cmake ${source_directory}
-cmake -DENABLE_HDF5=ON ${your_code_directory}
 make -j
 ```
 and are ready to go.
