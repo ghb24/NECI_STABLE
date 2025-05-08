@@ -1981,17 +1981,19 @@ These options control how the RDMs are printed. For a description of how
 the RDMs are calculated and the content of the files, please see section
 <a href="#sec:rdms" data-reference-type="ref" data-reference="sec:rdms">1.7</a>.
 
--   **calcRdmOnfly \(i\) \(step\) \(start\)**<br>
+-   **calcRdmOnfly \(i\) \(start\) \(step\)**<br>
     Calculate RDMs stochastically over the course of the calculation.
-    Starts sampling RDMs after \(start\) iterations, and outputs an
-    average every \(step\) iterations. \(i\) indicates whether only
-    1-RDMs (1), only 2-RDMs (2) or both are produced.
+    Starts sampling RDMs \(start\) iterations after entering the variable
+    shift mode, and outputs an average every \(step\) iterations. \(i\)
+    indicates whether only 1-RDMs (1), only 2-RDMs (2) or both (3) are
+    produced.
 
 -   **rdmLinSpace \(start\) \(n\) \(step\)**<br>
     A more user friendly version of `calcrdmonfly` and
     `rdmsamplingiters`, this samples both 1- and 2-RDMs starting at
-    iteration \(start\), outputting an average every \(step\) iterations
-    \(n\) times, then ending the calculation.
+    iteration \(start\) after entering the variable shift mode,
+    outputting an average every \(step\) iterations \(n\) times,
+    then ending the calculation.
 
 -   **diagFlyOneRdm**<br>
     Diagonalise the 1-RDMs, yielding the occupation numbers of the
