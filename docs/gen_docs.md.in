@@ -52,7 +52,13 @@ and create a `build_directory` outside the `source_directory`.
 
 Then you can type
 ```bash
-testline
+testlines
+cd "${build_directory}"
+cd {build_directory}
+cd $build_directory
+cd ${build_directory_onemoreunderscore}
+testlines
+
 cd ${build_directory}
 cmake ${source_directory}
 make -j
