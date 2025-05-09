@@ -7,7 +7,7 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  BUILD_ROOT: /home/cicdadmin/neci-build
+  BUILD_ROOT: /AltestCICD/neci-build
 
 jobs:
   build:
@@ -25,10 +25,6 @@ jobs:
           "gfort7",
           "gfort7-debug",
           "gfort7-fastdebug",
-          "gfort7-debug-integer8",
-          "gfort7-debug-nohdf5",
-          "gfort7-self_build_hdf5",
-          "gfort14",
           "gfort14-debug",
           "gfort14-fastdebug",
           #          "ifort21",
@@ -66,7 +62,7 @@ jobs:
         BUILD_TYPE: [
           "gfort7",
           "gfort7-fastdebug",
-          "gfort14",
+          "gfort14-fastdebug",
           #          "ifort21",
         ]
 
@@ -133,8 +129,59 @@ jobs:
     if: always()
     runs-on: self-hosted
 
+    strategy:
+      matrix:
+        BUILD_TYPE: [
+          "gfort7",
+          "gfort7-fastdebug",
+          "gfort7-debug",
+          "gfort14-fastdebug",
+          "gfort14-debug",
+        ]
+
     steps:
     - name: remove artifacts
       run: |
         echo "Removing build artifacts..."
-        rm -rf ${{ env.BUILD_ROOT }}/build_${{ github.sha }}
+        rm -rf ${{ env.BUILD_ROOT }}/build_${{ github.sha }}/${{ matrix.BUILD_TYPE }}
+
+  # Decouple workflows for build types that don't perform tests to not waste
+  # disk space.
+  build-only:
+    timeout-minutes: 60
+
+    runs-on: self-hosted
+
+    defaults:
+        run:
+          working-directory: ${{ env.BUILD_ROOT }}
+
+    strategy:
+      matrix:
+        BUILD_TYPE: [
+          "gfort7-debug-integer8",
+          "gfort7-debug-nohdf5",
+          "gfort7-self_build_hdf5",
+          "gfort14",
+        ]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: build all
+      run: |
+        mkdir -p build_${{ github.sha }}
+        cd build_${{ github.sha }}
+        rm -rf ${{ matrix.BUILD_TYPE }}
+        mkdir ${{ matrix.BUILD_TYPE }}
+        cd ${{ matrix.BUILD_TYPE }}
+
+        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
+        source ${{ github.workspace }}/tools/auto_cmake.sh "${{ matrix.BUILD_TYPE }}" "${{ github.workspace }}"
+        source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
+
+        cd ..
+        rm -rf ${{ matrix.BUILD_TYPE }}
+

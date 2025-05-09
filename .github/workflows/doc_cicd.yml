@@ -7,8 +7,8 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  BUILD_ROOT: /home/cicdadmin/neci-build
-  DOC_PATH: /home/cicdadmin/neci-build/documentation
+  BUILD_ROOT: /AltestCICD/neci-build
+  DOC_PATH: /AltestCICD/neci-build/documentation
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
 jobs:
