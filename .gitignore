@@ -1,6 +1,7 @@
 /dest
 build*/
 .*
+!.github/
 /kdest
 /Makefile*
 /makefile*
