@@ -7,7 +7,7 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  BUILD_ROOT: /home/cicdadmin/neci-build
+  BUILD_ROOT: /AltestCICD/neci-build
 
 jobs:
   build:
