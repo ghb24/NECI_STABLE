@@ -17,9 +17,9 @@ jobs:
   setup:
     runs-on: self-hosted
     outputs:
+      full-matrix: ${{ steps.set-matrix.outputs.full-matrix }}
       test-matrix: ${{ steps.set-matrix.outputs.test-matrix }}
       unit-test-matrix: ${{ steps.set-matrix.outputs.unit-test-matrix }}
-      build-only-matrix: ${{ steps.set-matrix.outputs.build-only-matrix }}
     steps:
       - id: set-matrix
         run: |
