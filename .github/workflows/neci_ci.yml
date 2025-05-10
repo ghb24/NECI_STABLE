@@ -6,7 +6,20 @@ on:
   pull_request:
     branches: [ "master", "stable", "devel" ]
 
-env: ${{ fromJSON(readFile('../env.yml')) }}
+env:
+  DOC_PATH: /AltestCICD/neci-build/documentation
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  BUILD_ROOT: /AltestCICD/neci-build
+  BUILD_IDENTIFIER: >-
+    ${{ 
+      github.event_name == 'pull_request' 
+      && format(
+          'PR{0}_{1}', 
+          github.event.pull_request.number, 
+          env.BRANCH_NAME
+        ) 
+      || env.BRANCH_NAME 
+    }}
 
 jobs:
   # Define matrices in a separate job to avoid repetition
