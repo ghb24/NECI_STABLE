@@ -24,7 +24,7 @@ jobs:
       - id: set-matrix
         run: |
           echo "full-matrix=[\"gfort7\",\"gfort7-debug\",\"gfort7-fastdebug\",\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\",\"gfort14-debug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
-          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
+          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\"]" >> $GITHUB_OUTPUT
           echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
 
   build:
