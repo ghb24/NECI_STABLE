@@ -23,9 +23,9 @@ jobs:
     steps:
       - id: set-matrix
         run: |
+          echo "full-matrix=[\"gfort7\",\"gfort7-debug\",\"gfort7-fastdebug\",\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\",\"gfort14-debug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
           echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
           echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
-          echo "build-only-matrix=[\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\"]" >> $GITHUB_OUTPUT
 
   build:
     needs: setup
@@ -36,7 +36,7 @@ jobs:
         working-directory: ${{ env.BUILD_ROOT }}
     strategy:
       matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.unit-test-matrix) }}
+        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.full-matrix) }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -136,57 +136,4 @@ jobs:
     - name: remove artifacts
       run: |
         echo "Removing build artifacts..."
-        for build_type in $(echo '${{ needs.setup.outputs.unit-test-matrix }}' | jq -r '.[]'); do
-          echo "Removing $build_type build artifacts"
-          rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${build_type}
-        done
-
-  # Decouple workflows for build types that don't perform tests
-  build-only:
-    needs: setup
-    timeout-minutes: 60
-    runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: ${{ env.BUILD_ROOT }}
-    strategy:
-      matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.build-only-matrix) }}
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/pip
-          /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        key: ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-${{ hashFiles('**/requirements.txt', '**/CMakeLists.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-
-    
-    - name: Setup cache symlinks
-      run: |
-        mkdir -p /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-        ln -sf /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/deps
-        
-    - name: build all
-      run: |
-        mkdir -p build_${{ env.BUILD_IDENTIFIER }}
-        cd build_${{ env.BUILD_IDENTIFIER }}
-        rm -rf ${{ matrix.BUILD_TYPE }}
-        mkdir ${{ matrix.BUILD_TYPE }}
-        cd ${{ matrix.BUILD_TYPE }}
-
-        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
-        source ${{ github.workspace }}/tools/auto_cmake.sh "${{ matrix.BUILD_TYPE }}" "${{ github.workspace }}"
-        source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
-
-    - name: cleanup build artifacts
-      run: |
-        cd build_${{ env.BUILD_IDENTIFIER }}
-        rm -rf ${{ matrix.BUILD_TYPE }}
+        rm -rf build_${{ env.BUILD_IDENTIFIER }}
