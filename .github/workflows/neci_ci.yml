@@ -125,7 +125,6 @@ jobs:
 
         ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
 
-
   remove_artifacts:
     needs: [test_suite, unit_test]
     if: always()
