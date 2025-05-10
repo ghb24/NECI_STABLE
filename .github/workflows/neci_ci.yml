@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master", "stable", "devel" ]
 
-env: ${{ fromJSON(readFile('./env.yml')) }}
+env: ${{ fromJSON(readFile('../env.yml')) }}
 
 jobs:
   # Define matrices in a separate job to avoid repetition
