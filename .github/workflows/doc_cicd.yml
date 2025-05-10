@@ -7,19 +7,18 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  BUILD_ROOT: /AltestCICD/neci-build
   DOC_PATH: /AltestCICD/neci-build/documentation
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  BUILD_ROOT: /AltestCICD/neci-build
+  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_{1}', github.event.pull_request.number, github.head_ref || github.ref_name) || github.ref_name }}
 
 jobs:
   build:
     timeout-minutes: 60
-
     runs-on: self-hosted
-
     defaults:
-        run:
-          working-directory: ${{ env.BUILD_ROOT }}
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}
 
     strategy:
       matrix:
@@ -31,11 +30,27 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
+        key: ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-${{ hashFiles('**/requirements.txt', '**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-
+
+    - name: Setup cache symlinks
+      run: |
+        mkdir -p /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
+        mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
+        ln -sf /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/deps
 
     - name: build doc
       run: |
-        mkdir -p build_doc_${{ github.sha }}
-        cd build_doc_${{ github.sha }}
+        mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}
+        cd build_doc_${{ env.BUILD_IDENTIFIER }}
         rm -rf ${{ matrix.BUILD_TYPE }}
         mkdir ${{ matrix.BUILD_TYPE }}
         cd ${{ matrix.BUILD_TYPE }}
@@ -48,11 +63,9 @@ jobs:
     needs: build
     timeout-minutes: 30
     runs-on: self-hosted
-
     defaults:
-        run:
-          working-directory: ${{ env.BUILD_ROOT }}/build_doc_${{ github.sha }}/${{ matrix.BUILD_TYPE }}
-
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}/build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
     strategy:
       matrix:
         BUILD_TYPE: [
@@ -80,9 +93,11 @@ jobs:
     needs: deploy
     if: always()
     runs-on: self-hosted
-
+    defaults:
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}
     steps:
     - name: remove artifacts
       run: |
         echo "Removing build artifacts..."
-        rm -rf ${{ env.BUILD_ROOT }}/build_doc_${{ github.sha }}
+        rm -rf ${{ env.BUILD_ROOT }}/build_doc_${{ env.BUILD_IDENTIFIER }}
