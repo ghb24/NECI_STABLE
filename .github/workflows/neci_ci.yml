@@ -138,7 +138,7 @@ jobs:
         echo "Removing build artifacts..."
         for build_type in $(echo '${{ needs.setup.outputs.unit-test-matrix }}' | jq -r '.[]'); do
           echo "Removing $build_type build artifacts"
-          rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/$build_type
+          rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${build_type}
         done
 
   # Decouple workflows for build types that don't perform tests
