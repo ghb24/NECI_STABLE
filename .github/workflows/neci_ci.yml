@@ -23,24 +23,9 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "test-matrix=[
-            \"gfort7\", 
-            \"gfort7-fastdebug\", 
-            \"gfort14-fastdebug\"
-          ]" >> $GITHUB_OUTPUT
-          echo "unit-test-matrix=[
-            \"gfort7\", 
-            \"gfort7-fastdebug\", 
-            \"gfort7-debug\", 
-            \"gfort14-fastdebug\", 
-            \"gfort14-debug\"
-          ]" >> $GITHUB_OUTPUT
-          echo "build-only-matrix=[
-            \"gfort7-debug-integer8\", 
-            \"gfort7-debug-nohdf5\", 
-            \"gfort7-self_build_hdf5\", 
-            \"gfort14\"
-          ]" >> $GITHUB_OUTPUT
+          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
+          echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
+          echo "build-only-matrix=[\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\"]" >> $GITHUB_OUTPUT
 
   build:
     needs: setup
@@ -147,14 +132,14 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.BUILD_ROOT }}
-    strategy:
-      matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.unit-test-matrix) }}
     steps:
     - name: remove artifacts
       run: |
         echo "Removing build artifacts..."
-        rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
+        for build_type in $(echo '${{ needs.setup.outputs.unit-test-matrix }}' | jq -r '.[]'); do
+          echo "Removing $build_type build artifacts"
+          rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/$build_type
+        done
 
   # Decouple workflows for build types that don't perform tests
   build-only:
