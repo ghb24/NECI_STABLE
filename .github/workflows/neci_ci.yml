@@ -8,9 +8,8 @@ on:
 
 env:
   DOC_PATH: /AltestCICD/neci-build/documentation
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   BUILD_ROOT: /AltestCICD/neci-build
-  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_BR{1}_RUN{2}', github.event.pull_request.number, github.head_ref || github.ref_name, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
+  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
 jobs:
   # Define matrices in a separate job to avoid repetition
