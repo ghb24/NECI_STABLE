@@ -7,43 +7,60 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  BUILD_ROOT: /home/cicdadmin/neci-build
+  DOC_PATH: /AltestCICD/neci-build/documentation
+  BUILD_ROOT: /AltestCICD/neci-build
+  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
 jobs:
-  build:
-    timeout-minutes: 60
-
+  # Define matrices in a separate job to avoid repetition
+  setup:
     runs-on: self-hosted
+    outputs:
+      full-matrix: ${{ steps.set-matrix.outputs.full-matrix }}
+      test-matrix: ${{ steps.set-matrix.outputs.test-matrix }}
+      unit-test-matrix: ${{ steps.set-matrix.outputs.unit-test-matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "full-matrix=[\"gfort7\",\"gfort7-debug\",\"gfort7-fastdebug\",\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\",\"gfort14-debug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
+          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\"]" >> $GITHUB_OUTPUT
+          echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
 
+  build:
+    needs: setup
+    timeout-minutes: 60
+    runs-on: self-hosted
     defaults:
-        run:
-          working-directory: ${{ env.BUILD_ROOT }}
-
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}
     strategy:
       matrix:
-        BUILD_TYPE: [
-          "gfort7",
-          "gfort7-debug",
-          "gfort7-fastdebug",
-          "gfort7-debug-integer8",
-          "gfort7-debug-nohdf5",
-          "gfort7-self_build_hdf5",
-          "gfort14",
-          "gfort14-debug",
-          "gfort14-fastdebug",
-          #          "ifort21",
-          #          "ifort21-debug"
-        ]
-
+        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.full-matrix) }}
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
+        key: ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-${{ hashFiles('**/requirements.txt', '**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-
+
+    - name: Setup cache symlinks
+      run: |
+        mkdir -p /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
+        mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
+        ln -sf /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/deps
 
     - name: build all
       run: |
-        mkdir -p build_${{ github.sha }}
-        cd build_${{ github.sha }}
+        mkdir -p build_${{ env.BUILD_IDENTIFIER }}
+        cd build_${{ env.BUILD_IDENTIFIER }}
         rm -rf ${{ matrix.BUILD_TYPE }}
         mkdir ${{ matrix.BUILD_TYPE }}
         cd ${{ matrix.BUILD_TYPE }}
@@ -53,23 +70,16 @@ jobs:
         source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
 
   test_suite:
-    needs: build
+    needs: [setup, build]
     timeout-minutes: 300
     runs-on: self-hosted
-
     defaults:
-        run:
-          working-directory: ${{ github.workspace }}
-
+      run:
+        working-directory: ${{ github.workspace }}
     strategy:
       matrix:
-        BUILD_TYPE: [
-          "gfort7",
-          "gfort7-fastdebug",
-          "gfort14",
-          #          "ifort21",
-        ]
-
+        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.test-matrix) }}
+      fail-fast: false
     steps:
     - uses: actions/checkout@v3
       with:
@@ -77,7 +87,7 @@ jobs:
 
     - name: run test suite
       run: |
-        EXE_DIR=${{ env.BUILD_ROOT }}/build_${{ github.sha }}/${{ matrix.BUILD_TYPE }}/bin
+        EXE_DIR=${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
 
         source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
 
@@ -91,26 +101,16 @@ jobs:
           -e dneci="$EXE_DIR/dneci"
 
   unit_test:
-    needs: build
+    needs: [setup, build]
     timeout-minutes: 60
     runs-on: self-hosted
-
     defaults:
-        run:
-          working-directory: ${{ env.BUILD_ROOT }}
-
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}
     strategy:
       matrix:
-        BUILD_TYPE: [
-          "gfort7",
-          "gfort7-fastdebug",
-          "gfort7-debug",
-          "gfort14-fastdebug",
-          "gfort14-debug",
-          #          "ifort21",
-          #          "ifort21-debug",
-        ]
-
+        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.unit-test-matrix) }}
+      fail-fast: false
     steps:
     - uses: actions/checkout@v3
       with:
@@ -120,21 +120,19 @@ jobs:
       run: |
         source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
 
-        cd build_${{ github.sha }}/${{ matrix.BUILD_TYPE }}/unit_tests
+        cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
 
-        ctest --tests-regex 'test_neci_.*' -j 2
-        ctest --tests-regex 'test_dneci_.*' -j 2
-        ctest --tests-regex 'test_kneci_.*' -j 2
-        ctest --tests-regex 'test_mneci_.*' -j 2
-        ctest --tests-regex 'test_kmneci_.*' -j 2
+        ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
 
   remove_artifacts:
     needs: [test_suite, unit_test]
     if: always()
     runs-on: self-hosted
-
+    defaults:
+      run:
+        working-directory: ${{ env.BUILD_ROOT }}
     steps:
     - name: remove artifacts
       run: |
         echo "Removing build artifacts..."
-        rm -rf ${{ env.BUILD_ROOT }}/build_${{ github.sha }}
+        rm -rf build_${{ env.BUILD_IDENTIFIER }}
