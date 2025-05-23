@@ -8,9 +8,8 @@ on:
 
 env:
   DOC_PATH: /AltestCICD/neci-build/documentation
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   BUILD_ROOT: /AltestCICD/neci-build
-  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_BR{1}_RUN{2}', github.event.pull_request.number, github.head_ref || github.ref_name, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
+  BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
 jobs:
   # Define matrices in a separate job to avoid repetition
@@ -24,7 +23,7 @@ jobs:
       - id: set-matrix
         run: |
           echo "full-matrix=[\"gfort7\",\"gfort7-debug\",\"gfort7-fastdebug\",\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\",\"gfort14-debug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
-          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
+          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\"]" >> $GITHUB_OUTPUT
           echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
 
   build:
