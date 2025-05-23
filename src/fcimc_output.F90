@@ -1615,10 +1615,10 @@ contains
                     if(HighSign < eps_high) cycle
                     call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
                     if (tGUGA) then
-                        excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
+                        excitInfo = identify_excitation(iLutRef(:,run), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
-                        Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
+                        Excitlev=FindBitExcitLevel(iLutRef(:,run),GlobalLargestWalkers(:,i),nEl,.true.)
                     end if
                     write(stdout,"(I5)",advance='no') Excitlev
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
