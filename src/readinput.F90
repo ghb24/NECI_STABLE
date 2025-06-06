@@ -2,6 +2,7 @@
 !   Filename is a Character(255) string which contains a filename to read.
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
+
 MODULE ReadInput_neci
     use constants, only: stdout, stdin
     use SystemData, only: tUHF, t_fci_pchb_excitgen, tStoreSpinOrbs, tMolpro, &
