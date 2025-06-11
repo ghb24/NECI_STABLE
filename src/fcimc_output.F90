@@ -1455,7 +1455,7 @@ contains
         use guga_data, only: ExcitationInformation_t
         use guga_bitrepops, only: identify_excitation, write_guga_list
         real(dp), dimension(lenof_sign) :: SignCurr
-        integer :: ierr, i, j, counter, ExcitLev, nopen, ireplica
+        integer :: ierr, i, j, counter, ExcitLev, nopen
         integer :: full_orb, run
         real(dp) :: HighSign, norm
         integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
@@ -1477,7 +1477,7 @@ contains
 
         type(ExcitationInformation_t) :: excitInfo
 
-        integer :: civec_unit(lenof_sign), null_unit, highpopwrite_unit
+        integer :: civec_unit, null_unit, highpopwrite_unit
 
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
@@ -1614,11 +1614,9 @@ contains
                 end if
 
                 if (tPrintCIVec) then
-                    do ireplica = 1, lenof_sign
-                        civec_unit(ireplica) = get_free_unit()
-                        open(civec_unit(ireplica), file="NECIVEC_"//str(ireplica), status="UNKNOWN")
-                        write(civec_unit(ireplica), '(A15, A30)') '# CI coeff.', 'excitation'
-                    end do
+                    civec_unit = get_free_unit()
+                    open(civec_unit, file="NECIVEC", status="UNKNOWN")
+                    write(civec_unit, '(A15, A30)') '# CI coeff.', 'excitation'
                 end if
 
                 null_unit = get_free_unit()
@@ -1647,27 +1645,21 @@ contains
                         !Weight is proportional to (nw/sqrt(2))**2
                         write(highpopwrite_unit,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                         if (still_print_civec) then
-                            do ireplica = 1, lenof_sign
-                                do j=1,lenof_out
-                                    write(civec_unit(ireplica), "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
-                                end do
+                            do j=1,lenof_out
+                                write(civec_unit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
                             end do
                         end if
                     else
                         write(highpopwrite_unit,"(F9.5)",advance='no') (HighSign/norm)
                         if (still_print_civec) then
                             do j=1,lenof_out
-                                do ireplica = 1, lenof_sign
-                                    write(civec_unit(ireplica), "(E30.12)", advance='no') SignCurr(j+offset)/norm
-                                end do
+                                write(civec_unit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
                             end do
                         end if
                     end if
                     if (still_print_civec) then
-                        do ireplica = 1, lenof_sign
-                            write(civec_unit(ireplica), "(A4)", advance='no') "    "
-                            call WriteDetBit(civec_unit(ireplica), GlobalLargestWalkers(:,i), .true.)
-                        end do
+                        write(civec_unit, "(A4)", advance='no') "    "
+                        call WriteDetBit(civec_unit, GlobalLargestWalkers(:,i), .true.)
                     end if
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
@@ -1706,9 +1698,7 @@ contains
         deallocate(walker_string, init_string)
         close(highpopwrite_unit)
         if(tPrintCIVec) then
-            do ireplica = 1, lenof_sign
-                close(civec_unit(ireplica))
-            end do
+            close(civec_unit)
         end if
 
         contains
