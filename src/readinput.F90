@@ -529,7 +529,7 @@ contains
             if (.not. tMultiReplicas) then
                 write(stdout, *) 'unspecified'
                 write(stdout, *) 'Filling RDMs without explicitly specifying the ' &
-                           // 'number of replica simplations'
+                           // 'number of replica simulations'
                 write(stdout, *) 'Defaulting to using 2 replicas'
                 tMultiReplicas = .true.
                 lenof_sign = 2

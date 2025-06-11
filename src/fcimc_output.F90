@@ -1477,7 +1477,7 @@ contains
 
         type(ExcitationInformation_t) :: excitInfo
 
-        integer :: civec_unit, null_unit, highpopwrite_unit
+        integer :: civec_unit(inum_runs), null_unit, highpopwrite_unit
 
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
@@ -1495,7 +1495,9 @@ contains
         allocate(walker_string(lenof_out))
         allocate(init_string(lenof_out))
 
-        do run = 1, inum_runs
+        null_unit = get_free_unit()
+        open(null_unit, file="/dev/null", status="old", action="write")
+        replica_loop: do run = 1, inum_runs
             ! If t_replica_resolved_output is set:
             ! Execute this once per run with run instead of GLOBAL_RUN -> prints the highest
             ! determinants for each replica
@@ -1614,13 +1616,11 @@ contains
                 end if
 
                 if (tPrintCIVec) then
-                    civec_unit = get_free_unit()
-                    open(civec_unit, file="NECIVEC", status="UNKNOWN")
-                    write(civec_unit, '(A15, A30)') '# CI coeff.', 'excitation'
+                    civec_unit(run) = get_free_unit()
+                    open(civec_unit(run), file="NECIVEC_"//str(run), status="UNKNOWN")
+                    write(civec_unit(run), '(A15, A30)') '# CI coeff.', 'excitation'
                 end if
 
-                null_unit = get_free_unit()
-                open(null_unit, file="/dev/null", status="old", action="write")
                 highpopwrite_unit = stdout
                 do i=1, max(iNumCITermsPrinted, iHighPopWrite)
                     if (i > iHighPopWrite) highpopwrite_unit = null_unit
@@ -1646,20 +1646,20 @@ contains
                         write(highpopwrite_unit,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                         if (still_print_civec) then
                             do j=1,lenof_out
-                                write(civec_unit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
+                                write(civec_unit(run), "(E30.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
                             end do
                         end if
                     else
                         write(highpopwrite_unit,"(F9.5)",advance='no') (HighSign/norm)
                         if (still_print_civec) then
                             do j=1,lenof_out
-                                write(civec_unit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
+                                write(civec_unit(run), "(E30.12)", advance='no') SignCurr(j+offset)/norm
                             end do
                         end if
                     end if
                     if (still_print_civec) then
-                        write(civec_unit, "(A4)", advance='no') "    "
-                        call WriteDetBit(civec_unit, GlobalLargestWalkers(:,i), .true.)
+                        write(civec_unit(run), "(A4)", advance='no') "    "
+                        call WriteDetBit(civec_unit(run), GlobalLargestWalkers(:,i), .true.)
                     end if
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
@@ -1692,14 +1692,14 @@ contains
             end if
             ! Only continue if printing the replica-resolved output
             if(.not. t_replica_resolved_output) exit
-        end do
+            if(tPrintCIVec) then
+                close(civec_unit(run))
+            end if
+        end do replica_loop
 
         deallocate(GlobalLargestWalkers,GlobalProc,GlobalHdiag)
         deallocate(walker_string, init_string)
         close(null_unit)
-        if(tPrintCIVec) then
-            close(civec_unit)
-        end if
 
         contains
 
