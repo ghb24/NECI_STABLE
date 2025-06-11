@@ -1455,7 +1455,7 @@ contains
         use guga_data, only: ExcitationInformation_t
         use guga_bitrepops, only: identify_excitation, write_guga_list
         real(dp), dimension(lenof_sign) :: SignCurr
-        integer :: ierr,i,j,counter,ExcitLev,nopen
+        integer :: ierr, i, j, counter, ExcitLev, nopen, ireplica
         integer :: full_orb, run
         real(dp) :: HighSign, norm
         integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
@@ -1471,13 +1471,13 @@ contains
         character(9), allocatable :: init_string(:)
 
         integer :: lenof_out, this_run, offset
-        logical :: t_replica_resolved_output
+        logical :: t_replica_resolved_output, still_print_civec
 
         real(dp), parameter :: eps_high = 1.0e-7_dp
 
         type(ExcitationInformation_t) :: excitInfo
 
-        integer :: iunit
+        integer :: civec_unit(lenof_sign), null_unit, highpopwrite_unit
 
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
@@ -1511,12 +1511,8 @@ contains
                 this_run = GLOBAL_RUN
                 offset = 0
             end if
-            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
+            call global_most_populated_states(max(iNumCITermsPrinted, iHighPopWrite), this_run, GlobalLargestWalkers, &
                 norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
-            if (tPrintCIVec) then
-                call global_most_populated_states(iNumCITermsPrinted, this_run, GlobalLargestWalkers, &
-                    norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
-            end if
 
             ! This has to be done by all procs
             if(tAdiActive) call update_ref_signs()
@@ -1618,65 +1614,78 @@ contains
                 end if
 
                 if (tPrintCIVec) then
-                    iunit = get_free_unit()
-                    open(iunit, file="NECIVEC", status="UNKNOWN")
-                    write(iunit, '(A15, A30)') '# CI coeff.', 'excitation'
+                    do ireplica = 1, lenof_sign
+                        civec_unit(ireplica) = get_free_unit()
+                        open(civec_unit(ireplica), file="NECIVEC_"//str(ireplica), status="UNKNOWN")
+                        write(civec_unit(ireplica), '(A15, A30)') '# CI coeff.', 'excitation'
+                    end do
                 end if
 
-                do i=1,iHighPopWrite
+                null_unit = get_free_unit()
+                open(null_unit, file="/dev/null", status="old", action="write")
+                highpopwrite_unit = stdout
+                do i=1, max(iNumCITermsPrinted, iHighPopWrite)
+                    if (i > iHighPopWrite) highpopwrite_unit = null_unit
+                    still_print_civec = tPrintCIVec .and. i <= iNumCITermsPrinted
                     call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
-                    call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
+                    call WriteDetBit(highpopwrite_unit,GlobalLargestWalkers(:,i),.false.)
                     if (tGUGA) then
                         excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
                         Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                     end if
-                    write(stdout,"(I5)",advance='no') Excitlev
+                    write(highpopwrite_unit,"(I5)",advance='no') Excitlev
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
-                    write(stdout,"(I5)",advance='no') nopen
+                    write(highpopwrite_unit,"(I5)",advance='no') nopen
                     do j=1,lenof_out
-                        write(stdout,"(G16.7)",advance='no') SignCurr(j+offset)
+                        write(highpopwrite_unit,"(G16.7)",advance='no') SignCurr(j+offset)
                     end do
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                         !Weight is proportional to (nw/sqrt(2))**2
-                        write(stdout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
-                        if (tPrintCIVec) then
-                            do j=1,lenof_out
-                                write(iunit, "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
+                        write(highpopwrite_unit,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
+                        if (still_print_civec) then
+                            do ireplica = 1, lenof_sign
+                                do j=1,lenof_out
+                                    write(civec_unit(ireplica), "(E1.12)", advance='no') ((SignCurr(j+offset)/sqrt(2.0_dp))/norm )
+                                end do
                             end do
                         end if
                     else
-                        write(stdout,"(F9.5)",advance='no') (HighSign/norm)
-                        if (tPrintCIVec) then
+                        write(highpopwrite_unit,"(F9.5)",advance='no') (HighSign/norm)
+                        if (still_print_civec) then
                             do j=1,lenof_out
-                                write(iunit, "(E30.12)", advance='no') SignCurr(j+offset)/norm
+                                do ireplica = 1, lenof_sign
+                                    write(civec_unit(ireplica), "(E30.12)", advance='no') SignCurr(j+offset)/norm
+                                end do
                             end do
                         end if
                     end if
-                    if (tPrintCIVec) then
-                        write(iunit, "(A4)", advance='no') "    "
-                        call WriteDetBit(iunit, GlobalLargestWalkers(:,i), .true.)
+                    if (still_print_civec) then
+                        do ireplica = 1, lenof_sign
+                            write(civec_unit(ireplica), "(A4)", advance='no') "    "
+                            call WriteDetBit(civec_unit(ireplica), GlobalLargestWalkers(:,i), .true.)
+                        end do
                     end if
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
-                            write(stdout,"(A3)",advance='no') 'Y'
+                            write(highpopwrite_unit,"(A3)",advance='no') 'Y'
                         else
                             if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j+offset))) then
-                                write(stdout,"(A3)",advance='no') 'Y'
+                                write(highpopwrite_unit,"(A3)",advance='no') 'Y'
                             else
-                                write(stdout,"(A3)",advance='no') 'N'
+                                write(highpopwrite_unit,"(A3)",advance='no') 'N'
                             end if
                         end if
                     end do
-                    write(stdout,"(1x,es16.8,1x)",advance='no') GlobalHdiag(i)
+                    write(highpopwrite_unit,"(1x,es16.8,1x)",advance='no') GlobalHdiag(i)
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
-                        write(stdout,"(I7)",advance='no') GlobalProc(i)
-                        write(stdout,"(A3)") "*"
+                        write(highpopwrite_unit,"(I7)",advance='no') GlobalProc(i)
+                        write(highpopwrite_unit,"(A3)") "*"
                     else
-                        write(stdout,"(I7)") GlobalProc(i)
+                        write(highpopwrite_unit,"(I7)") GlobalProc(i)
                     end if
                 end do
                 ! Keep the reference weight in a separate output variable
@@ -1695,6 +1704,12 @@ contains
 
         deallocate(GlobalLargestWalkers,GlobalProc,GlobalHdiag)
         deallocate(walker_string, init_string)
+        close(highpopwrite_unit)
+        if(tPrintCIVec) then
+            do ireplica = 1, lenof_sign
+                close(civec_unit(ireplica))
+            end do
+        end if
 
         contains
 

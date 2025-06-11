@@ -1,0 +1,24 @@
+Failed tests in:
+hdf5/mneci/C2_aas_bloom_scale/
+hdf5/mneci/C2_pops_expand/
+hdf5/mneci/C2_pops_shrink/
+hdf5/mneci/guga/C2_aas_bloom_scale/s1/
+kneci/C_221_int/
+kneci/C_221_real/
+kneci/C_221_real_adi/
+kneci/C_221_real_full/
+mneci/guga/HeHe_5_states_s1/
+mneci/guga/HeHe_5_states_s1_pchb/
+mneci/rdm/Ne_nat_orbs/
+neci/guga/HeHe_FCIMC_adi_delay/s1/
+neci/guga/determ_doubles/s1/
+neci/guga/determ_opt_amp/s1/
+neci/guga/determ_opt_num/s1/
+neci/guga/determ_pops_dyn/s1/
+neci/guga/determ_read_core/s1/
+neci/guga/trial_doubles/s1/
+neci/guga/trial_opt_num/s1/
+neci/guga/trial_read/s1/
+neci/serial/guga_explicit_2_rdm_s1/
+Skipped test in:
+mneci/rdm/Ne_nat_orbs/

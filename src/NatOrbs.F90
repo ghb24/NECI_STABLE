@@ -1537,7 +1537,7 @@ contains
         logical :: tWarning
         integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
         integer :: this_run
-        real(dp), dimension(lenof_sign) :: refsign, currsign
+        real(dp), dimension(lenof_sign) :: currsign
         real(dp) :: currsignreal
 
         allocate(GlobalLargestWalkers(0:NIfTot,nBasis), source=0_n_int)
@@ -1545,10 +1545,9 @@ contains
         AllOrbOccs = 0.0_dp
 
         call MPIReduce(OrbOccs, MPI_SUM, AllOrbOccs)
-        this_run = GLOBAL_RUN ! @jphaupt todo in case of replica
+        this_run = GLOBAL_RUN
         call global_most_populated_states(nBasis, this_run, GlobalLargestWalkers, norm=walker_norm)
 
-        call extract_sign(GlobalLargestWalkers(:,1), refsign)
         ! Want to normalise the orbital contributions for convenience.
         tWarning = .false.
         if (iProcIndex == 0) then
@@ -1570,7 +1569,6 @@ contains
             end if
 
             open(iunit, file='ORBOCCUPATIONS', status='UNKNOWN')
-            ! write(iunit, '(A15,A30)') '# Orbital no.', 'Normalised occupation'
             write(iunit, '(A15,A30,A30,A30)') '# Orbital no.', 'occupation', 'Normalised CI coeff.', 'excitation'
             if (tWarning) write(iunit, *) 'WARNING: integer OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
             do i = 1, nBasis

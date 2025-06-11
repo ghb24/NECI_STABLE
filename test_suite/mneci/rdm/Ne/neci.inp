@@ -32,6 +32,7 @@ integral
 endint
 
 logging
+    print-civec 10
     popsfile -1
     calcrdmonfly 3 200 200
 endlog

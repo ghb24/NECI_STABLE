@@ -1923,6 +1923,10 @@ keyword.
     With this keyword the user can explicitly say that they want to sample RDMs without
     replica.
 
+-   **print-civec [\(n\)]**<br>
+    At the end of the calculation, produces a file `NECIVEC_{i}` with the top
+    \(n\) determinants printed. `{i}` ranges from 1 to the number of replicas used.
+
 -   **ci-coefficients [\(n\) \(excitation\)]**<br>
     Enables the collection of CI coefficients and their average over a number of iterations.
     The outputs are printed in separate ASCII files named `ci_coeff_*_av`.

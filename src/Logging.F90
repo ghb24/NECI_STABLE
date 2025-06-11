@@ -293,7 +293,7 @@ contains
                 ! At the end of an FCIMC calculation, how many highly populated determinants should we write out?
                 iHighPopWrite = to_int(tokens%next())
             case ("PRINT-CIVEC")
-                ! At the end of the calculation, produces a file CIVEC with the CI vector printed
+                ! At the end of the calculation, produces a file NECIVEC with the CI vector printed
                 tPrintCIVec = .true.
                 iNumCITermsPrinted = to_int(tokens%next())
             case ("REPLICAS-POPWRITE")

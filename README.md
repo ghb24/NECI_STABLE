@@ -14,7 +14,7 @@ Contributors to the NECI codebase, in alphabetical order
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
 Khaldoon Ghanem, Kai Guther, Philip Haupt, Peter Jeszenski, Giovanni Li Manni,
 Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
-Lauretta Schwarz, James Shepherd, Maru Song, Simon Smart, James Spencer, Anthony Stone, Pierre-Louis Taillat,
+Lauretta Schwarz, James Shepherd, Simon Smart, Maru Song, James Spencer, Anthony Stone, Pierre-Louis Taillat,
 Alex Thom, Robert Thomas, David Thompson, Demetrio Vilardi, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
