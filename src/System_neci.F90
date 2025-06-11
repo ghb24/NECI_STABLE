@@ -1953,7 +1953,7 @@ contains
                 end do
                 call load_orb_perm(buf(1:n_orb))
 
-            case("GAS-PQ-TRUNCATION")
+            case("SPLITGAS-SPEC")
 
                 if (allocated(indexer) .and. allocated(GAS_specification)) then
                     total_indexer = indexer
