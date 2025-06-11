@@ -1924,10 +1924,10 @@ keyword.
     replica.
 
 -   **print-civec [\(n\)]**<br>
-    At the end of the calculation, produces a file `NECIVEC` with the top
-    \(n\) determinants printed. If the calculation is done with multiple replicas,
-    then there will be multiple columns for the determinant weights. Note that the
-    determinants printed are the top \(n\) in the first replica.
+    At the end of the calculation, produces a file `NECIVEC_{i}` with the top
+    \(n\) determinants printed. `{i}` ranges from 1 to the number of replicas.
+    For RDM calculations, `NECIVEC_{i}` may have more than one column for each
+    replica used in the RDM sampling.
 
 -   **ci-coefficients [\(n\) \(excitation\)]**<br>
     Enables the collection of CI coefficients and their average over a number of iterations.
