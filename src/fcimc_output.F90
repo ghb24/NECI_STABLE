@@ -1696,7 +1696,7 @@ contains
 
         deallocate(GlobalLargestWalkers,GlobalProc,GlobalHdiag)
         deallocate(walker_string, init_string)
-        close(highpopwrite_unit)
+        close(null_unit)
         if(tPrintCIVec) then
             close(civec_unit)
         end if
