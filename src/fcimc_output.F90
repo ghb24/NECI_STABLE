@@ -1690,11 +1690,11 @@ contains
 
                 write(stdout,*) ""
             end if
-            ! Only continue if printing the replica-resolved output
-            if(.not. t_replica_resolved_output) exit
             if(tPrintCIVec) then
                 close(civec_unit(run))
             end if
+            ! Only continue if printing the replica-resolved output
+            if(.not. t_replica_resolved_output) exit
         end do replica_loop
 
         deallocate(GlobalLargestWalkers,GlobalProc,GlobalHdiag)
