@@ -1481,7 +1481,7 @@ contains
 
         allocate(GlobalLargestWalkers(0:NIfTot,max(iHighPopWrite, iNumCITermsPrinted)), source=0_n_int)
         allocate(GlobalHdiag(max(iHighPopWrite, iNumCITermsPrinted)), source=0.0_dp)
-        allocate(GlobalProc(iHighPopWrite), source=0)
+        allocate(GlobalProc(max(iHighPopWrite, iNumCITermsPrinted)), source=0)
 
         ! Decide if each replica shall have its own output
         t_replica_resolved_output = tOrthogonaliseReplicas .or. t_force_replica_output
