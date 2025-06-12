@@ -1479,8 +1479,8 @@ contains
 
         integer :: civec_unit(inum_runs), null_unit, highpopwrite_unit
 
-        allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
-        allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
+        allocate(GlobalLargestWalkers(0:NIfTot,max(iHighPopWrite, iNumCITermsPrinted)), source=0_n_int)
+        allocate(GlobalHdiag(max(iHighPopWrite, iNumCITermsPrinted)), source=0.0_dp)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
         ! Decide if each replica shall have its own output

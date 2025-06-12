@@ -42,4 +42,9 @@ title
     tchint-lib
   endint
 
+  logging
+    highlyPopWrite 10
+    print-civec 20
+  endlog
+
 end
