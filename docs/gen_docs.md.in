@@ -41,7 +41,7 @@ Contributors to the Alavi group NECI codebase, in alphabetical order
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
 Khaldoon Ghanem, Kai Guther, Philip Haupt, Peter Jeszenski, Giovanni Li Manni,
 Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
-Simon Smart, James Shepherd, James Spencer, Anthony Stone, Lauretta Schwarz, Pierre-Louis Taillat,
+Lauretta Schwarz, James Shepherd, Simon Smart, Maru Song, James Spencer, Anthony Stone, Pierre-Louis Taillat,
 Alex Thom, Robert Thomas, David Thompson, Demetrio Vilardi, Eugenio Vitale, Oskar Weser.
 
 
@@ -91,4 +91,3 @@ Please see "LICENSE" file for GNU GPL v.3 license associated with this software.
 | <img src="./media/logos/cambridge_university2.svg" alt="Cambridge logo" align="left" width="300">  | The early development of `NECI` was performed at the University of Cambridge. |
 | <img src="./media/logos/UKRI_logo.png" alt="ESPRC logo" align="left" width="400"> |  The UK [EPSRC](https://www.ukri.org/councils/epsrc/) Grants (EP/I014624/1 and EP/J003867/1) supported the early development of `NECI`. |
 | <img src="https://raw.githubusercontent.com/zulip/zulip/main/static/images/logo/zulip-icon-512x512.png" alt="Zulip logo" align="center" width="75"> | [Zulip](https://zulip.com/) is an open-source modern team chat app designed to keep both live and asynchronous conversations organized. They support this project with free access to Zulip Cloud Standard. |
-

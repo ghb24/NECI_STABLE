@@ -57,6 +57,8 @@ module LoggingData
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
+    logical :: tPrintCIVec
+    integer :: iNumCITermsPrinted
     ! Flag to determine procedure regarding multi-replica output
     logical :: t_force_replica_output = .false.
 
@@ -249,7 +251,7 @@ module LoggingData
     logical :: t_print_molcas_rdms = .false.
 
     logical :: tFullProjE
-    
+
     logical :: tEstHilbSpaceMC = .false.
     integer :: HilbSpaceSamples
     logical :: t_measure_local_spin = .false.
