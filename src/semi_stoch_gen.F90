@@ -107,6 +107,8 @@ contains
         ! Hamiltonian matrix elements. The lists which will store the walker amplitude vectors in
         ! the deterministic space are also allocated.
 
+        integer, parameter :: npops_max = 5000000
+
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
 
@@ -163,13 +165,13 @@ contains
                 ! deterministic space (on their own processor only).
                 write(stdout, '("Generating the deterministic space...")'); call neci_flush(stdout)
                 if (core_in%tPopsAuto) then
-                    write(stdout, '("Choosing 10% of initiator space as core space, if this number is larger than 50000, then use 50000")')
+                    write(stdout, *) 'Choosing 10% of initiator space as core space, if this number is larger than ', npops_max, ' then use ', npops_max, ' instead.'
                     call neci_flush(stdout)
                     ! from my understanding npops refers to the total core space size
                     write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * 0.1_dp)
                     call neci_flush(stdout)
-                    if (int(AllNoInitDets(run) * 0.1_dp) > 50000) then
-                        core_in%npops = 50000
+                    if (int(AllNoInitDets(run) * 0.1_dp) > npops_max) then
+                        core_in%npops = npops_max
                     else
                         core_in%npops = int(AllNoInitDets(run) * 0.1_dp)
                     end if
