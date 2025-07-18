@@ -6,7 +6,7 @@ module property_vector_pchb_doubles_select_particles
     use constants, only: dp, int64, stdout, n_int, bits_n_int
     use fortran_strings, only: to_upper
     use bit_rep_data, only: nIfD
-    use util_mod, only: EnumBase_t
+    use util_mod, only: EnumBase_t, ByteSize_t
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, t_mol_3_body, nBasis
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -64,6 +64,7 @@ module property_vector_pchb_doubles_select_particles
         procedure(Draw_t), public, deferred :: draw
         procedure(GetPgen_t), public, deferred :: get_pgen
         procedure(Finalize_t), public, deferred :: finalize
+        procedure(GetMemoryDemand_t), public, deferred :: get_memory_demand
     end type
 
     abstract interface
@@ -81,6 +82,12 @@ module property_vector_pchb_doubles_select_particles
                 !! The determinant in nI-format and the prop_vec index
             integer, intent(in) :: I, J
                 !! The particles.
+        end function
+
+        type(ByteSize_t) elemental function GetMemoryDemand_t(this)
+            import :: ParticleSelector_t, ByteSize_t
+            implicit none
+            class(ParticleSelector_t), intent(in) :: this
         end function
 
         subroutine Draw_t(this, nI, ilutI, i_sg, elecs, srcs, p)
@@ -106,6 +113,7 @@ module property_vector_pchb_doubles_select_particles
         procedure, public :: draw => draw_UniformParticles_t
         procedure, public :: get_pgen => get_pgen_UniformParticles_t
         procedure, public :: finalize => finalize_UniformParticles_t
+        procedure, public :: get_memory_demand => get_memory_demand_UniformParticles_t
     end type
 
     type, extends(ParticleSelector_t), abstract :: PC_Particles_t
@@ -124,6 +132,7 @@ module property_vector_pchb_doubles_select_particles
         private
         procedure, public :: init => init_PC_WeightedParticles_t
         procedure, public :: finalize => finalize_PC_WeightedParticles_t
+        procedure, public :: get_memory_demand => get_memory_demand_PC_Particles_t
     end type
 
     type, extends(PC_Particles_t) :: PC_FullyWeightedParticles_t
@@ -227,6 +236,13 @@ contains
         call pick_biased_elecs(nI, elecs, srcs, sym_prod, ispn, sum_ml, p)
     end subroutine
 
+    elemental function get_memory_demand_UniformParticles_t(this) result(res)
+        class(UniformParticles_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        @:unused_var(this)
+        res = ByteSize_t(0_int64)
+    end function
+
     pure function get_pgen_UniformParticles_t(this, nI, i_sg, I, J) result(p)
         !! Calculates \( p(\{I, J\}) \Big |_{D_i} \)
         !!
@@ -321,6 +337,14 @@ contains
             end do
         end block
     end subroutine
+
+    elemental function get_memory_demand_PC_Particles_t(this) result(res)
+        class(PC_Particles_t), intent(in) :: this
+        type(ByteSize_t) :: res
+        ! Strictly speaking this is not the whole memory demand.
+        ! e.g. the gas specification is missing
+        res = this%I_sampler%get_memory_demand() + this%J_sampler%get_memory_demand()
+    end function
 
     subroutine draw_PC_FullyWeightedParticles_t(this, nI, ilutI, i_sg, elecs, srcs, p)
         class(PC_FullyWeightedParticles_t), intent(in) :: this

@@ -5335,7 +5335,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3012
@@ -5358,7 +5358,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen > EPS)
@@ -5381,7 +5381,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen > EPS)
@@ -5428,7 +5428,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 0312
@@ -5448,7 +5448,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1122
         ! 0312
@@ -5474,7 +5474,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -5522,7 +5522,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! also should not yield a valid excitation
         ! 1212
@@ -5541,7 +5541,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -5565,7 +5565,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -5613,7 +5613,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 1320 -> normal single!
@@ -5631,7 +5631,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -5655,7 +5655,7 @@ contains
 
         call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -6398,7 +6398,7 @@ contains
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
-        call calcFullStartFullStopMixedStochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartFullStopMixedStochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! in this constellation no excitaiton should be possible, due to 0
         ! matrix elements..
@@ -6416,7 +6416,7 @@ contains
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
-        call calcFullStartFullStopMixedStochastic(ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartFullStopMixedStochastic(csf_i%to_nI(), ilut, csf_i, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! in this constellation no excitaiton should be possible, due to 0
         ! matrix elements..

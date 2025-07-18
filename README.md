@@ -14,7 +14,7 @@ Contributors to the NECI codebase, in alphabetical order
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
 Khaldoon Ghanem, Kai Guther, Philip Haupt, Peter Jeszenski, Giovanni Li Manni,
 Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
-Simon Smart, James Shepherd, James Spencer, Anthony Stone, Lauretta Schwarz, Pierre-Louis Taillat,
+Lauretta Schwarz, James Shepherd, Simon Smart, Maru Song, James Spencer, Anthony Stone, Pierre-Louis Taillat,
 Alex Thom, Robert Thomas, David Thompson, Demetrio Vilardi, Eugenio Vitale, Oskar Weser.
 
 ## Documentation
@@ -28,8 +28,8 @@ and create a `build_directory` outside the `source_directory`.
 
 Then you can type
 ```bash
-cd <build_directory>
-cmake <source_directory>
+cd $build_directory
+cmake $source_directory
 make -j
 ```
 and are ready to go.

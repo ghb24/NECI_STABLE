@@ -108,14 +108,23 @@ contains
         call exc%idx%extract_ijkl(i, j, k, l)
 
         select case (exc%typ%val)
+        ! 0 el transferred
         case(dd%jijk%val, dd%ijkj%val, dd%ikjk%val, dd%kikj%val, dd%ijik%val, dd%jiki%val)
             weight = abs(g(i, j, k, l) + g(i, l, k, j)) / 2.0_dp
+        ! 0 el transferred
         case(dd%ijij%val, dd%jiji%val)
             weight = abs(g(i, j, k, l)) / 2.0_dp
+        ! 0 el transferred
+        case (dd%iijj%val)
+            ! weight = abs(g(i, l, k, i))
+            weight = abs(g(i, l, l, i))
+        ! 1 el transferred
         case(dd%jikk%val, dd%ijkk%val)
             weight = abs(g(i, k, k, j))
-        case(dd%iikj%val, dd%iijk%val, dd%iijj%val)
+        ! 1 el transferred
+        case(dd%iikj%val, dd%iijk%val)
             weight = abs(g(i, l, k, i))
+        ! 2 el transferred
         case(dd%kilj%val, dd%ikjl%val)
             cpt1 = 2 * g(i, j, k, l)
             cpt2 = 2 * g(i, l, k, j)
@@ -128,6 +137,7 @@ contains
             else
                 weight = maxval(abs([cpt1, cpt2, cpt3, cpt4]))
             end if
+        ! 2 el transferred
         case(dd%ijkl%val, dd%jilk%val, dd%ijlk%val, dd%jikl%val)
             cpt1 = 2 * g(i, j, k, l)
             cpt2 = 2 * g(i, l, k, j)

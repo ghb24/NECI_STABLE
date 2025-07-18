@@ -8,7 +8,7 @@ module block_spawns
     use input_parser_mod, only: TokenIterator_t, FileReader_t, parse_definedet,&
                                 ManagingFileReader_t
     use DetBitOps, only: EncodeBitDet
-    use bit_rep_data, only: nifd
+    use bit_rep_data, only: nifd, niftot
     use bit_reps, only: decode_bit_det
     use FciMCData, only: ll_node
     use hash, only: init_hash_table, fill_in_hash_table, clear_hash_table, &
@@ -35,7 +35,7 @@ contains
         type(ll_node), pointer, intent(out) :: blocklist_ht(:)
         character(len=255), intent(in) :: blocklistname
         integer :: nI_blocked(nel)
-        integer(kind=n_int) :: ilut_blocked(0:nifd)
+        integer(kind=n_int) :: ilut_blocked(0:niftot)
         type(TokenIterator_t) :: tokens
         class(FileReader_t), allocatable :: filereader
         type(buffer_int64_2D_t) :: buffer
@@ -82,7 +82,7 @@ contains
 
     function is_excitation_aborted(excited_nJ, excited_ilut) result(tAbort)
         integer, intent(in) :: excited_nJ(nel)
-        integer(kind=n_int), intent(in) :: excited_ilut(0:nifd)
+        integer(kind=n_int), intent(in) :: excited_ilut(0:niftot)
         logical :: tAbort
         integer :: idx, DetHash
 

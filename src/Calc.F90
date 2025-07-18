@@ -181,7 +181,7 @@ MODULE Calc
         readpops_but_tau_not_from_popsfile, MaxWalkerBloom, &
         ignore_diagonal_estimate
     use tau_search_hist, only: t_fill_frequency_hists, t_test_hist_tau, &
-        max_frequency_bound, frq_ratio_cutoff, n_frequency_bins
+        user_input_histogramming_spec, HistogrammingSpec_t
     use unit_test_helpers, only: batch_run_excit_gen_tester
     use util_mod, only: addToIntArray, get_free_unit, NECI_ICOPY, int_fmt, &
         near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush
@@ -663,7 +663,6 @@ contains
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
         integer :: npops_pert, npert_spectral_left, npert_spectral_right
         real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
-        integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
         logical :: t_force_global_core
         integer :: last_nField
         character(len=100) :: TempFieldFiles(5)
@@ -1128,14 +1127,25 @@ contains
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
-                    call EncodeBitDet(DefDet, def_ilut)
+                    ! This is super ugly, but set nIfTot to a very large value for now
+                    ! otherwise we cannot really use HPHF with large orbital numbers
+                    !
+                    ! nIfTot is used in this block but not yet initialized
+                    ! and we cannot properly initialize it yet, because `nBasis` is not yet
+                    ! initialized.
+                    nIfTot = 100
+                    block
+                        integer(n_int) :: def_ilut(0:nIfTot), def_ilut_sym(0:NiFtot)
+                        call EncodeBitDet(DefDet, def_ilut)
 
-                    def_ilut_sym = return_hphf_sym_det(def_ilut)
-                    if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
-                        call decode_bit_det(DefDet, def_ilut_sym)
-                        write(stdout, *) "definedet changed to HPHF symmetric:"
-                        call write_det(stdout, DefDet, .true.)
-                    end if
+                        def_ilut_sym = return_hphf_sym_det(def_ilut)
+                        if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
+                            call decode_bit_det(DefDet, def_ilut_sym)
+                            write(stdout, *) "definedet changed to HPHF symmetric:"
+                            call write_det(stdout, DefDet, .true.)
+                        end if
+                    end block
+                    nIfTot = 0
                 end if
 
                 if(tGUGA) then
@@ -1429,29 +1439,32 @@ contains
                         case("HISTOGRAMMING")
                             input_tau_search_method = possible_tau_search_methods%HISTOGRAMMING
                             t_fill_frequency_hists = .true.
-                            if (can_be_real(tokens%glimpse(''))) then
-                                frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
-                                if (frq_ratio_cutoff < 0.9_dp) then
-                                    write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
-                                    write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
-                                    write(stderr, *) 'If you want c = 0.999 just write:'
-                                    write(stderr, *) '  tau-search \'
-                                    write(stderr, *) '      algorithm histogramming 1e-3'
-                                    write(stderr, *) 'If you really want c < 0.9 contact the developers.'
-                                    call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
-                                end if
-                            end if
-                            if (can_be_real(tokens%glimpse(''))) then
-                                n_frequency_bins = nint(to_realdp(tokens%next()))
-                                if (n_frequency_bins > 10**6) then
-                                    write(stdout, "(A)") &
-                                        '("WARNING: maybe too many bins used for the histograms! This might cause MPI problems!")'
-                                end if
-                            end if
-                            if (can_be_real(tokens%glimpse(''))) then
-                                max_frequency_bound = to_realdp(tokens%next())
-                            end if
+                            if (tokens%remaining_items() > 0) then
+                                if (can_be_real(tokens%glimpse(''))) then
+                                block
+                                    real(dp) :: frq_ratio_cutoff, max_frequency_bound
+                                    integer :: n_frequency_bins
+                                    frq_ratio_cutoff = 1._dp - to_realdp(tokens%next())
+                                    if (frq_ratio_cutoff < 0.9_dp) then
+                                        write(stderr, *) 'The frequency ratio cutoff `c` of histogramming is below 0.9.'
+                                        write(stderr, *) 'Note that the input is the first argument to `histogramming` as `1 - c`.'
+                                        write(stderr, *) 'If you want c = 0.999 just write:'
+                                        write(stderr, *) '  tau-search \'
+                                        write(stderr, *) '      algorithm histogramming 1e-3'
+                                        write(stderr, *) 'If you really want c < 0.9 contact the developers.'
+                                        call stop_all(this_routine, 'Invalid `frq_ratio_cutoff`.')
+                                    end if
+                                    n_frequency_bins = nint(to_realdp(tokens%next()))
+                                    if (n_frequency_bins > 10**6) then
+                                        write(stdout, "(A)") &
+                                            '("WARNING: maybe too many bins used for the histograms! This might cause MPI problems!")'
+                                    end if
+                                    max_frequency_bound = to_realdp(tokens%next())
+                                    user_input_histogramming_spec = HistogrammingSpec_t(max_frequency_bound, n_frequency_bins, frq_ratio_cutoff)
 
+                                end block
+                                end if
+                            end if
                         case default
                             call stop_all(this_routine, "Invalid sub-keyword "//w)
                         end select

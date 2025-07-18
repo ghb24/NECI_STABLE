@@ -163,7 +163,7 @@ contains
 
     !> For a MPI-3 shared memory array, synchronization is required after/before each read/write epoch
     subroutine sync(this)
-        class(index_rhash_t), intent(in) :: this
+        class(index_rhash_t), intent(inout) :: this
 
         call this%shared_ht%sync()
     end subroutine sync

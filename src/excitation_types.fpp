@@ -29,11 +29,12 @@ module excitation_types
     use orb_idx_mod, only: size, sum, calc_spin_raw
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
+    use fortran_strings, only: join, Token_t, str
     use util_mod, only: stop_all
     use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement, is_set, &
-        operator(.in.)
+        operator(.in.), operator(.complement.)
     use DetBitOps, only: GetBitExcitation
     use excit_mod, only: GetExcitation
     use sort_mod, only: sort
@@ -52,7 +53,17 @@ module excitation_types
 
     !>  Abstract base class for excitations.
     type, abstract :: Excitation_t
+    contains
+        procedure(to_str_t), deferred :: to_str
     end type
+
+    abstract interface
+        pure function to_str_t(this) result(res)
+            import :: Excitation_t
+            class(Excitation_t), intent(in) :: this
+            character(:), allocatable :: res
+        end function
+    end interface
 
     #:for rank, excite_t in zip(excit_ranks, defined_excitations)
     type, extends(Excitation_t) :: ${excite_t}$
@@ -60,12 +71,16 @@ module excitation_types
         !! The array is sorted like:
         !! [srcs, tgts]
         integer :: val(2, ${rank}$) = UNKNOWN
+    contains
+        procedure :: to_str => to_str_${excite_t}$
     end type
     #:endfor
 
     type, extends(Excitation_t) :: Excite_Further_t
         !! Represents an excitation with so many different indices, it has to be zero
         integer :: val(2, 0) = UNKNOWN
+    contains
+        procedure :: to_str => to_str_Excite_Further_t
     end type
 
     #:for Excitation_t in non_trivial_excitations
@@ -204,7 +219,7 @@ module excitation_types
     end interface
 
     interface get_excitation
-        module procedure get_excitation_old, get_excitation_new
+        module procedure get_excitation_old, get_excitation_new, get_excitation_unknown_ic
     end interface
 
 contains
@@ -406,6 +421,34 @@ contains
         end select
     end subroutine get_excitation_new
 
+
+    !>  Create an excitation from nI to nJ
+    subroutine get_excitation_unknown_ic(nI, nJ, exc, tParity)
+        !> Two Slater determinants in nI format.
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+        !>  The excitation level. (1=Excite_1_t, 2=Excite_2_t, ...)
+        !>  An excitation of type excitation_t.
+        !>      By using select type(exc) one can select the actual type at runtime
+        !>      **and** statically dispatch as much as possible at compile time.
+        class(Excitation_t), allocatable, intent(out) :: exc
+        !>  The parity of the excitation.
+        logical, intent(out) :: tParity
+        debug_function_name("get_excitation_unknown_ic")
+
+        integer :: ic
+
+        ic = size(nI .complement. nJ)
+        @:ASSERT(ic == size(nJ .complement. nI))
+
+        if (1 <= ic .and. ic <= 3) then
+            call get_excitation_new(nI, nJ, ic, exc, tParity)
+        else
+            call create_excitation(exc, ic)
+            tParity = .false.
+        end if
+
+    end subroutine get_excitation_unknown_ic
+
     subroutine get_excitation_old(nI, nJ, ic, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
         integer, intent(out) :: exc(2, maxExcit)
@@ -548,4 +591,24 @@ contains
             call stop_all("dyn_nI_excite", "Excitation type invalid.")
         end select
     end function
+
+    #:for rank, excite_t in zip(excit_ranks[1:], non_trivial_excitations)
+        pure function to_str_${excite_t}$(this) result(res)
+            class(${excite_t}$), intent(in) :: this
+            character(:), allocatable :: res
+            res = "${excite_t}$: " &
+                // '[' // ${'// ", " // '.join([f"str(this%val(1, {i}))" for i in range(1, rank + 1)]) }$ // ']' &
+                // " -> " &
+                // '[' // ${'// ", " // '.join([f"str(this%val(2, {i}))" for i in range(1, rank + 1)]) }$ // ']'
+        end function
+    #:endfor
+
+    #:for excite_t in trivial_excitations
+        pure function to_str_${excite_t}$(this) result(res)
+            class(${excite_t}$), intent(in) :: this
+            character(:), allocatable :: res
+            @:unused_var(this)
+            res = "${excite_t}$"
+        end function
+    #:endfor
 end module

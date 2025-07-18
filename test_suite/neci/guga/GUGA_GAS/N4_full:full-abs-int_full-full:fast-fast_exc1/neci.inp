@@ -5,7 +5,7 @@ System read
     nobrillouintheorem
     FCIDUMP-name ../N4_tetra.FciDmp
     freeformat
-    nonuniformrandexcits guga-gas-pchb \
+    nonuniformrandexcits guga-gas-pchb manual \
         drawing full:full full-full:fast-fast \
         weighting abs-integral initial-dobrautz
     guga 0

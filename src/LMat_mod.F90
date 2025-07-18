@@ -25,7 +25,7 @@ module LMat_mod
 #endif
     use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
 #ifdef USE_TCHINT_
-    use tchint_simple, only: tc_matel, tchint_init => init_and_calc_simple, tchint_finalize => finalize_simple
+    use tchint_simple, only: tc_matel_L_contrib_simple, tchint_init => init_and_calc_simple, tchint_finalize => finalize_simple
 #endif
     implicit none
 
@@ -224,7 +224,7 @@ contains
         HElement_t(dp) :: matel
 
 #ifdef USE_TCHINT_
-        matel = tc_matel(nI, ex)
+        matel = tc_matel_L_contrib_simple(nI, ex)
 #else
         character(*), parameter :: t_r = "external_lMat_matel"
         unused_var(nI); unused_var(ex); unused_var(matel)

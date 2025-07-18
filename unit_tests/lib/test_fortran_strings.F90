@@ -88,13 +88,15 @@ contains
 
         call assert_true(str(5) == ("5"))
 
-        call assert_true(str(5., 1) == "0.5E+01")
+        call assert_true(str(5., 1, .false.) == "5.0")
+        call assert_true(str(5., 1, .true.) == "5.0E+00")
 
-        call assert_true(str(5.312e8, 1) == "0.5E+09")
-        call assert_true(str(5.312e8, 2) == "0.53E+09")
-        call assert_true(str(5.312e8, 3) == "0.531E+09")
+        call assert_true(str(5.312e8, 1, .true.) == "5.3E+08")
+        call assert_true(str(5.312e8, 2, .true.) == "5.31E+08")
+        call assert_true(str(5.312e8, 3, .true.) == "5.312E+08")
 
     end subroutine
+
 
     subroutine test_driver()
         call run_test_case(test_split, "test_split")

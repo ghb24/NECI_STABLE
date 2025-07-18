@@ -199,7 +199,7 @@ set( SRC_FILES
     GUGA/guga_pchb_class.F90
     GUGA/guga_crude_approx.F90
     GUGA/guga_rdm.F90
-    GUGA/guga_gas_pchb_doubles_select_holes.F90
+    GUGA/guga_propvec_pchb_doubles_select_holes.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -422,10 +422,10 @@ set( FYPP_SRC_FILES
     property_vector_constraint/property_vector_pchb_main.fpp
     property_vector_constraint/property_vector_singles_pc_weighted.fpp
     GUGA/guga_base_class.fpp
-    GUGA/guga_gas_pchb_main.fpp
-    GUGA/guga_gas_pchb_singles_main.fpp
-    GUGA/guga_gas_pchb_doubles_main.fpp
-    GUGA/guga_gas_pchb_doubles_select_particles.fpp
+    GUGA/guga_propvec_pchb_main.fpp
+    GUGA/guga_propvec_pchb_singles_main.fpp
+    GUGA/guga_propvec_pchb_doubles_main.fpp
+    GUGA/guga_propvec_pchb_doubles_select_particles.fpp
     GUGA/guga_pchb_doubles_weights.fpp
     GUGA/guga_pchb_singles_weights.fpp
     CDF_sampling.fpp

@@ -20,12 +20,15 @@ module test_guga_pchb_mod
     use guga_init, only: init_guga
     use guga_bitRepOps, only: CSF_Info_t, EncodeBitDet_guga
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
-    use guga_pchb_class, only: PCHB_t, options, FCI_PCHB_options_t, &
-        FCI_PCHB_options_vals_t, options_vals
+    use guga_pchb_class, only: PCHB_t, FCI_PCHB_options_t, &
+        FCI_PCHB_options_vals_t, FCI_options_vals => options_vals
 
 
-    use guga_gas_pchb_singles_main, only: GAS_PCHB_SinglesOptions_t
-    use guga_gas_pchb_doubles_main, only: PCHB_DoublesOptions_t
+    use guga_prop_vec_pchb_singles_main, only: PropVec_PCHB_SinglesOptions_t
+    use guga_prop_vec_pchb_doubles_main, only: PCHB_DoublesOptions_t
+    use guga_prop_vec_pchb_main, only: decide_on_pchb_options,&
+        PropVec_PCHB_OptionsUserInput_t, PropVec_PCHB_options_t, &
+        options_vals
 
     use fruit, only: assert_true, assert_equals
     use fruit_extensions, only: my_run_test_case
@@ -36,16 +39,18 @@ module test_guga_pchb_mod
 
     type(FCI_PCHB_options_t), parameter :: chosen_options = &
             FCI_PCHB_options_t(&
-                GAS_PCHB_SinglesOptions_t(&
-                    options_vals%singles%algorithm%UNIF_UNIF, &
-                    options_vals%singles%weighting%UNIFORM&
-                ), &
-                PCHB_DoublesOptions_t(&
-                    options_vals%doubles%particle_selection%UNIF_UNIF, &
-                    options_vals%doubles%hole_selection%FAST_FAST, &
-                    options_vals%doubles%weighting%INITIAL_DOBRAUTZ &
-                ), &
-                use_lookup=.false. &
+                PropVec_PCHB_options_t(&
+                    PropVec_PCHB_SinglesOptions_t(&
+                        FCI_options_vals%prop_vec_pchb%singles%algorithm%UNIF_UNIF, &
+                        FCI_options_vals%prop_vec_pchb%singles%weighting%UNIFORM&
+                    ), &
+                    PCHB_DoublesOptions_t(&
+                        FCI_options_vals%prop_vec_pchb%doubles%particle_selection%UNIF_UNIF, &
+                        FCI_options_vals%prop_vec_pchb%doubles%hole_selection%FAST_FAST, &
+                        FCI_options_vals%prop_vec_pchb%doubles%weighting%INITIAL_DOBRAUTZ &
+                    ), &
+                    use_lookup=.false. &
+                ) &
             )
 
     type(PCHB_t) :: exc_generator

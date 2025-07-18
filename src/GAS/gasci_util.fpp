@@ -22,6 +22,7 @@ module gasci_util
     use sets_mod, only: disjoint, is_sorted
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use bit_reps, only: decode_bit_det
+    use property_vector_index, only: indexer
     implicit none
     private
     public :: get_n_SDs

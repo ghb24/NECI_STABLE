@@ -14,11 +14,11 @@ import argparse
 class TabCharacter:
     @staticmethod
     def test(line):
-        return '\t' in line
+        return "\t" in line
 
     @staticmethod
     def report(file_path, line_number):
-        return 'Tab characters in {}:{}'.format(file_path, line_number)
+        return "Tab characters in {}:{}".format(file_path, line_number)
 
     @staticmethod
     def defined_for(path):
@@ -26,23 +26,22 @@ class TabCharacter:
 
 
 class TrailingSpace:
-    blanks = re.compile(r'[ \t\r\f\v]+$')
+    blanks = re.compile(r"[ \t\r\f\v]+$")
 
     def test(self, line):
-        return self.blanks.search(line.strip('\n'))
+        return self.blanks.search(line.strip("\n"))
 
     @staticmethod
     def report(file_path, line_number):
-        return 'Trailing blanks in {}:{}'.format(file_path, line_number)
+        return "Trailing blanks in {}:{}".format(file_path, line_number)
 
     @staticmethod
     def defined_for(path):
-        return (_fortran_suffix(path) or _C_suffix(path)
-                or _NECI_template_suffix(path))
+        return _fortran_suffix(path) or _C_suffix(path) or _NECI_template_suffix(path)
 
 
 class WriteStar:
-    write_star = re.compile(r'^ .*write\s*\(\s*\*', re.IGNORECASE)
+    write_star = re.compile(r"^ .*write\s*\(\s*\*", re.IGNORECASE)
 
     def test(self, line):
         return self.write_star.search(line)
@@ -57,14 +56,16 @@ class WriteStar:
 
 
 class CompileFlag:
-    compile_flag = re.compile(r'(\bifdef\b|\bifndef).*?__.*?', re.IGNORECASE)
+    compile_flag = re.compile(r"(\bifdef\b|\bifndef).*?__.*?", re.IGNORECASE)
 
     def test(self, line):
         return self.compile_flag.search(line)
 
     @staticmethod
     def report(file_path, line_number):
-        return '"Compile Flag with Double Underscore" in {}:{}'.format(file_path, line_number)
+        return '"Compile Flag with Double Underscore" in {}:{}'.format(
+            file_path, line_number
+        )
 
     @staticmethod
     def defined_for(path):
@@ -75,7 +76,7 @@ def run_tests_per_file(file_path, style_errors):
     errors = defaultdict(list)
     relevant = [x for x in style_errors if x.defined_for(file_path)]
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             for line_number, line in enumerate(f):
                 for style_error in relevant:
                     if style_error.test(line):
@@ -103,32 +104,36 @@ def output_errors(errors):
 
 
 def get_files(start_dir):
-    return (join(dname, fname) for dname, dirs, fnames
-            in walk(start_dir) for fname in fnames if isfile(join(dname, fname)))
+    return (
+        join(dname, fname)
+        for dname, dirs, fnames in walk(start_dir)
+        for fname in fnames
+        if isfile(join(dname, fname))
+    )
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='src dir')
-    parser.add_argument('src_dir', type=str, help='src directory to check')
+    parser = argparse.ArgumentParser(description="src dir")
+    parser.add_argument("src_dir", type=str, help="src directory to check")
     args = parser.parse_args()
     return args.src_dir
 
 
 def _fortran_suffix(path):
-    return path.endswith(('.f', '.F', '.f90', '.F90', '.fpp'))
+    return path.endswith((".f", ".F", ".f90", ".F90", ".fpp"))
 
 
 def _C_suffix(path):
-    return path.endswith('.c')
+    return path.endswith(".c")
 
 
 def _NECI_template_suffix(path):
     return path.endswith(
-        tuple(('{}.template'.format(suff)
-              for suff in ('.f', '.F', '.f90', '.F90'))))
+        tuple(("{}.template".format(suff) for suff in (".f", ".F", ".f90", ".F90")))
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     STYLE_ERRORS = [TabCharacter(), WriteStar(), CompileFlag()]
     src_dir = parse_args()
     files = get_files(src_dir)

@@ -32,17 +32,21 @@ module guga_procedure_pointers
             real(dp), intent(out) :: pgen
         end subroutine PickOrbitals_t
 
-        subroutine CalcOrbitalPgenContr_t(csf_i, occ_orbs, orb_a, orb_pgen)
-            import :: dp, CSF_Info_t
+        subroutine CalcOrbitalPgenContr_t(nI, ilut, csf_i, occ_orbs, orb_a, orb_pgen)
+            import :: dp, CSF_Info_t, nEl, GugaBits, n_int
             implicit none
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2), orb_a
             real(dp), intent(out) :: orb_pgen
         end subroutine CalcOrbitalPgenContr_t
 
-        subroutine calc_orbital_pgen_contr_t(csf_i, occ_orbs, above_cpt, below_cpt)
-            import :: dp, CSF_Info_t
+        subroutine calc_orbital_pgen_contr_t(nI, ilut, csf_i, occ_orbs, above_cpt, below_cpt)
+            import :: dp, CSF_Info_t, nEl, n_int, GugaBits
             implicit none
+            integer, intent(in) :: nI(nEl)
+            integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
             type(CSF_Info_t), intent(in) :: csf_i
             integer, intent(in) :: occ_orbs(2)
             real(dp), intent(out) :: above_cpt, below_cpt

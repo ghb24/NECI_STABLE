@@ -5,32 +5,35 @@
 # Usage:
 #    auto_module.sh <config_file_name>
 
-echo "Calling cmake for: $@"
+BUILD_TYPE=$1
+SOURCE_DIR=${2:-..}
 
-if [ "gfortran" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-debug" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-fastdebug" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=FastDebug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-debug-nohdf5" == "$@" ]; then
-	cmake -DENABLE_HDF5=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-doc" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-short-doc" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "gfortran-debug-integer8" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_FLAGS="-fdefault-integer-8" -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
-elif [ "ifort" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  ..
-elif [ "ifort-debug" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  ..
-elif [ "ifort18" == "$@" ] || [ "ifort21" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  ..
-elif [ "ifort18-debug" == "$@" ] || [ "ifort21-debug" == "$@" ]; then
-	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  ..
-elif [ "gfortran-self_build_hdf5" == "$@" ]; then
-	cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  ..
+echo "Calling cmake for: $BUILD_TYPE"
+
+if [ "gfort7" == "$BUILD_TYPE" ] || [ "gfort14" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-debug" == "$BUILD_TYPE" ] || [ "gfort14-debug" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-fastdebug" == "$BUILD_TYPE" ] || [ "gfort14-fastdebug" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=FastDebug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-debug-nohdf5" == "$BUILD_TYPE" ] || [ "gfort14-debug-nohdf5" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-doc" == "$BUILD_TYPE" ] || [ "gfort14-doc" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-short-doc" == "$BUILD_TYPE" ] || [ "gfort14-short-doc" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DENABLE_DOC=ON -DSHORT_FORD_COMPILATION=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "gfort7-debug-integer8" == "$BUILD_TYPE" ] || [ "gfort14-debug-integer8" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_FLAGS="-fdefault-integer-8" -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
+elif [ "ifort" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  $SOURCE_DIR
+elif [ "ifort-debug" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  $SOURCE_DIR
+elif [ "ifort18" == "$BUILD_TYPE" ] || [ "ifort21" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  $SOURCE_DIR
+elif [ "ifort18-debug" == "$BUILD_TYPE" ] || [ "ifort21-debug" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc  $SOURCE_DIR
+elif [ "gfort7-self_build_hdf5" == "$BUILD_TYPE" ] || [ "gfort14-self_build_hdf5" == "$BUILD_TYPE" ]; then
+	cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx  $SOURCE_DIR
 else
 	echo "Module not executed"
 fi

@@ -11,6 +11,7 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tHPHF, t_non_hermitian_2_body
+    use guga_matrixElements, only: calcDiagMatEleGuga_nI
 
     use guga_data, only: ExcitationInformation_t
     use guga_matrixElements, only: calc_guga_matrix_element

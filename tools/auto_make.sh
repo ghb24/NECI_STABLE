@@ -6,7 +6,7 @@
 # cmake --build . --target neci test_neci -j 6 -v --
 echo "Calling make for $@"
 
-if [ "gfortran-self_build_hdf5" == "$@" ]; then
+if [ "gfort7-self_build_hdf5" == "$@" ] || [ "gfort14-self_build_hdf5" == "$@" ]; then
 
 	make VERBOSE=1 hdf5
 
@@ -15,18 +15,18 @@ if [ "gfortran-self_build_hdf5" == "$@" ]; then
 	# have to solve this more elegantly
 	if [ -d "hdf5/lib" ]; then
         # make -j 2
-		cmake --build . -j 2 --
+		cmake --build . -j 4 --
 	elif [ -d "hdf5/lib64" ]; then
 		mkdir hdf5/lib
 		cp hdf5/lib64/* hdf5/lib
 		# make -j 2
-		cmake --build . -j 2 --
+		cmake --build . -j 4 --
 	fi
 
-elif [ "gfortran-doc" == "$@" ] || [ "gfortran-short-doc" == "$@" ]; then
+elif [ "gfort7-doc" == "$@" ] || [ "gfort7-short-doc" == "$@" ] || [ "gfort14-doc" == "$@" ] || [ "gfort14-short-doc" == "$@" ]; then
     # make VERBOSE=1 -j 2 doc
-    cmake --build . -j 2 --target doc -v --
+    cmake --build . -j 4 --target doc -v --
 else
 	# make VERBOSE=1 -j 2
-    cmake --build . -j 2 -v --
+    cmake --build . -j 4 -v --
 fi
