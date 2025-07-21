@@ -15,6 +15,7 @@ module read_fci
     use OneEInts, only: TMatind, TMat2D, CalcTMatSize
     use Parallel_neci, only: MPIBCast, iProcIndex, MPIBcast, MPIArg
     use shared_memory_mpi, only: shared_sync_mpi, MPIBCast_inter_byte
+    use fortran_strings, only: str
     implicit none
 
     character(len=1024) :: FCIDUMP_name
@@ -178,13 +179,15 @@ contains
             if( NEL == NEL_UNINITIALIZED ) then
                 call stop_all(this_routine, 'NEL is not initialized.')
             else if (.not. tIgnoreFCIDUMPHeader) then
-                call stop_all(this_routine, 'NEL in FCIDUMP differs from input file. ' &
+                call stop_all(this_routine, 'NEL of ' // str(NELEC) // ' in FCIDUMP ' &
+                        // 'different to NEL of ' // str(NEL) // ' from input file. ' &
                         // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
             endif
         end if
         if (abs(LMS) /= abs(MS2)) THEN
             if (.not. tIgnoreFCIDUMPHeader) then
-                call stop_all(this_routine, 'LMS in FCIDUMP differs from input file. ' &
+                call stop_all(this_routine, 'LMS of ' // str(MS2) // ' in FCIDUMP ' &
+                        // 'different to LMS of ' // str(LMS) // ' from input file. ' &
                         // 'Use ignore-fcidump-header keyword if you wish to continue anyway.')
             end if
             LMS = MS2
