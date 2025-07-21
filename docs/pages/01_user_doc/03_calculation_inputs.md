@@ -1942,6 +1942,12 @@ keyword.
     With this keyword the user can explicitly say that they want to sample RDMs without
     replica.
 
+-   **print-civec [\(n\)]**<br>
+    At the end of the calculation, produces a file `NECIVEC_{i}` with the top
+    \(n\) determinants printed. `{i}` ranges from 1 to the number of replicas.
+    For RDM calculations, `NECIVEC_{i}` may have more than one column for each
+    replica used in the RDM sampling.
+
 -   **ci-coefficients [\(n\) \(excitation\)]**<br>
     Enables the collection of CI coefficients and their average over a number of iterations.
     The outputs are printed in separate ASCII files named `ci_coeff_*_av`.
@@ -2000,17 +2006,19 @@ These options control how the RDMs are printed. For a description of how
 the RDMs are calculated and the content of the files, please see section
 <a href="#sec:rdms" data-reference-type="ref" data-reference="sec:rdms">1.7</a>.
 
--   **calcRdmOnfly \(i\) \(step\) \(start\)**<br>
+-   **calcRdmOnfly \(i\) \(start\) \(step\)**<br>
     Calculate RDMs stochastically over the course of the calculation.
-    Starts sampling RDMs after \(start\) iterations, and outputs an
-    average every \(step\) iterations. \(i\) indicates whether only
-    1-RDMs (1), only 2-RDMs (2) or both are produced.
+    Starts sampling RDMs \(start\) iterations after entering the variable
+    shift mode, and outputs an average every \(step\) iterations. \(i\)
+    indicates whether only 1-RDMs (1), only 2-RDMs (2) or both (3) are
+    produced.
 
 -   **rdmLinSpace \(start\) \(n\) \(step\)**<br>
     A more user friendly version of `calcrdmonfly` and
     `rdmsamplingiters`, this samples both 1- and 2-RDMs starting at
-    iteration \(start\), outputting an average every \(step\) iterations
-    \(n\) times, then ending the calculation.
+    iteration \(start\) after entering the variable shift mode,
+    outputting an average every \(step\) iterations \(n\) times,
+    then ending the calculation.
 
 -   **diagFlyOneRdm**<br>
     Diagonalise the 1-RDMs, yielding the occupation numbers of the

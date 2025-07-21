@@ -1,6 +1,7 @@
 /dest
 build*/
 .*
+!.github/
 /kdest
 /Makefile*
 /makefile*
@@ -92,3 +93,4 @@ doc/*
 
 
 ci_coeff_*
+NECIVEC*

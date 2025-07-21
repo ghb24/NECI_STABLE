@@ -40,6 +40,7 @@ endint
 
 logging
     popsfile -1
+    print-civec 10
     calcrdmonfly 3 1100 50
     write-spin-free-rdm
     printonerdm

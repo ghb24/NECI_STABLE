@@ -49,9 +49,9 @@ def process_f(dir, fn, tgt_dir, tmp_dir):
     tgt_file = os.path.join(tgt_dir, "{0}.f".format(root.lower()))
 
     # Ensure the molcas wrapping header is inserted at the top of all files
-    with open(src_file, 'r') as fin:
+    with open(src_file, "r") as fin:
         contents = fin.read()
-        with open(tgt_file, 'w') as fout:
+        with open(tgt_file, "w") as fout:
             fout.write('#include "molcas_wrapper.h"\n')
             fout.write(contents)
 
@@ -69,8 +69,8 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
     assert src_file != tgt_file
 
     # We wish to test how many modules are in the specified file.
-    re_mod = re.compile('(\s*module(.|\n)*?\n\s*end module)', re.IGNORECASE)
-    with open(src_file, 'r') as fin:
+    re_mod = re.compile("(\s*module(.|\n)*?\n\s*end module)", re.IGNORECASE)
+    with open(src_file, "r") as fin:
         contents = fin.read()
         found_mods = re_mod.findall(contents)
 
@@ -78,13 +78,17 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
         # file directly.
         if len(found_mods) in (0, 1):
             # Ensure the molcas wrapping header is inserted at the top of all files
-            with open(tgt_file, 'w') as fout:
+            with open(tgt_file, "w") as fout:
                 fout.write('#include "molcas_wrapper.h"\n')
                 fout.write(contents)
         else:
             # We wish to move all modules other than the _last_ module into other
             # files.
-            print("Rejecting F90 file {0} with {1} modules".format(src_file, len(found_mods)))
+            print(
+                "Rejecting F90 file {0} with {1} modules".format(
+                    src_file, len(found_mods)
+                )
+            )
             return
 
 
@@ -99,8 +103,8 @@ def process_f90_template(dir, fn, tgt_dir, tmp_dir):
 
     # Open these files for use, and call the template processing utility.
     # We can use this directly without calling f90_template.py as a script.
-    with open(src_file, 'r') as fin:
-        with open(tmp_file, 'w') as fout:
+    with open(src_file, "r") as fin:
+        with open(tmp_file, "w") as fout:
             filelist = f90_template.process_file(fin, fout, silent=True, multifile=True)
 
     # Now we process this as though it were a normal F90 file
@@ -117,23 +121,27 @@ def process_cpp(dir, fn, tgt_dir, tmp_dir):
     can happily be used in C. Other features will not be supported.
     """
     root, ext = os.path.splitext(fn)
-    if root in ['parallel_helper', 'allocate_shared_worker']:
-        return;
+    if root in ["parallel_helper", "allocate_shared_worker"]:
+        return
 
     src_file = os.path.join(dir, fn)
     tgt_file = os.path.join(tgt_dir, "{0}.c".format(root.lower()))
     shutil.copyfile(src_file, tgt_file)
 
+
 def append_git_version(tgt_file):
     """
     Add VCS_VERSION to the molcas_wrapper.h file
     """
-    p = subprocess.Popen('git log --max-count=1 --pretty=format:%H', shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen(
+        "git log --max-count=1 --pretty=format:%H", shell=True, stdout=subprocess.PIPE
+    )
     p.wait()
     shaid = p.stdout.read()
 
-    with open(tgt_file, 'a') as fout:
-       fout.write('\n#ifdef _MOLCAS_\n#define _VCS_VER %r \n#endif\n' % shaid)
+    with open(tgt_file, "a") as fout:
+        fout.write("\n#ifdef _MOLCAS_\n#define _VCS_VER %r \n#endif\n" % shaid)
+
 
 def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     """
@@ -142,8 +150,8 @@ def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     src_file = os.path.join(dir, fn)
     tgt_file = os.path.join(tgt_dir, fn.lower())
     shutil.copyfile(src_file, tgt_file)
-    
-    if fn == 'molcas_wrapper.h':
+
+    if fn == "molcas_wrapper.h":
         append_git_version(tgt_file)
 
 
@@ -161,11 +169,11 @@ def process_files(src_dir, tgt_dir, tmp_dir):
 
     # This is the mapping for how the files ought to be treated
     file_map = {
-        'F': process_f,
-        'F90': process_f90,
-        'F90.template': process_f90_template,
-        'cpp': process_cpp,
-        'h': file_direct_copy
+        "F": process_f,
+        "F90": process_f90,
+        "F90.template": process_f90_template,
+        "cpp": process_cpp,
+        "h": file_direct_copy,
     }
 
     # Ensure that the target and tmp directories exist
@@ -180,7 +188,7 @@ def process_files(src_dir, tgt_dir, tmp_dir):
             try:
                 # Determine what to do by the files extension. If unknown, then
                 # discard the file.
-                ext = fn.split('.', 1)[1]
+                ext = fn.split(".", 1)[1]
                 file_map.get(ext, drop_file)(root, fn, tgt_dir, tmp_dir)
             except IndexError:
                 # Files with no index should be dropped
@@ -190,18 +198,17 @@ def process_files(src_dir, tgt_dir, tmp_dir):
     shutil.rmtree(tmp_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) != 3:
         usage()
         sys.exit(-1)
 
-    src_dir = os.path.join(sys.argv[1], 'src')
+    src_dir = os.path.join(sys.argv[1], "src")
     tgt_dir = sys.argv[2]
-    tmp_dir = os.path.join(tgt_dir, 'tmpfiles')
+    tmp_dir = os.path.join(tgt_dir, "tmpfiles")
     print("Source directory: ", src_dir)
     print("Target directory: ", tgt_dir)
     print("Temporary directory: ", tmp_dir)
 
     # And kick off the calculation
     process_files(src_dir, tgt_dir, tmp_dir)
-
