@@ -1326,11 +1326,18 @@ and is stopped after 10000 iterations.
 -   **\textcolor{blue}{pops-core \(n\)}**<br>
     This option will use the \(n\) most populated determinants
     to form the core space.
-    This keyword cannot be used with `pops-core-proportion`.
-    Note that core-space configurations behave like initiators
-    and are treated as such by default.
+    This keyword cannot be used with `pops-core-proportion`, nor
+    with `pops-core-auto`. Note that core-space configurations behave
+    like initiators and are treated as such by default.
     See also the `core-inits` keyword.
 
+-   **pops-core-auto**<br>
+    This option will generate the core space automatically
+    choosing 10% of the initiator space. If this number is
+    larger than \(5000000\) then, only that number of core
+    configurations are used.
+    This keyword cannot be used with `pops-core` and requires
+    `semi-stochastic`.
 
 -   **pops-core-proportion \(f\)**<br>
     This option will use a fraction \(f\) of most populated initiator
