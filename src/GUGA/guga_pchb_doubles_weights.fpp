@@ -31,7 +31,7 @@ module guga_pchb_doubles_weights_mod
 
     type :: WeightingChoice_vals_t
         type(WeightingChoice_t) :: &
-            INITIAL_DOBRAUTZ = WeightingChoice_t(1, 'INITIAL'), &
+            INITIAL_DOBRAUTZ = WeightingChoice_t(1, 'INITIAL-DOBRAUTZ'), &
             UNIFORM = WeightingChoice_t(2, 'UNIFORM'), &
             ABS_INTEGRAL = WeightingChoice_t(3, 'ABS-INTEGRAL'), &
             N4_TETRAHEDRON = WeightingChoice_t(4, 'N4-TETRAHEDRON'), &
