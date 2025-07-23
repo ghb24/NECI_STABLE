@@ -1331,6 +1331,11 @@ and is stopped after 10000 iterations.
     and are treated as such by default.
     See also the `core-inits` keyword.
 
+-   **pops-core-auto**<br>
+    This option will generate the core space automatically
+    choosing 10% of the initiator space. If this number is
+    larger than \(5000000\) then, only that number of core
+    states are used.
 
 -   **pops-core-proportion \(f\)**<br>
     This option will use a fraction \(f\) of most populated initiator
