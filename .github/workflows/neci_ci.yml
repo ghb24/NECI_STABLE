@@ -9,6 +9,7 @@ on:
 env:
   BUILD_ROOT: /AltestCICD/neci-build
   BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
+  IMAGE_NAME: neci_base.ompi3:latest
 
 jobs:
   build:
@@ -30,30 +31,15 @@ jobs:
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
-          ghcr.io/fkfest/neci-base-ompi3:latest \
+          ${{ env.IMAGE_NAME }} \
           bash -i -c "
             # Load modules system
             source /etc/profile.d/modules.sh
-            
-            # Debug modules
-            echo '=== Modules Debug ==='
-            echo 'Module command available:' && type module 2>/dev/null || echo 'No module command'
-            echo 'Available modules:'
-            module avail 2>&1 || echo 'module avail failed'
-            echo 'Loaded modules:'
-            module list 2>&1 || echo 'module list failed'
-            
-            # Check MPI setup after modules
-            echo 'After modules loaded:'
-            echo 'LD_LIBRARY_PATH: $LD_LIBRARY_PATH'
-            echo 'which mpifort: $(which mpifort)'
-            echo 'mpifort --show:' && mpifort --show 2>/dev/null || echo 'mpifort --show failed'
-            echo '========================='
-            
+
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-            
+
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
             source /workspace/tools/auto_make.sh '${{ matrix.BUILD_TYPE }}'
@@ -76,10 +62,10 @@ jobs:
       run: |
         docker run --rm 
           --user $(id -u):$(id -g) \
-          -v ${{ github.workspace }}:/workspace:ro 
-          -v ${{ env.BUILD_ROOT }}:/build 
-          -w /build 
-          ghcr.io/fkfest/neci-base-ompi3:latest 
+          -v ${{ github.workspace }}:/workspace:ro \
+          -v ${{ env.BUILD_ROOT }}:/build \
+          -w /build \
+          ${{ env.IMAGE_NAME }} \
           bash -l -c "
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
@@ -107,13 +93,13 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
           -w /workspace \
-          ghcr.io/fkfest/neci-base-ompi3:latest \
+          ${{ env.IMAGE_NAME }} \
           bash -l -c "
             EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
 
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd test_suite
-            
+
             /home/cicdadmin/testcode/bin/testcode.py -vvv \
               -e neci=\"\$EXE_DIR/neci\" \
               -e mneci=\"\$EXE_DIR/mneci\" \
