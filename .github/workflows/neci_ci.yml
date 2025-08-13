@@ -22,6 +22,8 @@ jobs:
         include:
           # Debug build with additional options
           - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "default"
+          - BUILD_TYPE: "Debug"
             ADDITIONAL_OPTION: "nohdf5"
           - BUILD_TYPE: "Debug"
             ADDITIONAL_OPTION: "self-build-hdf5"
