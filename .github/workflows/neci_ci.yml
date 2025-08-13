@@ -27,11 +27,18 @@ jobs:
     - name: Build in Docker
       run: |
         docker run --rm \
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
+            # Check user info
+            echo 'Running as user:' \$(whoami)
+            echo 'User ID:' \$(id -u)
+            echo 'Group ID:' \$(id -g)
+            echo 'Is root?' \$([ \$(id -u) -eq 0 ] && echo 'YES - WARNING!' || echo 'No - Good!')
+            
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
@@ -57,6 +64,7 @@ jobs:
     - name: Run unit tests in Docker
       run: |
         docker run --rm 
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
@@ -83,6 +91,7 @@ jobs:
     - name: Run test suite in Docker
       run: |
         docker run --rm \
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
