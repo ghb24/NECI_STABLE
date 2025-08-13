@@ -44,6 +44,10 @@ jobs:
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
+            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
+
+            cd testdirtest
+            
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
@@ -85,6 +89,8 @@ jobs:
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
+            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
+            
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
           "
@@ -115,6 +121,8 @@ jobs:
           -w /workdir \
           ${{ env.IMAGE_NAME }} \
           bash -c "
+            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
+            
             EXE_DIR=/workdir/bin
 
             cp -rp /workspace/test_suite .
