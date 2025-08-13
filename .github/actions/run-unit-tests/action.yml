@@ -1,0 +1,34 @@
+name: 'Run Unit Tests'
+description: 'Run NECI unit tests with specified MPI implementation'
+inputs:
+  mpi-impl:
+    description: 'MPI implementation (ompi3 or ompi5)'
+    required: true
+  build-type:
+    description: 'Build type'
+    required: true
+  build-root:
+    description: 'Build root directory'
+    required: true
+  build-identifier:
+    description: 'Build identifier'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run unit tests in Docker
+      shell: bash
+      run: |
+        docker run --rm \
+          --user $(id -u):$(id -g) \
+          --shm-size=4g \
+          -v ${{ inputs.build-root }}:/build \
+          -w /build \
+          neci_base.${{ inputs.mpi-impl }}:latest \
+          bash -c "
+            set -euo pipefail
+            
+            cd build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_default/unit_tests
+            ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
+          "

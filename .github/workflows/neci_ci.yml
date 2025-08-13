@@ -9,10 +9,10 @@ on:
 env:
   BUILD_ROOT: /AltestCICD/neci-build
   BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
-  IMAGE_NAME: neci_base.ompi3:latest
 
 jobs:
-  build:
+  # OpenMPI 3 job thread
+  build-ompi3:
     runs-on: self-hosted
     timeout-minutes: 300
     strategy:
@@ -34,42 +34,18 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-        
-    - name: Build in Docker
-      run: |
-        docker run --rm \
-          --user $(id -u):$(id -g) \
-          -v ${{ github.workspace }}:/workspace:ro \
-          -v ${{ env.BUILD_ROOT }}:/build \
-          -w /build \
-          ${{ env.IMAGE_NAME }} \
-          bash -c "
-            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
 
-            cd testdirtest
-            
-            # Build NECI
-            mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
-            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
+    - name: Build NECI (OpenMPI 3)
+      uses: ./.github/actions/build-neci
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-            COMPILER_CMAKE_ARGS='-DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx'
-
-            if [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'default' ]]; then
-              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON'
-            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'nohdf5' ]]; then
-              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=OFF'
-            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'self-build-hdf5' ]]; then
-              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON'
-            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'int8' ]]; then
-              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON -DCMAKE_Fortran_FLAGS=\"-fdefault-integer-8\"'
-            fi
-
-            cmake -DCMAKE_BUILD_TYPE=${{ matrix.BUILD_TYPE }} \$ADDITIONAL_CMAKE_ARGS \$COMPILER_CMAKE_ARGS /workspace
-            cmake --build . --target all -j 4 --verbose
-          "
-
-  unit-tests:
-    needs: build
+  unit-tests-ompi3:
+    needs: build-ompi3
     runs-on: self-hosted
     timeout-minutes: 60
     strategy:
@@ -81,22 +57,16 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Run unit tests in Docker
-      run: |
-        docker run --rm \
-          --user $(id -u):$(id -g) \
-          -v ${{ env.BUILD_ROOT }}:/build \
-          -w /build \
-          ${{ env.IMAGE_NAME }} \
-          bash -c "
-            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
-            
-            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default/unit_tests
-            ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
-          "
+    - name: Run Unit Tests (OpenMPI 3)
+      uses: ./.github/actions/run-unit-tests
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-  test-suite:
-    needs: unit-tests
+  test-suite-ompi3:
+    needs: unit-tests-ompi3
     runs-on: self-hosted
     timeout-minutes: 300
     strategy:
@@ -108,36 +78,91 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Run test suite in Docker
-      run: |
-        docker run --rm \
-          --user $(id -u):$(id -g) \
-          --shm-size=4g \
-          -e OMPI_MCA_hwloc_base_binding_policy=none \
-          -e OMPI_MCA_rmaps_base_mapping_policy=core \
-          -v ${{ github.workspace }}:/workspace:ro \
-          -v ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default:/workdir \
-          -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /workdir \
-          ${{ env.IMAGE_NAME }} \
-          bash -c "
-            set -euo pipefail  # Exit on any error, undefined vars, or pipe failures
-            
-            EXE_DIR=/workdir/bin
+    - name: Run Test Suite (OpenMPI 3)
+      uses: ./.github/actions/run-test-suite
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-            cp -rp /workspace/test_suite .
-            cd test_suite
+  # OpenMPI 5 job thread
+  build-ompi5:
+    runs-on: self-hosted
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug"]
+        ADDITIONAL_OPTION: ["default"]
+        include:
+          # Debug build with additional options
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "default"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "nohdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "self-build-hdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "int8"
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
 
-            /home/cicdadmin/testcode/bin/testcode.py -vvv \
-              -e neci=\"\$EXE_DIR/neci\" \
-              -e mneci=\"\$EXE_DIR/mneci\" \
-              -e kneci=\"\$EXE_DIR/kneci\" \
-              -e kmneci=\"\$EXE_DIR/kmneci\" \
-              -e dneci=\"\$EXE_DIR/dneci\"
-          "
+    - name: Build NECI (OpenMPI 5)
+      uses: ./.github/actions/build-neci
+      with:
+        mpi-impl: ompi5
+        build-type: ${{ matrix.BUILD_TYPE }}
+        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+  unit-tests-ompi5:
+    needs: build-ompi5
+    runs-on: self-hosted
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Run Unit Tests (OpenMPI 5)
+      uses: ./.github/actions/run-unit-tests
+      with:
+        mpi-impl: ompi5
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+  test-suite-ompi5:
+    needs: unit-tests-ompi5
+    runs-on: self-hosted
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Run Test Suite (OpenMPI 5)
+      uses: ./.github/actions/run-test-suite
+      with:
+        mpi-impl: ompi5
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
   cleanup:
-    needs: test-suite
+    needs: [test-suite-ompi3, test-suite-ompi5]
     if: always()
     runs-on: self-hosted
     steps:

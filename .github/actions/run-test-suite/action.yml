@@ -1,0 +1,47 @@
+name: 'Run Test Suite'
+description: 'Run NECI test suite with specified MPI implementation'
+inputs:
+  mpi-impl:
+    description: 'MPI implementation (ompi3 or ompi5)'
+    required: true
+  build-type:
+    description: 'Build type'
+    required: true
+  build-root:
+    description: 'Build root directory'
+    required: true
+  build-identifier:
+    description: 'Build identifier'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run test suite in Docker
+      shell: bash
+      run: |
+        docker run --rm \
+          --user $(id -u):$(id -g) \
+          --shm-size=4g \
+          -e OMPI_MCA_hwloc_base_binding_policy=none \
+          -e OMPI_MCA_rmaps_base_mapping_policy=core \
+          -v ${{ github.workspace }}:/workspace:ro \
+          -v ${{ inputs.build-root }}/build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_default:/workdir \
+          -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
+          -w /workdir \
+          neci_base.${{ inputs.mpi-impl }}:latest \
+          bash -c "
+            set -euo pipefail
+            
+            EXE_DIR=/workdir/bin
+
+            cp -rp /workspace/test_suite .
+            cd test_suite
+
+            /home/cicdadmin/testcode/bin/testcode.py -vvv \
+              -e neci=\"\$EXE_DIR/neci\" \
+              -e mneci=\"\$EXE_DIR/mneci\" \
+              -e kneci=\"\$EXE_DIR/kneci\" \
+              -e kmneci=\"\$EXE_DIR/kmneci\" \
+              -e dneci=\"\$EXE_DIR/dneci\"
+          "
