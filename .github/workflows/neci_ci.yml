@@ -35,7 +35,10 @@ jobs:
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-            
+            echo $PATH
+            echo $LD_LIBRARY_PATH
+            which mpifort
+            which gfortran
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
             source /workspace/tools/auto_make.sh '${{ matrix.BUILD_TYPE }}'
