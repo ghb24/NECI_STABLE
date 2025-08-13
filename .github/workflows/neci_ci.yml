@@ -32,7 +32,7 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
-          bash -i -c "
+          bash -c "
             # Load modules system
             source /etc/profile.d/modules.sh
 
@@ -66,7 +66,7 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
-          bash -l -c "
+          bash -c "
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
@@ -94,7 +94,7 @@ jobs:
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
           -w /workspace \
           ${{ env.IMAGE_NAME }} \
-          bash -l -c "
+          bash -c "
             EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
 
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
