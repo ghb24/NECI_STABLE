@@ -31,19 +31,23 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ghcr.io/fkfest/neci-base-ompi3:latest \
-          bash -l -c "
-            # Debug environment loading
-            echo '=== Environment Debug ==='
-            echo 'USER: $(whoami)'
-            echo 'HOME: $HOME'
-            echo 'PATH: $PATH'
+          bash -i -c "
+            # Load modules system
+            source /etc/profile.d/modules.sh
+            
+            # Debug modules
+            echo '=== Modules Debug ==='
+            echo 'Module command available:' && type module 2>/dev/null || echo 'No module command'
+            echo 'Available modules:'
+            module avail 2>&1 || echo 'module avail failed'
+            echo 'Loaded modules:'
+            module list 2>&1 || echo 'module list failed'
+            
+            # Check MPI setup after modules
+            echo 'After modules loaded:'
             echo 'LD_LIBRARY_PATH: $LD_LIBRARY_PATH'
-            echo 'Checking profile files:'
-            ls -la /etc/profile* 2>/dev/null || echo 'No /etc/profile files'
-            ls -la ~/.bash* 2>/dev/null || echo 'No ~/.bash files'
-            ls -la ~/.profile 2>/dev/null || echo 'No ~/.profile'
             echo 'which mpifort: $(which mpifort)'
-            echo 'mpifort --version:' && mpifort --version 2>/dev/null || echo 'mpifort version failed'
+            echo 'mpifort --show:' && mpifort --show 2>/dev/null || echo 'mpifort --show failed'
             echo '========================='
             
             # Build NECI
