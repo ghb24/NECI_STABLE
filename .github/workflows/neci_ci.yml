@@ -85,12 +85,12 @@ jobs:
         docker run --rm \
           --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
-          -v ${{ env.BUILD_ROOT }}:/build \
+          -v ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}:/workdir \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /build \
+          -w /workdir \
           ${{ env.IMAGE_NAME }} \
           bash -c "
-            EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
+            EXE_DIR=/workdir/bin
 
             cp -rp /workspace/test_suite .
             cd test_suite
