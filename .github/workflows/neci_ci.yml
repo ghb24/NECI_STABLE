@@ -27,15 +27,11 @@ jobs:
     - name: Build in Docker
       run: |
         docker run --rm \
-          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
-            # Load modules system
-            source /etc/profile.d/modules.sh
-
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
@@ -61,7 +57,6 @@ jobs:
     - name: Run unit tests in Docker
       run: |
         docker run --rm 
-          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
@@ -88,7 +83,6 @@ jobs:
     - name: Run test suite in Docker
       run: |
         docker run --rm \
-          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
