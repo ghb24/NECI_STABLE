@@ -32,12 +32,14 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
-          bash -c "
+          bash -i -c "
             # Check user info
             echo 'Running as user:' \$(whoami)
             echo 'User ID:' \$(id -u)
             echo 'Group ID:' \$(id -g)
             echo 'Is root?' \$([ \$(id -u) -eq 0 ] && echo 'YES - WARNING!' || echo 'No - Good!')
+            echo 'Environment variables that might affect verbosity:'
+            env | grep -E '(VERBOSE|CMAKE|MAKE|CI|GITHUB)' | sort || echo 'No relevant env vars found'
             
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
