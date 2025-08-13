@@ -106,6 +106,7 @@ jobs:
       run: |
         docker run --rm \
           --user $(id -u):$(id -g) \
+          --shm-size=4g \
           -e OMPI_MCA_hwloc_base_binding_policy=none \
           -e OMPI_MCA_rmaps_base_mapping_policy=core \
           -v ${{ github.workspace }}:/workspace:ro \
