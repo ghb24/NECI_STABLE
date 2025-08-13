@@ -59,12 +59,10 @@ jobs:
       run: |
         docker run --rm \
           --user $(id -u):$(id -g) \
-          -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
-            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
           "
@@ -89,12 +87,12 @@ jobs:
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /workspace \
+          -w /runtest \
           ${{ env.IMAGE_NAME }} \
           bash -c "
             EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
 
-            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
+            cp -rp /workspace/test_suite .
             cd test_suite
 
             /home/cicdadmin/testcode/bin/testcode.py -vvv \
