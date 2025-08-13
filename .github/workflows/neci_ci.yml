@@ -32,13 +32,24 @@ jobs:
           -w /build \
           ghcr.io/fkfest/neci-base-ompi3:latest \
           bash -l -c "
+            # Debug environment loading
+            echo '=== Environment Debug ==='
+            echo 'USER: $(whoami)'
+            echo 'HOME: $HOME'
+            echo 'PATH: $PATH'
+            echo 'LD_LIBRARY_PATH: $LD_LIBRARY_PATH'
+            echo 'Checking profile files:'
+            ls -la /etc/profile* 2>/dev/null || echo 'No /etc/profile files'
+            ls -la ~/.bash* 2>/dev/null || echo 'No ~/.bash files'
+            ls -la ~/.profile 2>/dev/null || echo 'No ~/.profile'
+            echo 'which mpifort: $(which mpifort)'
+            echo 'mpifort --version:' && mpifort --version 2>/dev/null || echo 'mpifort version failed'
+            echo '========================='
+            
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-            echo $PATH
-            echo $LD_LIBRARY_PATH
-            which mpifort
-            which gfortran
+            
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
             source /workspace/tools/auto_make.sh '${{ matrix.BUILD_TYPE }}'
