@@ -32,7 +32,7 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ${{ env.IMAGE_NAME }} \
-          bash -i -c "
+          bash -c "
             # Check user info
             echo 'Running as user:' \$(whoami)
             echo 'User ID:' \$(id -u)
@@ -44,6 +44,18 @@ jobs:
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
+
+            # Check CMake's built-in default for CMAKE_VERBOSE_MAKEFILE
+            echo 'Checking CMake built-in default for CMAKE_VERBOSE_MAKEFILE:'
+            cmake --help variable CMAKE_VERBOSE_MAKEFILE | head -10 || echo 'Help not available'
+            
+            # Check default value by creating a minimal test
+            echo 'Testing default value:'
+            echo 'cmake_minimum_required(VERSION 3.0)' > test_cmake_defaults.cmake
+            echo 'project(test)' >> test_cmake_defaults.cmake
+            echo 'message(STATUS \"CMAKE_VERBOSE_MAKEFILE default: \${CMAKE_VERBOSE_MAKEFILE}\")' >> test_cmake_defaults.cmake
+            cmake -P test_cmake_defaults.cmake 2>&1 | grep 'CMAKE_VERBOSE_MAKEFILE default:' || echo 'Could not determine default'
+            rm -f test_cmake_defaults.cmake
 
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
