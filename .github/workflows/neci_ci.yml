@@ -17,7 +17,16 @@ jobs:
     timeout-minutes: 300
     strategy:
       matrix:
-        BUILD_TYPE: ["gfort7", "gfort7-debug", "gfort7-fastdebug"]
+        BUILD_TYPE: ["Release", "FastDebug"]
+        ADDITIONAL_OPTION: ["default"]
+        include:
+          # Debug build with additional options
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "nohdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "self-build-hdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "int8"
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -34,12 +43,23 @@ jobs:
           ${{ env.IMAGE_NAME }} \
           bash -c "
             # Build NECI
-            mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
+            mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
+            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_${{ matrix.ADDITIONAL_OPTION }}
 
-            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
-            source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
-            source /workspace/tools/auto_make.sh '${{ matrix.BUILD_TYPE }}'
+            COMPILER_CMAKE_ARGS='-DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx'
+
+            if [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'default' ]]; then
+              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON'
+            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'nohdf5' ]]; then
+              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=OFF'
+            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'self-build-hdf5' ]]; then
+              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON'
+            elif [[ '${{ matrix.ADDITIONAL_OPTION }}' == 'int8' ]]; then
+              ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON -DCMAKE_Fortran_FLAGS=\"-fdefault-integer-8\"'
+            fi
+
+            cmake -DCMAKE_BUILD_TYPE=${{ matrix.BUILD_TYPE }} \$ADDITIONAL_CMAKE_ARGS \$COMPILER_CMAKE_ARGS /workspace
+            cmake --build . --target all -j 4 --verbose
           "
 
   unit-tests:
@@ -48,7 +68,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        BUILD_TYPE: ["gfort7", "gfort7-debug", "gfort7-fastdebug"]
+        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -63,7 +83,7 @@ jobs:
           -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
-            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
+            cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
           "
 
@@ -73,7 +93,7 @@ jobs:
     timeout-minutes: 300
     strategy:
       matrix:
-        BUILD_TYPE: ["gfort7", "gfort7-fastdebug"]
+        BUILD_TYPE: ["Release", "FastDebug"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -85,7 +105,7 @@ jobs:
         docker run --rm \
           --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
-          -v ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}:/workdir \
+          -v ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default:/workdir \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
           -w /workdir \
           ${{ env.IMAGE_NAME }} \
