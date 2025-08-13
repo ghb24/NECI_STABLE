@@ -26,6 +26,7 @@ jobs:
     - name: Build in Docker
       run: |
         docker run --rm \
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
@@ -56,6 +57,7 @@ jobs:
     - name: Run unit tests in Docker
       run: |
         docker run --rm 
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro 
           -v ${{ env.BUILD_ROOT }}:/build 
           -w /build 
@@ -82,6 +84,7 @@ jobs:
     - name: Run test suite in Docker
       run: |
         docker run --rm \
+          --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
