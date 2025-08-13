@@ -7,10 +7,11 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
+  BUILD_ROOT: /AltestCICD/neci-build
   BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
 jobs:
-  build-and-test:
+  build:
     runs-on: self-hosted
     timeout-minutes: 300
     strategy:
@@ -22,25 +23,25 @@ jobs:
       with:
         submodules: recursive
         
-    - name: Build and test in Docker
+    - name: Build in Docker
       run: |
         docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /workspace \
-          ghcr.io/fkfest/neci-base-ompi5:latest \
+          -v ${{ github.workspace }}:/workspace:ro \
+          -v ${{ env.BUILD_ROOT }}:/build \
+          -w /build \
+          ghcr.io/fkfest/neci-base-ompi3:latest \
           bash -c "
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             
-            source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
+            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             source /workspace/tools/auto_cmake.sh '${{ matrix.BUILD_TYPE }}' '/workspace'
             source /workspace/tools/auto_make.sh '${{ matrix.BUILD_TYPE }}'
           "
 
   unit-tests:
-    needs: build-and-test
+    needs: build
     runs-on: self-hosted
     timeout-minutes: 60
     strategy:
@@ -54,19 +55,19 @@ jobs:
 
     - name: Run unit tests in Docker
       run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /workspace \
-          ghcr.io/fkfest/neci-base-ompi5:latest \
+        docker run --rm 
+          -v ${{ github.workspace }}:/workspace:ro 
+          -v ${{ env.BUILD_ROOT }}:/build 
+          -w /build 
+          ghcr.io/fkfest/neci-base-ompi3:latest 
           bash -c "
-            source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
+            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
           "
 
   test-suite:
-    needs: build-and-test
+    needs: build
     runs-on: self-hosted
     timeout-minutes: 300
     strategy:
@@ -81,14 +82,15 @@ jobs:
     - name: Run test suite in Docker
       run: |
         docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
+          -v ${{ github.workspace }}:/workspace:ro \
+          -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
           -w /workspace \
-          ghcr.io/fkfest/neci-base-ompi5:latest \
+          ghcr.io/fkfest/neci-base-ompi3:latest \
           bash -c "
-            EXE_DIR=/workspace/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
-            
-            source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
+            EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
+
+            # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd test_suite
             
             /home/cicdadmin/testcode/bin/testcode.py -vvv \
@@ -107,4 +109,4 @@ jobs:
     - name: Clean up build artifacts
       run: |
         echo "Cleaning up build artifacts..."
-        rm -rf build_${{ env.BUILD_IDENTIFIER }} || true
+        rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }} || true
