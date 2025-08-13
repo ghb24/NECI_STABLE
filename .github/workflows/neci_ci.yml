@@ -31,7 +31,7 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build \
           -w /build \
           ghcr.io/fkfest/neci-base-ompi3:latest \
-          bash -c "
+          bash -l -c "
             # Build NECI
             mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
@@ -65,7 +65,7 @@ jobs:
           -v ${{ env.BUILD_ROOT }}:/build 
           -w /build 
           ghcr.io/fkfest/neci-base-ompi3:latest 
-          bash -c "
+          bash -l -c "
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
             cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
             ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
@@ -93,7 +93,7 @@ jobs:
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
           -w /workspace \
           ghcr.io/fkfest/neci-base-ompi3:latest \
-          bash -c "
+          bash -l -c "
             EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
 
             # source /workspace/tools/auto_module.sh '${{ matrix.BUILD_TYPE }}'
