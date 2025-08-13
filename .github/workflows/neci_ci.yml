@@ -57,7 +57,7 @@ jobs:
 
     - name: Run unit tests in Docker
       run: |
-        docker run --rm 
+        docker run --rm \
           --user $(id -u):$(id -g) \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
@@ -70,7 +70,7 @@ jobs:
           "
 
   test-suite:
-    needs: build
+    needs: unit-tests
     runs-on: self-hosted
     timeout-minutes: 300
     strategy:
@@ -106,7 +106,7 @@ jobs:
           "
 
   cleanup:
-    needs: [unit-tests, test-suite]
+    needs: test-suite
     if: always()
     runs-on: self-hosted
     steps:
