@@ -106,6 +106,8 @@ jobs:
       run: |
         docker run --rm \
           --user $(id -u):$(id -g) \
+          -e OMPI_MCA_hwloc_base_binding_policy=none \
+          -e OMPI_MCA_rmaps_base_mapping_policy=core \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}_default:/workdir \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
