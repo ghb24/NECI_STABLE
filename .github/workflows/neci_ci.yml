@@ -87,7 +87,7 @@ jobs:
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ env.BUILD_ROOT }}:/build \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \
-          -w /runtest \
+          -w /build \
           ${{ env.IMAGE_NAME }} \
           bash -c "
             EXE_DIR=/build/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
