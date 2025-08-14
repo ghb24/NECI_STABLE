@@ -20,6 +20,25 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Check directory permissions
+      shell: bash
+      run: |
+        echo "=== DIRECTORY PERMISSIONS DIAGNOSTICS ==="
+        echo "Build root directory:"
+        ls -la ${{ inputs.build-root }}
+        echo ""
+        echo "Build identifier directory (if exists):"
+        ls -la ${{ inputs.build-root }}/build_${{ inputs.build-identifier }} 2>/dev/null || echo "Directory does not exist yet"
+        echo ""
+        echo "Current user info:"
+        id
+        echo "User 1001 info (Docker user):"
+        id 1001 2>/dev/null || echo "User 1001 does not exist on host"
+        echo ""
+        echo "Ownership of build root:"
+        stat -c "%U:%G (%u:%g)" ${{ inputs.build-root }}
+        echo "============================================"
+        
     - name: Build in Docker
       shell: bash
       run: |
