@@ -21,11 +21,11 @@ runs:
       shell: bash
       run: |
         docker run --rm \
-          --userns=host \
-          --user 0:0 \
           --shm-size=4g \
           -e OMPI_MCA_hwloc_base_binding_policy=none \
           -e OMPI_MCA_rmaps_base_mapping_policy=core \
+          -e OMPI_ALLOW_RUN_AS_ROOT=1 \
+          -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ inputs.build-root }}/build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_default:/workdir \
           -v /home/cicdadmin/testcode:/home/cicdadmin/testcode \

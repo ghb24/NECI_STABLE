@@ -21,9 +21,9 @@ runs:
       shell: bash
       run: |
         docker run --rm \
-          --userns=host \
-          --user 0:0 \
           --shm-size=4g \
+          -e OMPI_ALLOW_RUN_AS_ROOT=1 \
+          -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
           -v ${{ inputs.build-root }}:/build \
           -w /build \
           neci_base.${{ inputs.mpi-impl }}:latest \
