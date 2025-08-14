@@ -22,7 +22,7 @@ runs:
       run: |
         docker run --rm \
           --userns=host \
-          --user $(id -u):$(id -g) \
+          --user 0:0 \
           --shm-size=4g \
           -v ${{ inputs.build-root }}:/build \
           -w /build \
