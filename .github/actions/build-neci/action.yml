@@ -25,7 +25,6 @@ runs:
       run: |
         docker run --rm \
           --userns=host \
-          --user $(id -u):$(id -g) \
           --shm-size=4g \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ inputs.build-root }}:/build \
