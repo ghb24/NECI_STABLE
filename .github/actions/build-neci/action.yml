@@ -23,9 +23,8 @@ runs:
     - name: Build in Docker
       shell: bash
       run: |
-        docker run -i --rm \
-          --userns=host \
-          --user $(id -u):$(id -g) \
+        docker run --rm \
+          --user cicdadmin \
           --shm-size=4g \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ inputs.build-root }}:/build \
