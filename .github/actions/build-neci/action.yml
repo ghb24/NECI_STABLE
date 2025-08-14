@@ -23,8 +23,9 @@ runs:
     - name: Build in Docker
       shell: bash
       run: |
-        docker run --rm \
+        docker run -i --rm \
           --userns=host \
+          --user $(id -u):$(id -g) \
           --shm-size=4g \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ inputs.build-root }}:/build \
@@ -32,25 +33,6 @@ runs:
           neci_base.${{ inputs.mpi-impl }}:latest \
           bash -c "
             set -euo pipefail
-            
-            # Diagnostic: Check Docker execution context
-            echo '=== DOCKER EXECUTION DIAGNOSTICS ==='
-            echo 'Current user info:'
-            id
-            echo 'Current user: '$(whoami)
-            echo 'UID: '$(id -u)
-            echo 'GID: '$(id -g)
-            echo 'Docker context:'
-            if [ -w /var/run/docker.sock ]; then
-              echo 'Docker socket is writable (likely root Docker)'
-            else
-              echo 'Docker socket not writable (likely rootless Docker)'
-            fi
-            echo 'Filesystem permissions:'
-            ls -la /build
-            echo 'Process tree:'
-            ps aux | head -10
-            echo '=================================='
             
             # Build NECI
             mkdir -p build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
