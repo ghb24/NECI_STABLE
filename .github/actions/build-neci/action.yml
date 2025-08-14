@@ -24,7 +24,7 @@ runs:
       shell: bash
       run: |
         docker run --rm \
-          --user cicdadmin \
+          --user 1001:100 \
           --shm-size=4g \
           -v ${{ github.workspace }}:/workspace:ro \
           -v ${{ inputs.build-root }}:/build \
