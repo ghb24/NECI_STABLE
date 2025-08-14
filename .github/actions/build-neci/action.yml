@@ -28,7 +28,7 @@ runs:
         ls -la ${{ inputs.build-root }}
         echo ""
         echo "Build identifier directory (if exists):"
-        ls -la ${{ inputs.build-root }}/build_${{ inputs.build-identifier }} 2>/dev/null || echo "Directory does not exist yet"
+        ls -la ${{ inputs.build-root }}/build_${{ inputs.build-identifier }}/ 2>/dev/null || echo "Directory does not exist yet"
         echo ""
         echo "Current user info:"
         id
@@ -52,6 +52,35 @@ runs:
           neci_base.${{ inputs.mpi-impl }}:latest \
           bash -c "
             set -euo pipefail
+            
+            # Deep dive diagnostics - WHY can't Docker create directories?
+            echo '=== DOCKER CONTAINER DIAGNOSTICS ==='
+            echo 'Container user info:'
+            id
+            echo 'Container whoami: '$(whoami 2>/dev/null || echo 'whoami failed')
+            echo 'Container UID: '$(id -u)
+            echo 'Container GID: '$(id -g)
+            echo ''
+            echo 'Mount point permissions:'
+            ls -la /build
+            echo ''
+            echo 'Build identifier directory:'
+            ls -la /build/build_${{ inputs.build-identifier }}/ 2>/dev/null || echo 'Build identifier directory does not exist'
+            echo ''
+            echo 'Test write permissions:'
+            echo 'Can we write to /build?'
+            touch /build/test_write_root 2>/dev/null && echo 'YES - can write to /build root' || echo 'NO - cannot write to /build root'
+            echo 'Can we write to build identifier dir?'
+            touch /build/build_${{ inputs.build-identifier }}/test_write_subdir 2>/dev/null && echo 'YES - can write to build identifier dir' || echo 'NO - cannot write to build identifier dir'
+            echo ''
+            echo 'Trying to create the problematic directory manually:'
+            mkdir -p /build/build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }} 2>&1 || echo 'mkdir failed as expected'
+            echo ''
+            echo 'Filesystem info:'
+            df -h /build
+            echo 'Mount info:'
+            mount | grep build || echo 'No build mount found'
+            echo '======================================='
             
             # Build NECI
             mkdir -p build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
