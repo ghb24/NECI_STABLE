@@ -10,6 +10,7 @@ env:
   BUILD_ROOT: /AltestCICD/neci-build
   BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
+
 jobs:
   # OpenMPI 3 job thread
   build-ompi3:
@@ -85,6 +86,7 @@ jobs:
         build-type: ${{ matrix.BUILD_TYPE }}
         build-root: ${{ env.BUILD_ROOT }}
         build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
 
   # OpenMPI 5 job thread
   build-ompi5:
