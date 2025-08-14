@@ -35,6 +35,11 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Create build directory with proper permissions
+      run: |
+        mkdir -p ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}
+        chmod 755 ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}
+
     - name: Build NECI (OpenMPI 3)
       uses: ./.github/actions/build-neci
       with:
@@ -109,6 +114,11 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
+
+    - name: Create build directory with proper permissions
+      run: |
+        mkdir -p ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}
+        chmod 755 ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}
 
     - name: Build NECI (Intel MPI 2021)
       uses: ./.github/actions/build-neci
