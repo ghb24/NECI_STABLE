@@ -86,6 +86,81 @@ jobs:
         build-root: ${{ env.BUILD_ROOT }}
         build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
+  # Intel MPI 2021 job thread
+  build-impi21:
+    runs-on: self-hosted
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug"]
+        ADDITIONAL_OPTION: ["default"]
+        include:
+          # Debug build with additional options
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "default"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "nohdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "self-build-hdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "int8"
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Build NECI (Intel MPI 2021)
+      uses: ./.github/actions/build-neci
+      with:
+        mpi-impl: impi21
+        build-type: ${{ matrix.BUILD_TYPE }}
+        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+  unit-tests-impi21:
+    needs: build-impi21
+    runs-on: self-hosted
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Run Unit Tests (Intel MPI 2021)
+      uses: ./.github/actions/run-unit-tests
+      with:
+        mpi-impl: impi21
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+  test-suite-impi21:
+    needs: unit-tests-impi21
+    runs-on: self-hosted
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Run Test Suite (Intel MPI 2021)
+      uses: ./.github/actions/run-test-suite
+      with:
+        mpi-impl: impi21
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
 # OMPI5 will be back once a neci issue is resolved.
 #  # OpenMPI 5 job thread
 #  build-ompi5:
@@ -163,7 +238,7 @@ jobs:
 #        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
   cleanup:
-    needs: [test-suite-ompi3]
+    needs: [test-suite-ompi3, test-suite-impi21]
     if: always()
     runs-on: self-hosted
     steps:

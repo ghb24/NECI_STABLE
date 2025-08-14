@@ -2,7 +2,7 @@ name: 'Build NECI'
 description: 'Build NECI with specified MPI implementation'
 inputs:
   mpi-impl:
-    description: 'MPI implementation (ompi3 or ompi5)'
+    description: 'MPI implementation (ompi3, ompi5, or impi21)'
     required: true
   build-type:
     description: 'Build type'
@@ -37,7 +37,12 @@ runs:
             mkdir -p build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
             cd build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
 
-            COMPILER_CMAKE_ARGS='-DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx'
+            # Set compiler commands based on MPI implementation
+            if [[ '${{ inputs.mpi-impl }}' == 'impi21' ]]; then
+              COMPILER_CMAKE_ARGS='-DCMAKE_Fortran_COMPILER=mpiifort -DCMAKE_C_COMPILER=mpiicc -DCMAKE_CXX_COMPILER=mpiicpc'
+            else
+              COMPILER_CMAKE_ARGS='-DCMAKE_Fortran_COMPILER=mpifort -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx'
+            fi
 
             if [[ '${{ inputs.additional-option }}' == 'default' ]]; then
               ADDITIONAL_CMAKE_ARGS='-DENABLE_HDF5=ON'

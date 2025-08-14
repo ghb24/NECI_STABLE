@@ -2,7 +2,7 @@ name: 'Run Unit Tests'
 description: 'Run NECI unit tests with specified MPI implementation'
 inputs:
   mpi-impl:
-    description: 'MPI implementation (ompi3 or ompi5)'
+    description: 'MPI implementation (ompi3, ompi5, or impi21)'
     required: true
   build-type:
     description: 'Build type'
