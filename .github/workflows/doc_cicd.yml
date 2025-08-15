@@ -35,6 +35,8 @@ jobs:
           -w ${{ env.BUILD_ROOT }} \
           neci_base.ompi3:latest \
           bash -c "
+            set -euo pipefail
+
             mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}
             cd build_doc_${{ env.BUILD_IDENTIFIER }}
             rm -rf gfort7-doc
