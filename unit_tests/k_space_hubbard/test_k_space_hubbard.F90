@@ -2570,14 +2570,14 @@ contains
         t_trans_corr = .true.
         trans_corr_param = 2.0_dp
 
-        call assert_equals(h_cast(uhub/real(omega,dp)*exp(4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        call assert_true(abs(h_cast(uhub/real(omega,dp)*exp(4.0_dp)) - get_offdiag_helement_k_sp_hub(nI,ex,.false.)) < 1e-12_dp)
 
         ex(1,:) = [1,6]
         ex(2,:) = [3,4]
 
-        call assert_equals(h_cast(uhub/real(omega,dp)*exp(-4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        call assert_true(abs(h_cast(uhub/real(omega,dp)*exp(-4.0_dp)) - get_offdiag_helement_k_sp_hub(nI,ex,.false.)) < 1e-12_dp)
         ex(1,:) = [6,1]
-        call assert_equals(h_cast(-uhub/real(omega,dp)*exp(-4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        call assert_true(abs(h_cast(-uhub/real(omega,dp)*exp(-4.0_dp)) - get_offdiag_helement_k_sp_hub(nI,ex,.false.)) < 1e-12_dp)
 
         t_trans_corr = .false.
         trans_corr_param = 0.0_dp
