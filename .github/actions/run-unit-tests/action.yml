@@ -22,8 +22,6 @@ runs:
       run: |
         docker run --rm \
           --shm-size=4g \
-          -e OMPI_ALLOW_RUN_AS_ROOT=1 \
-          -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
           -v ${{ inputs.build-root }}:/build \
           -w /build \
           neci_base.${{ inputs.mpi-impl }}:latest \
@@ -31,5 +29,6 @@ runs:
             set -euo pipefail
             
             cd build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_default/unit_tests
-            ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
+            # Workaround to run OMPI as root
+            OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
           "
