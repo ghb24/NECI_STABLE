@@ -31,7 +31,7 @@ runs:
           neci_base.${{ inputs.mpi-impl }}:latest \
           bash -c "
             set -euo pipefail
-            
+
             # Build NECI
             mkdir -p build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
             cd build_${{ inputs.build-identifier }}/${{ inputs.mpi-impl }}_${{ inputs.build-type }}_${{ inputs.additional-option }}
@@ -55,4 +55,6 @@ runs:
 
             cmake -DCMAKE_BUILD_TYPE=${{ inputs.build-type }} \$ADDITIONAL_CMAKE_ARGS \$COMPILER_CMAKE_ARGS /workspace
             cmake --build . --target all -j 4 --verbose
+
+            chown -R 1000:1000 .
           "

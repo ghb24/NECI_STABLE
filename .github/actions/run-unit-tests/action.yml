@@ -21,6 +21,7 @@ runs:
       shell: bash
       run: |
         docker run --rm \
+          --user 1000:1000
           --shm-size=4g \
           -v ${{ inputs.build-root }}:/build \
           -w /build \
