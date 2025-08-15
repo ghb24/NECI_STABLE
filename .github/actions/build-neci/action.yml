@@ -57,5 +57,5 @@ runs:
             cmake --build . --target all -j 4 --verbose
 
             # Workaround to set permissions for running tests on a docker container
-            chmod -R 755 .
+            chmod -R 777 .
           "
