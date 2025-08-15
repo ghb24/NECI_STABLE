@@ -56,5 +56,6 @@ runs:
             cmake -DCMAKE_BUILD_TYPE=${{ inputs.build-type }} \$ADDITIONAL_CMAKE_ARGS \$COMPILER_CMAKE_ARGS /workspace
             cmake --build . --target all -j 4 --verbose
 
+            # Workaround to set permissions for running tests on a docker container
             chown -R 1000:1000 .
           "
