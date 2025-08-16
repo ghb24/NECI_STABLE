@@ -7,7 +7,7 @@
 
 module matrix_util
     use constants, only: sp, dp, EPS
-    use util_mod, only: near_zero, get_free_unit, stop_all, isclose
+    use util_mod, only: near_zero, get_free_unit, stop_all, pure_stop_all, isclose
     use sort_mod, only: sort
     use blas_interface_mod, only: dgetrf, dgetri, dgemm, dsyev, zheev, dgeev, zgemm
     use util_mod, only: custom_findloc, operator(.isclose.)
@@ -374,7 +374,7 @@ contains
         ! for a square matrix!
         real(dp), intent(in) :: matrix(:, :)
         debug_function_name("check_symmetric")
-        ASSERT(size(matrix, 1) == size(matrix, 2))
+        pure_ASSERT(size(matrix, 1) == size(matrix, 2))
         check_symmetric = near_zero(sum(abs(matrix - transpose(matrix))))
     end function check_symmetric
 
@@ -653,7 +653,7 @@ contains
             case(3:)
                 res = sum(abs(vec)**p_)**(1.0_dp / real(p_, dp))
             case default
-                call stop_all(this_routine, 'invalid p')
+                call pure_stop_all(this_routine, 'invalid p')
             end select
         end function
     #:endfor
@@ -737,7 +737,7 @@ contains
         real(kind=dp), allocatable :: projections(:, :)
         debug_function_name('canonicalize')
 
-        ASSERT(size(V, 1) == size(V, 2) .and. size(V, 1) == size(lambda))
+        pure_ASSERT(size(V, 1) == size(V, 2) .and. size(V, 1) == size(lambda))
 
         allocate(norms_projections(size(V, 2)))
 
@@ -800,7 +800,7 @@ contains
             end do
             norm_factor = norm(U(:, j))
             if (near_zero(norm_factor)) then
-                call stop_all(this_routine, 'linear dependent vectors')
+                call pure_stop_all(this_routine, 'linear dependent vectors')
             end if
             U(:, j) = U(:, j) / norm_factor
         end do
@@ -831,7 +831,7 @@ contains
         integer :: n_spaces
         debug_function_name("determine_eigenspaces")
 
-        ASSERT(all(lambda(: size(lambda) - 1) <= lambda(2 : )))
+        pure_ASSERT(all(lambda(: size(lambda) - 1) <= lambda(2 : )))
 
         allocate(d_buffer(size(lambda)), source=0)
 

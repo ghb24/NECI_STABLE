@@ -1,7 +1,7 @@
 #include "macros.h"
 module CDF_sampler_test_mod
     use constants, only: dp
-    use util_mod, only: operator(.isclose.), stop_all
+    use util_mod, only: operator(.isclose.), pure_stop_all
     use fruit, only: assert_true
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
     use CDF_sampling_mod, only: CDF_Sampler_t
@@ -108,7 +108,7 @@ contains
         real(dp) :: diff
         ! compare the drawn numbers with the distribtuion
         if (size(w) /= size(hist)) then
-            call stop_all(this_routine, "Error: size mismatch in getDiff")
+            call pure_stop_all(this_routine, "Error: size mismatch in getDiff")
         end if
         nSamples = sum(hist)
         diff = sum(abs(hist / real(nSamples, dp) - w))

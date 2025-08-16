@@ -13,7 +13,8 @@ module guga_matrixElements
         convert_ilut_toGUGA, identify_excitation, findFirstSwitch, findLastSwitch, &
         calcb_vector_ilut, count_open_orbs_ij
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
-    use util_mod, only: binary_search_ilut, operator(.isclose.), stop_all, near_zero, operator(.div.)
+    use util_mod, only: binary_search_ilut, operator(.isclose.), stop_all, near_zero, operator(.div.), &
+        pure_stop_all
     use guga_data, only: projE_replica, ExcitationInformation_t, excit_type, gen_type
 
     use guga_data, only: funA_0_2overR2, minFunA_2_0_overR2, funA_2_0_overR2, &
@@ -100,7 +101,7 @@ contains
 
         mat_ele = h_cast(0.0_dp)
 
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! check diagonal case first
         if (DetBitEQ(ilutI, ilutJ)) then
@@ -316,7 +317,7 @@ contains
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case default
-            call stop_all(this_routine, "unexpected excitation type")
+            call pure_stop_all(this_routine, "unexpected excitation type")
 
         end select
 
@@ -508,7 +509,7 @@ contains
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for the output if we excit early..
         mat_ele = h_cast(0.0_dp)
@@ -643,7 +644,7 @@ contains
         ! only has one (or two, with switches 2-body integrals..??)
         ! rdm-contribution..
 
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
         def_default(t_calc_full_, t_calc_full, .true.)
 
         ! set some defaults in case of early exit
@@ -677,7 +678,7 @@ contains
                     umat = (get_umat_el(st, en, fe, ss) + &
                             get_umat_el(en, st, ss, fe)) / 2.0_dp
                 else
-                    call stop_all(this_routine, "shouldnt be here!")
+                    call pure_stop_all(this_routine, "shouldnt be here!")
                 end if
             else
                 umat = h_cast(1.0_dp)
@@ -766,7 +767,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
@@ -788,7 +789,7 @@ contains
                 ! the indices which end up here should always be intertwined..
                 ! as we always deal with an overlap range in the excitation
                 ! generation
-                ASSERT(max(ii, jj) > min(kk, ll))
+                pure_ASSERT(max(ii, jj) > min(kk, ll))
 
                 ! so the first two entries correspond to the overlap version
                 ! of the generators (in the case of mixed R and L)
@@ -886,18 +887,18 @@ contains
                     ! the order quantities are setup to be 1.0..
                     ! i hope I did everything right there.. then this would
                     ! mean here
-                    ASSERT(order .isclose. 1.0_dp)
-                    ASSERT(order1 .isclose. 1.0_dp)
+                    pure_ASSERT(order .isclose. 1.0_dp)
+                    pure_ASSERT(order1 .isclose. 1.0_dp)
                     ! and now I have to fill in the correct combinations of
                     ! signs here..
                     ! to check that everything is correctly set to the default
                     ! ordering I should assert that here
 #ifdef DEBUG_
                     if (typ == excit_type%double_raising) then
-                        ASSERT(ii < jj)
-                        ASSERT(kk < ll)
-                        ASSERT(ii > kk)
-                        ASSERT(jj > ll)
+                        pure_ASSERT(ii < jj)
+                        pure_ASSERT(kk < ll)
+                        pure_ASSERT(ii > kk)
+                        pure_ASSERT(jj > ll)
                     end if
 #endif
                     ! be sure with the rdm_sign function:
@@ -1030,7 +1031,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
@@ -1134,7 +1135,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
@@ -1224,7 +1225,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
-        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+        pure_ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
@@ -1780,7 +1781,7 @@ contains
         real(dp), allocatable :: tmp_rdm_mat(:)
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind) .and. present(rdm_mat))
+            pure_ASSERT(present(rdm_ind) .and. present(rdm_mat))
             rdm_flag = .true.
         else
             rdm_flag = .false.
@@ -1805,7 +1806,7 @@ contains
             elecInd = se
             holeInd = en
         else
-            call stop_all(this_routine, "should not be here!")
+            call pure_stop_all(this_routine, "should not be here!")
         end if
 
         sw = findFirstSwitch(ilut, t, st, se)
@@ -1946,7 +1947,7 @@ contains
                 call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, &
                     csf_i%B_real(i), 1.0_dp, x1_element=stay_mat)
 
-                ASSERT(.not. near_zero(stay_mat))
+                pure_ASSERT(.not. near_zero(stay_mat))
 
                 mat_ele = mat_ele / stay_mat
 
@@ -1992,7 +1993,7 @@ contains
 
                 ! update inverse product
                 ! and also get starting contribution
-                ASSERT(.not. near_zero(stay_mat))
+                pure_ASSERT(.not. near_zero(stay_mat))
 
                 mat_ele = mat_ele * start_mat / stay_mat
 
@@ -3650,8 +3651,8 @@ contains
         integer :: rdm_count, max_num_rdm
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
+            pure_ASSERT(present(rdm_ind))
+            pure_ASSERT(present(rdm_mat))
             rdm_flag = .true.
         else
             rdm_flag = .false.
@@ -3668,7 +3669,7 @@ contains
             elecInd = se
             holeInd = st
         else
-            call stop_all(this_routine, "should not be here!")
+            call pure_stop_all(this_routine, "should not be here!")
         end if
 
         integral = h_cast(0.0_dp)
@@ -3705,7 +3706,7 @@ contains
                 end if
 
             case default
-                call stop_all(this_routine, "wrong stepvalues!")
+                call pure_stop_all(this_routine, "wrong stepvalues!")
 
             end select
 
@@ -3774,7 +3775,7 @@ contains
             ! inverse fullstop matrix element
             call getMixedFullStop(step, step, 0, csf_i%B_real(en), x1_element=mat_ele)
 
-            ASSERT(.not. near_zero(mat_ele))
+            pure_ASSERT(.not. near_zero(mat_ele))
 
             mat_ele = 1.0_dp / mat_ele
 
@@ -3790,7 +3791,7 @@ contains
                 call getMixedFullStop(step, step, 0, csf_i%B_real(i), x1_element=end_mat)
 
                 ! update matrix element
-                ASSERT(.not. near_zero(stay_mat))
+                pure_ASSERT(.not. near_zero(stay_mat))
                 mat_ele = mat_ele / stay_mat
 
                 if (.not. near_zero(end_mat)) then
@@ -3827,7 +3828,7 @@ contains
 
             end if
 
-            ASSERT(.not. near_zero(stay_mat))
+            pure_ASSERT(.not. near_zero(stay_mat))
 
             mat_ele = mat_ele * end_mat / stay_mat
 
@@ -4301,8 +4302,8 @@ contains
         real(dp) :: tmp_mat
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
+            pure_ASSERT(present(rdm_ind))
+            pure_ASSERT(present(rdm_mat))
             rdm_flag = .true.
         else
             rdm_flag = .false.
@@ -4816,7 +4817,7 @@ contains
         type(WeightObj_t) :: singleWeight
         character(*), parameter :: this_routine = "init_singleWeight"
 
-        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        pure_ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         singleWeight%dat%F = endFx(csf_i, sOrb)
         singleWeight%dat%G = endGx(csf_i, sOrb)

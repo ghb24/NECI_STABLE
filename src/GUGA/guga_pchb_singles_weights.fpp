@@ -1,11 +1,10 @@
 #include "macros.h"
 #:include "../macros.fpph"
 module guga_pchb_singles_weights_mod
-    use util_mod, only: EnumBase_t, stop_all
+    use util_mod, only: EnumBase_t, stop_all, pure_stop_all
     use SystemData, only: nel, nSpatOrbs
     use constants, only: dp
     use util_mod, only: EnumBase_t
-    use error_handling_neci, only: stop_all
     use fortran_strings, only: to_upper
     use integrals_neci, only: h, g
 
@@ -74,7 +73,7 @@ contains
         case(weighting_vals%RHF_EXPR%str)
             res = weighting_vals%RHF_EXPR
         case default
-            call stop_all(this_routine, 'Invalid input: '//str)
+            call pure_stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
@@ -135,7 +134,7 @@ contains
         else if (weighting == weighting_vals%RHF_EXPR) then
             res = weighting_vals%RHF_EXPR%str
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
     end function
 

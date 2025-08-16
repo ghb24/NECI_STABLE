@@ -53,7 +53,8 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: &
-        get_free_unit, operator(.isclose.), stop_all, clamp, operator(.div.)
+        get_free_unit, operator(.isclose.), stop_all, clamp, operator(.div.), &
+        pure_stop_all
 
     use bit_reps, only: decode_bit_det
 
@@ -2643,14 +2644,14 @@ contains
             hel = h_cast(0.0_dp)
         end if
 
-        ASSERT(i > 0)
-        ASSERT(i <= nbasis / 2)
-        ASSERT(j > 0)
-        ASSERT(j <= nbasis / 2)
-        ASSERT(k > 0)
-        ASSERT(k <= nbasis / 2)
-        ASSERT(l > 0)
-        ASSERT(l <= nbasis / 2)
+        pure_ASSERT(i > 0)
+        pure_ASSERT(i <= nbasis / 2)
+        pure_ASSERT(j > 0)
+        pure_ASSERT(j <= nbasis / 2)
+        pure_ASSERT(k > 0)
+        pure_ASSERT(k <= nbasis / 2)
+        pure_ASSERT(l > 0)
+        pure_ASSERT(l <= nbasis / 2)
 
     end function get_umat_el_hub
 

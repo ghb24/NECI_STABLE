@@ -1,7 +1,7 @@
 #:include "../macros.fpph"
 #include "macros.h"
 module gasci_singles_main
-    use util_mod, only: EnumBase_t, stop_all, operator(.implies.)
+    use util_mod, only: EnumBase_t, stop_all, pure_stop_all, operator(.implies.)
     use SystemData, only: nEl
     use excitation_generators, only: SingleExcitationGenerator_t
     use constants, only: n_int, dp, maxExcit, bits_n_int, stdout
@@ -154,7 +154,7 @@ contains
                     PC_WeightedSinglesOptions_t(vals%PC_weighted%drawing%from_str(up_w)) &
             )
         case default
-            call stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
+            call pure_stop_all(this_routine, trim(w)//" not a valid singles generator for FCI PCHB.")
         end select
         end associate
     end function
@@ -171,7 +171,7 @@ contains
         else if (options%algorithm == vals%algorithm%PC_WEIGHTED) then
             res = options%PC_weighted%drawing%to_str()
         else
-            call stop_all(this_routine, "Should not be here.")
+            call pure_stop_all(this_routine, "Should not be here.")
         end if
         end associate
     end function

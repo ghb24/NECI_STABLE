@@ -2,10 +2,10 @@
 module error_handling_neci
     better_implicit_none
     private
-    public :: stop_all, neci_backtrace, neci_flush, warning_neci
+    public :: pure_stop_all, stop_all, neci_backtrace, neci_flush, warning_neci
 
     interface
-        pure subroutine hidden_stop_all(sub_name, error_msg)
+        subroutine hidden_stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
 
@@ -28,10 +28,15 @@ module error_handling_neci
 
 contains
 
-    pure subroutine stop_all(sub_name, error_msg)
+    subroutine stop_all(sub_name, error_msg)
         character(*), intent(in) :: sub_name, error_msg
         call hidden_stop_all(sub_name, error_msg)
     end subroutine stop_all
+
+    pure subroutine pure_stop_all(sub_name, error_msg)
+        character(*), intent(in) :: sub_name, error_msg
+        error stop sub_name // ': ' //error_msg
+    end subroutine pure_stop_all
 end module
 
 

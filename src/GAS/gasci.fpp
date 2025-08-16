@@ -8,7 +8,7 @@
 module gasci
     use constants, only: n_int, dp, int64
     use SystemData, only: nBasis, tGUGA
-    use util_mod, only: cumsum, stop_all, operator(.div.)
+    use util_mod, only: cumsum, pure_stop_all, operator(.div.)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
@@ -716,7 +716,7 @@ contains
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
         if (any(min(n_max, GAS_sizes) < n_min)) then
-            call stop_all(this_routine, 'any(min(n_max, GAS_sizes) < n_min) violated')
+            call pure_stop_all(this_routine, 'any(min(n_max, GAS_sizes) < n_min) violated')
         end if
 
         max_GAS_size = maxval(GAS_sizes)
@@ -1284,7 +1284,7 @@ contains
         @:unused_var(supergroup, add_holes, add_particles)
         spaces = [-1]
 
-        call stop_all(this_routine, "Has to be implemented.")
+        call pure_stop_all(this_routine, "Has to be implemented.")
     end function
 
     !>  Constructor of FlexibleGASSpec_t
@@ -1310,7 +1310,7 @@ contains
 
         N = sum(supergroups(:, 1))
         if (any(N /= sum(supergroups, dim=1))) then
-            call stop_all(&
+            call pure_stop_all(&
                 this_routine, 'Different particle numbers in the supergroups.')
         end if
 
@@ -1331,7 +1331,7 @@ contains
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
         if (any(GAS_sizes < maxval(sorted_supergroup, dim=2))) then
-            call stop_all(this_routine, 'Pauli violation: Too many particles per GAS space.')
+            call pure_stop_all(this_routine, 'Pauli violation: Too many particles per GAS space.')
         end if
 
         max_GAS_size = maxval(GAS_sizes)

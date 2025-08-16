@@ -13,7 +13,7 @@ module aliasSampling
     use parallel_neci, only: MPI_BCast
 #endif
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: stop_all, near_zero, binary_search_int, &
+    use util_mod, only: stop_all, pure_stop_all, near_zero, binary_search_int, &
         operator(.isclose.), operator(.div.), isclose
     use CDF_sampling_mod, only: CDF_Sampler_t
     better_implicit_none
@@ -589,10 +589,10 @@ contains
         character(*), parameter :: this_routine = 'constrained_getProb'
         real(dp) :: prob
 
-        ASSERT(is_set(contain))
-        ASSERT(tgt .in. contain)
-        ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
-        ASSERT(isclose(renorm, sum(this%get_prob(contain)), atol=1e-10_dp))
+        pure_ASSERT(is_set(contain))
+        pure_ASSERT(tgt .in. contain)
+        pure_ASSERT(1 <= contain(1) .and. contain(size(contain)) <= size(this%probs%ptr))
+        pure_ASSERT(isclose(renorm, sum(this%get_prob(contain)), atol=1e-10_dp))
             !! This loosened threshhold might be a good idea if the renormalization
             !! was calculated via the complement, i.e.
             !! \Sum{ p_i } {i \in D_i} = 1 - \Sum{ p_i } {i \notin D_i}
@@ -1044,7 +1044,7 @@ contains
 #ifdef DEBUG_
         if (.not. (0._dp <= normalization .and. normalization <= 1._dp)) then
             if (.not. ((normalization .isclose. 0._dp) .or. (normalization .isclose. 1._dp))) then
-                call stop_all(this_routine, "Invalid normalization")
+                call pure_stop_all(this_routine, "Invalid normalization")
             end if
         end if
 #endif

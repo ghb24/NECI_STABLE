@@ -9,7 +9,7 @@ module guga_prop_vec_pchb_doubles_select_particles
     use aliasSampling, only: AliasSampler_1D_t, AliasSampler_2D_t
     use SystemData, only: nEl, ElecPairs, nSpatOrbs
     use sets_mod, only: operator(.in.)
-    use util_mod, only: stop_all, EnumBase_t, swap, operator(.isclose.), near_zero
+    use util_mod, only: stop_all, pure_stop_all,  EnumBase_t, swap, operator(.isclose.), near_zero
     use UMatCache, only: gtID
     use property_vector_index, only: AlsoGUGA_PropertyIndexer_t, lookup_property_indexer
     use MPI_wrapper, only: iProcIndex_intra
@@ -163,7 +163,7 @@ contains
         case(PCHB_particle_selection_vals%UNIF_FULL%str)
             res = PCHB_particle_selection_vals%UNIF_FULL
         case default
-            call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
+            call pure_stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
     end function
 

@@ -62,10 +62,10 @@ endif
 #! This is there to use pure_ASSERT in the util_mod as well.
 #! Would cause circular imports otherwise.
 #:if import_stop_all
-        use util_mod, only: stop_all
+        use util_mod, only: pure_stop_all
 #:endif
         if (.not. (${cond}$)) then
-            call stop_all (this_routine, "Assert fail: ${cond}$")
+            call pure_stop_all (this_routine, "Assert fail: ${cond}$")
         end if
     end block
 #endif

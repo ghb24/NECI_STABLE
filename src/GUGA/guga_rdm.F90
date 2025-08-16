@@ -67,7 +67,8 @@ module guga_rdm
     use rdm_data_utils, only: add_to_rdm_spawn_t, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
-    use util_mod, only: operator(.div.), near_zero, operator(.isclose.), stop_all
+    use util_mod, only: operator(.div.), near_zero, operator(.isclose.), stop_all, &
+        pure_stop_all
     use sort_mod, only: sort
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
@@ -360,7 +361,7 @@ contains
 
         character(*), parameter :: this_routine = "molcas_sign"
 
-        ASSERT(p /= q .and. r /= s)
+        pure_ASSERT(p /= q .and. r /= s)
         sgn = merge(-1.0_dp, 1.0_dp, p < q .neqv. r < s)
 
     end function molcas_sign

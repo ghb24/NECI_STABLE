@@ -20,7 +20,7 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search_ilut, binary_search_custom, operator(.div.), &
-                        near_zero, stop_all, operator(.isclose.), EnumBase_t
+                        near_zero, stop_all, pure_stop_all, operator(.isclose.), EnumBase_t
 
     use sort_mod, only: sort
 
@@ -230,7 +230,7 @@ contains
 
         find_guga_excit_lvl_to_doubles = nel
 
-        call stop_all("here", "todo")
+        call pure_stop_all("here", "todo")
 
     end function find_guga_excit_lvl_to_doubles
 
@@ -2157,8 +2157,8 @@ contains
 
         integer(n_int) :: mat_int ! integer version of real
 
-        ASSERT(mat_type == 1 .or. mat_type == 2)
-        ASSERT(sizeof(mat_ele) == sizeof(mat_int))
+        pure_ASSERT(mat_type == 1 .or. mat_type == 2)
+        pure_ASSERT(sizeof(mat_ele) == sizeof(mat_int))
 
         mat_int = transfer(mat_ele, mat_int)
 
@@ -2179,7 +2179,7 @@ contains
         integer(n_int) :: mat_int
 
         ! here I have to assert that mat_ind is 1! otherwise smth went wrong
-        ASSERT(mat_type == 1)
+        pure_ASSERT(mat_type == 1)
         ! also make sure the x1 mat ele was nullified.
 !         ASSERT(near_zero(extract_matrix_element(ilut, 2)))
 
@@ -2791,7 +2791,7 @@ contains
         case(3)
             token = Token_t('2')
         case default
-            call stop_all(this_routine, "invalid case")
+            call pure_stop_all(this_routine, "invalid case")
         end select
     end function
 
@@ -2844,7 +2844,7 @@ contains
                 occ_vector(i) = 2
 #ifdef DEBUG_
             case default
-                call stop_all(this_routine, "Invalid case")
+                call pure_stop_all(this_routine, "Invalid case")
 #endif
             end select
             cum_list(i) = real(cum_sum, dp)
@@ -2863,9 +2863,9 @@ contains
         integer, intent(in), optional :: idx_curr_dets
         debug_function_name("fill_csf_i")
 
-        ASSERT(allocated(csf_i%stepvector) .and. allocated(csf_i%B_int))
-        ASSERT(allocated(csf_i%Occ_int) .and. allocated(csf_i%B_real))
-        ASSERT(allocated(csf_i%Occ_real) .and.  allocated(csf_i%cum_list))
+        pure_ASSERT(allocated(csf_i%stepvector) .and. allocated(csf_i%B_int))
+        pure_ASSERT(allocated(csf_i%Occ_int) .and. allocated(csf_i%B_real))
+        pure_ASSERT(allocated(csf_i%Occ_real) .and.  allocated(csf_i%cum_list))
 
         csf_i%stepvector(:) = stepvector
         call calc_csf_i(csf_i%stepvector, csf_i%b_int, csf_i%occ_int, csf_i%cum_list)
@@ -3189,11 +3189,11 @@ contains
 
 #ifdef DEBUG_
         if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
-            call stop_all(this_routine, "incorrect typ: "//typ%str)
+            call pure_stop_all(this_routine, "incorrect typ: "//typ%str)
         end if
 #endif
 
-        ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
+        pure_ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
 
         excit_info_int = 0_int64
 
@@ -3213,14 +3213,14 @@ contains
 
 #ifdef DEBUG_
         if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
-            call stop_all(this_routine, "incorrect typ: "//typ%str)
+            call pure_stop_all(this_routine, "incorrect typ: "//typ%str)
         end if
 #endif
 
-        ASSERT(a > 0 .and. a <= nSpatOrbs)
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(b > 0 .and. b <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
+        pure_ASSERT(a > 0 .and. a <= nSpatOrbs)
+        pure_ASSERT(i > 0 .and. i <= nSpatOrbs)
+        pure_ASSERT(b > 0 .and. b <= nSpatOrbs)
+        pure_ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         excit_info_int = encode_excit_info_vec(typ, [a,i,b,j])
 
@@ -3233,7 +3233,7 @@ contains
 
 #ifdef DEBUG_
         if (typ%val .notin. non_trivial_double_excit_type_arr%val) then
-            call stop_all(this_routine, "incorrect typ: "//typ%str)
+            call pure_stop_all(this_routine, "incorrect typ: "//typ%str)
         end if
 #endif
 
@@ -3263,8 +3263,8 @@ contains
         ! orbital.. 2^14 > 16k orbitals... not necessary.. maybe store more
         ! info. for now i use 8 bits: 256 SPATIAL orbital max.. that
         ! should be enough..
-        ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
-        ASSERT(nSpatOrbs <= 256)
+        pure_ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
+        pure_ASSERT(nSpatOrbs <= 256)
 
         do i = 1, 4
             call mvbits(int(inds(i), int64), 0, n_excit_index_bits, &

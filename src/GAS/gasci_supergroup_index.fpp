@@ -54,7 +54,7 @@
 module gasci_supergroup_index
     use constants, only: int64, n_int
     use SystemData, only: nEl
-    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
+    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, pure_stop_all
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, CAS_spec
     use hash, only: hash_table_lookup
@@ -190,7 +190,7 @@ contains
         type is(FlexibleGASSpec_t)
             res = GAS_spec%supergroups(:, 1)
         class default
-            call stop_all(this_routine, 'Wrong class.')
+            call pure_stop_all(this_routine, 'Wrong class.')
         end select
     end function
 
@@ -236,7 +236,7 @@ contains
         type is(FlexibleGASSpec_t)
             res = GAS_spec%supergroups(:, size(GAS_spec%supergroups, 2))
         class default
-            call stop_all(this_routine, 'Wrong class.')
+            call pure_stop_all(this_routine, 'Wrong class.')
         end select
     end function
 
@@ -283,7 +283,7 @@ contains
                 res = composition_from_idx(GAS_spec%nGAS(), GAS_spec%nEl(), new_comp_idx)
             end block
             class default
-                call stop_all(this_routine, 'Wrong class.')
+                call pure_stop_all(this_routine, 'Wrong class.')
             end select
         end if
 
@@ -546,7 +546,7 @@ contains
             type is(FlexibleGASSpec_t)
                 res(:, 1) = GAS_spec%supergroups(:, 1)
             class default
-                call stop_all(this_routine, 'Wrong class.')
+                call pure_stop_all(this_routine, 'Wrong class.')
             end select
             end associate
         end if
