@@ -30,7 +30,7 @@ contains
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
         integer, intent(inout) :: NEL
-        integer SYMLZ(1000), ST, III
+        integer SYMLZ(1000), ST, III, ADJOINT
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
@@ -41,7 +41,7 @@ contains
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
-            FOCK
+            FOCK, ADJOINT
         UHF = .FALSE.
         fmat = 'NO'
         PROPBITLEN = 0
@@ -52,6 +52,7 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
+        ADJOINT = 0
         allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
         ! with the new relativistic calculations, without a ms value in the
@@ -247,7 +248,7 @@ contains
         integer(int64) IND, MASK
         INTEGER I, J, K, L, I1
         INTEGER ISYMNUM, ISNMAX, SYMLZ(1000), iunit
-        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000), ST, III
+        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000), ST, III, ADJOINT
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) ORBSYM(1000)
         INTEGER IUHF
@@ -261,7 +262,7 @@ contains
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
-            FOCK
+            FOCK, ADJOINT
 
         iunit = 0
         UHF = .FALSE.
@@ -596,7 +597,7 @@ contains
         integer(int64) ORBSYM(1000)
         LOGICAL LWRITE
         logical :: uhf
-        INTEGER ISPINS, ISPN, SYMLZ(1000), ST, III !,IDI,IDJ,IDK,IDL
+        INTEGER ISPINS, ISPN, SYMLZ(1000), ST, III, ADJOINT !,IDI,IDJ,IDK,IDL
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         INTEGER TMatSize, IUHF
         integer(int64) :: UMatSize
@@ -612,7 +613,7 @@ contains
 #endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III, &
-            FOCK
+            FOCK, ADJOINT
 
         LWRITE = .FALSE.
         UHF = .FALSE.
@@ -1018,7 +1019,7 @@ contains
         integer :: i, j, k, l, iunit
         integer :: NORB, NELEC, MS2, ISYM, SYML(1000), IUHF
         integer(int64) :: ORBSYM(1000)
-        integer :: iSpins, ispn, SYMLZ(1000), ST, III
+        integer :: iSpins, ispn, SYMLZ(1000), ST, III, ADJOINT
         integer(int64) :: ZeroedInt
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
@@ -1026,7 +1027,7 @@ contains
         real(dp), allocatable :: FOCK(:)
         character(*), parameter :: t_r = 'ReadPropInts'
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, &
-                       SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK
+                       SYMLZ, PROPBITLEN, NPROP, ST, III, FOCK, ADJOINT
 
         ZeroedInt = 0
         UHF = .false.
