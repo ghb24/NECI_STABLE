@@ -52,6 +52,8 @@ contains
         OCC = -1
         CLOSED = -1
         FROZEN = -1
+        ! ADJOINT is included in the NAMELIST to prevent crashes when present in FCIDUMP files,
+        ! but is otherwise ignored by the code.
         ADJOINT = 0
         allocate(FOCK(1000), source=0.0_dp)
         ! [W.D. 15.5.2017:]
