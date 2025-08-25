@@ -238,7 +238,7 @@ jobs:
 #        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
   cleanup:
-    needs: [test-suite-ompi3, test-suite-impi21]
+    needs: [test-suite-ompi3]
     if: always()
     runs-on: self-hosted
     steps:
