@@ -4,7 +4,7 @@
 module property_vector_pchb_doubles_main
     use constants, only: stdout
     use SystemData, only: tUHF
-    use util_mod, only: EnumBase_t, stop_all, pure_stop_all
+    use util_mod, only: EnumBase_t, stop_all
     use excitation_generators, only: DoubleExcitationGenerator_t
     use fortran_strings, only: to_upper
     use fortran_strings, only: split
@@ -110,7 +110,7 @@ contains
         case(doubles_options_vals%hole_selection%FULL_FULL%str)
             res = doubles_options_vals%hole_selection%FULL_FULL
         case default
-            call pure_stop_all(this_routine, trim(w)//" not a valid hole selection for PropVec PCHB.")
+            call stop_all(this_routine, trim(w)//" not a valid hole selection for PropVec PCHB.")
         end select
     end function
 

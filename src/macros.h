@@ -96,10 +96,6 @@
 if (.not. (x)) then; \
  call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
-#define pure_ASSERT(x) \
-if (.not. (x)) then; \
- call pure_stop_all (this_routine, "Assert fail in "//__FILE__); \
-endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
  call stop_all (this_routine, "Assert fail in "//__FILE__); \
@@ -113,7 +109,6 @@ endif
 ! Use ASSERT in otherwise pure procedures.
 #else
 #define ASSERT(x)
-#define pure_ASSERT(x)
 #define ASSERTROOT(x)
 #define IFDEBUG(PrintLevel,ThisLevel) if(.false.)
 #define IFDEBUGEQ(PrintLevel,ThisLevel) if(.false.)

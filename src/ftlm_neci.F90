@@ -128,7 +128,7 @@ contains
         if (ndets_tot /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', &
-                'The number of Determinants generated is not &
+                'The number of determinants generated is not &
                 &consistent with the expected number.')
         end if
 

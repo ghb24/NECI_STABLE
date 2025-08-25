@@ -21,37 +21,26 @@ contains
 ! ==-----------------------------------------------------------------==
 !..Run over rows
         CKN = 0.0_dp
-
-        do k = 1, neval
+        DO I = 1, NDET
+!..Run over columns
+            IF (I == 1) THEN
+                IBEG = 0
+            ELSE
+                IBEG = IBEG + NROW(I - 1)
+            END IF
+            DO K = 1, NEVAL
 !..
-            j = lab(1)
-            ckn(1, k) = ckn(1, k) + hamil(1) * ck(j, k)
-            do l = 2, nrow(1)
-                j = lab(l)
-                aux = hamil(l)
-                ckn(1, k) = ckn(1, k) + aux * ck(j, k)
-                ckn(j, k) = ckn(j, k) + aux * ck(1, k)
-            end do
+                J = LAB(IBEG + 1)
+                CKN(I, K) = CKN(I, K) + HAMIL(IBEG + 1) * CK(J, K)
+                DO L = 2, NROW(I)
+                    J = LAB(IBEG + L)
+                    AUX = HAMIL(IBEG + L)
+                    CKN(I, K) = CKN(I, K) + AUX * CK(J, K)
+                    CKN(J, K) = CKN(J, K) + AUX * CK(I, K)
+                END DO
 !..
-        end do
-
-        ibeg = 0
-        do i = 2, ndet
-!..run over columns
-            ibeg = ibeg + nrow(i - 1)
-            do k = 1, neval
-!..
-                j = lab(ibeg + 1)
-                ckn(i, k) = ckn(i, k) + hamil(ibeg + 1) * ck(j, k)
-                do l = 2, nrow(i)
-                    j = lab(ibeg + l)
-                    aux = hamil(ibeg + l)
-                    ckn(i, k) = ckn(i, k) + aux * ck(j, k)
-                    ckn(j, k) = ckn(j, k) + aux * ck(i, k)
-                end do
-!..
-            end do
-        end do
+            END DO
+        END DO
 !..Need to do the following mult. by -1 so that eigenvalues are calc. in
 !..ascending order
         IF (.NOT. TLargest) THEN

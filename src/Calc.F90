@@ -184,8 +184,7 @@ MODULE Calc
         user_input_histogramming_spec, HistogrammingSpec_t
     use unit_test_helpers, only: batch_run_excit_gen_tester
     use util_mod, only: addToIntArray, get_free_unit, NECI_ICOPY, int_fmt, &
-        near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush, &
-        pure_stop_all
+        near_zero, operator(.isclose.), operator(.div.), stop_all, neci_flush
     use lattice_mod, only: lat
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range, &
@@ -4339,7 +4338,7 @@ contains
         case("ALL")
             res = 0
         case default
-            call pure_stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
+            call stop_all(this_routine, "Keyword error with EXCITATIONS "//trim(w))
         end select
     end function
 

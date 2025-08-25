@@ -5,7 +5,7 @@ module guga_pchb_doubles_weights_mod
     use util_mod, only: EnumBase_t
     use guga_data, only: DistinctDouble_t, DistinctDoubleTypeVals_t, &
         distinct_doubles
-    use error_handling_neci, only: stop_all, pure_stop_all
+    use error_handling_neci, only: stop_all
     use fortran_strings, only: to_upper
     use integrals_neci, only: g
 
@@ -91,7 +91,7 @@ contains
         case(weight_choice_vals%RANDOM%str)
             res = weight_choice_vals%RANDOM
         case default
-            call pure_stop_all(this_routine, 'Invalid input: '//str)
+            call stop_all(this_routine, 'Invalid input: '//str)
         end select
     end function
 
@@ -153,7 +153,7 @@ contains
         case(dd%invalid%val)
             weight = 0._dp
         case default
-            call pure_stop_all(this_routine, 'forgotten case')
+            call stop_all(this_routine, 'forgotten case')
         end select
     end function
 
@@ -182,7 +182,7 @@ contains
         case(dd%invalid%val)
             weight = 0._dp
         case default
-            call pure_stop_all(this_routine, 'forgotten case')
+            call stop_all(this_routine, 'forgotten case')
         end select
     end function
 
@@ -202,7 +202,7 @@ contains
         case(dd%invalid%val)
             weight = 0._dp
         case default
-            call pure_stop_all(this_routine, 'forgotten case')
+            call stop_all(this_routine, 'forgotten case')
         end select
     end function
 

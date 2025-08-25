@@ -5,7 +5,7 @@
 
 module sets_mod
     use constants, only: int32, int64, sp, dp
-    use util_mod, only: binary_search_int, pure_stop_all
+    use util_mod, only: binary_search_int, stop_all
     use sort_mod, only: sort
     use growing_buffers, only: buffer_int32_1D_t, buffer_int64_1D_t
     implicit none

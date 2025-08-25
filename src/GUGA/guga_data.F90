@@ -10,7 +10,7 @@ module guga_data
     use bit_rep_data, only: BitRep_t, GugaBits
     use util_mod, only: EnumBase_t, swap, near_zero
     use indexing_mod, only: fuse_symm_idx, fuse_idx, inv_fuse_symm_idx, inv_fuse_idx
-    use error_handling_neci, only: stop_all, pure_stop_all
+    use error_handling_neci, only: stop_all
 
     implicit none
 
@@ -1392,7 +1392,7 @@ contains
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
         debug_function_name("funA")
-        pure_ASSERT( (b + y) > 0.0_dp)
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt((b + x) / (b + y))
     end function funA
 
@@ -1400,8 +1400,8 @@ contains
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
         debug_function_name("funB")
-        pure_ASSERT( (b + x) > 0.0_dp)
-        pure_ASSERT( (b + y) > 0.0_dp)
+        ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + y) > 0.0_dp)
         ret = sqrt(2.0_dp / ((b + x) * (b + y)))
     end function funB
 
@@ -1409,7 +1409,7 @@ contains
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         debug_function_name("funC")
-        pure_ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp, x)
     end function funC
 
@@ -1417,7 +1417,7 @@ contains
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         debug_function_name("funD")
-        pure_ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + x) > 0.0_dp)
         ret = funA(b, x + 2.0_dp, x) * funA(b, x - 1.0_dp, x + 1.0_dp)
     end function funD
 
@@ -1425,7 +1425,7 @@ contains
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         debug_function_name("funOverB")
-        pure_ASSERT( (b + x) > 0.0_dp)
+        ASSERT( (b + x) > 0.0_dp)
         ret = 1.0_dp / (b + x)
     end function funOverB
 
@@ -1436,7 +1436,7 @@ contains
         type(ExcitationType_t) :: res
         routine_name("construct_ExcitationType_t")
         res = excit_type_arr(n)
-        pure_ASSERT(res%val == n)
+        ASSERT(res%val == n)
     end function
 
     elemental function get_repr_index(this) result(res)
@@ -1479,7 +1479,7 @@ contains
 
         integer :: i, j, k, l
 
-        pure_ASSERT(idx%is_normalized())
+        ASSERT(idx%is_normalized())
         call idx%extract_ijkl(i, j, k, l)
 
         associate(dd => distinct_doubles)
@@ -1499,7 +1499,7 @@ contains
                     if (j == l) then
                         res = dd%ijij
                     else
-                        pure_ASSERT(j < l)
+                        ASSERT(j < l)
                         res = dd%ijik
                     end if
                 else if (i < k) then
@@ -1524,7 +1524,7 @@ contains
                     end if
                 end if
             else
-                pure_ASSERT (i > j)
+                ASSERT (i > j)
                 if (i == k) then
                     if (j == l) then
                         res = dd%jiji
@@ -1563,7 +1563,7 @@ contains
         type(ijkl_Index_t), intent(in) :: idx
         type(DistinctDouble_t) :: res
         debug_function_name("construct_DistinctDouble_t_ijkl")
-        pure_ASSERT(idx%is_normalized())
+        ASSERT(idx%is_normalized())
         res = DistinctDouble_t(idx, DistinctDoubleType_t(idx))
     end function
 
@@ -1571,7 +1571,7 @@ contains
         type(ijab_Index_t), intent(in) :: idx
         type(DistinctDouble_t) :: res
         debug_function_name("construct_DistinctDouble_t_ijkl")
-        pure_ASSERT(idx%is_normalized())
+        ASSERT(idx%is_normalized())
         res = DistinctDouble_t(idx%convert())
     end function
 
@@ -1691,7 +1691,7 @@ contains
         call inv_fuse_symm_idx(jl, j, l)
 
         idx = ijkl_Index_t(int([i, j, k, l]))
-        pure_ASSERT(idx%is_normalized())
+        ASSERT(idx%is_normalized())
     end function
 
     elemental function fused_to_ijab(ijab) result(idx)
@@ -1706,7 +1706,7 @@ contains
         call inv_fuse_symm_idx(ij, i, j)
 
         idx = ijab_Index_t(int([i, j, a, b]))
-        pure_ASSERT(idx%is_normalized())
+        ASSERT(idx%is_normalized())
     end function
 
 
@@ -1748,7 +1748,7 @@ contains
 
 #ifdef DEBUG_
         associate(dd => DistinctDouble_t(fused_to_ijkl(ijkl)))
-            pure_ASSERT(dd%fuse() == n)
+            ASSERT(dd%fuse() == n)
         end associate
 #endif
     end function

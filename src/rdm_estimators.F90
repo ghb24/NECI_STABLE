@@ -634,7 +634,7 @@ contains
 
         use bit_rep_data, only: nifd, NIfTot
         use bit_reps, only: decode_bit_det
-        use Determinants, only: get_helement
+        use determinants, only: get_helement
         use FciMCData, only: Hii
         use hphf_integrals, only: hphf_diag_helement
         use rdm_data, only: en_pert_t

@@ -125,7 +125,7 @@ HDF5_ROOT= # Where it should be installed
 cmake \
     -DCMAKE_INSTALL_PREFIX:PATH=${HDF5_ROOT} \
     -DHDF5_ENABLE_PARALLEL:BOOL=ON  \
-    -DHDF5_BUILD_FORTRAN:BOOL=ON \
+    -DHDF5_BUILD_FORTRAN:BOOL=ON
     -DCMAKE_Fortran_COMPILER:PATH=`which mpifort` \
     -DCMAKE_C_COMPILER:PATH=`which mpicc` \
     ${HDF5_SRC}

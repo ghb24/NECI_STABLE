@@ -450,7 +450,7 @@ conditional_enable = !defined(SX)
 #define srt_ind(i) (((i)*nskip_)+1)
 
 module sort_mod
-    use util_mod, only: pure_stop_all
+    use util_mod, only: stop_all
     use util_mod_comparisons, only: operator(.arrgt.), operator(.arrlt.)
 
     use constants
@@ -772,7 +772,7 @@ contains
                 ! --> need fewest stack elements.
                 nstack = nstack + 2
                 if (nstack > nStackMax) then
-                        call pure_stop_all (this_routine, &
+                        call stop_all (this_routine, &
                                         "parameter nStackMax too small")
                 endif
                 if (hi - i + 1 >= j - lo) then

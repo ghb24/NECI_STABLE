@@ -13,7 +13,7 @@ module property_vector_pchb_doubles_select_particles
     use FciMCData, only: pParallel, projEDet
     use sets_mod, only: operator(.in.)
     use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
-    use util_mod, only: stop_all, pure_stop_all, operator(.isclose.), swap, &
+    use util_mod, only: stop_all, operator(.isclose.), swap, &
         binary_search_int, EnumBase_t, operator(.div.)
     use MPI_wrapper, only: iProcIndex_intra
     use excitation_types, only: Excite_2_t
@@ -179,7 +179,7 @@ contains
         case(PCHB_particle_selection_vals%UNIF_FAST%str)
             res = PCHB_particle_selection_vals%UNIF_FAST
         case default
-            call pure_stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
+            call stop_all(this_routine, trim(w)//" not a valid doubles particle selection scheme.")
         end select
     end function
 

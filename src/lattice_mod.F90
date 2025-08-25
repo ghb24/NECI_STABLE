@@ -17,7 +17,7 @@ module lattice_mod
                           t_new_real_space_hubbard, nEl, tStoquastize
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
-    use util_mod, only: pure_stop_all, stop_all
+    use util_mod, only: stop_all
 
     implicit none
     private
@@ -838,8 +838,8 @@ contains
         character(*), parameter :: this_routine = "add_k_vec"
 #endif
 
-        pure_ASSERT(allocated(this%mult_table))
-        pure_ASSERT(allocated(this%k_to_sym))
+        ASSERT(allocated(this%mult_table))
+        ASSERT(allocated(this%k_to_sym))
 
         k_out = this%sym_to_k(this%mult_table( &
                               this%k_to_sym(k_1(1), k_1(2), k_1(3)), &
@@ -1158,8 +1158,8 @@ contains
 
         ! i should only make this an abstract interface, since this function
         ! must be deffered!
-        pure_ASSERT(ind >= 0)
-        pure_ASSERT(ind <= size(this%basis_vecs, 1))
+        ASSERT(ind >= 0)
+        ASSERT(ind <= size(this%basis_vecs, 1))
 
         k_out = k_in + this%basis_vecs(ind, :)
 
@@ -4125,10 +4125,10 @@ contains
 
         ! make all assert on a seperate line, so we exactly know what is
         ! going wrong..
-        pure_ASSERT(ind <= this%get_nsites())
-        pure_ASSERT(ind > 0)
-        pure_ASSERT(allocated(this%sites))
-        pure_ASSERT(allocated(this%sites(ind)%neighbors))
+        ASSERT(ind <= this%get_nsites())
+        ASSERT(ind > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(ind)%neighbors))
 
         n_neighbors = this%sites(ind)%get_num_neighbors()
 
@@ -4147,10 +4147,10 @@ contains
 
         ! make all assert on a seperate line, so we exactly know what is
         ! going wrong..
-        pure_ASSERT(ind <= this%get_nsites())
-        pure_ASSERT(ind > 0)
-        pure_ASSERT(allocated(this%sites))
-        pure_ASSERT(allocated(this%sites(ind)%neighbors))
+        ASSERT(ind <= this%get_nsites())
+        ASSERT(ind > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(ind)%neighbors))
 
         ! apparently i have to access the data directly..
         if (this%get_nsites() == 1) then
@@ -4202,10 +4202,10 @@ contains
         character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
 #endif
 
-        pure_ASSERT(spinorb <= 2 * this%get_nsites())
-        pure_ASSERT(spinorb > 0)
-        pure_ASSERT(allocated(this%sites))
-        pure_ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
+        ASSERT(spinorb <= 2 * this%get_nsites())
+        ASSERT(spinorb > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
 
         neighbors = this%get_neighbors(get_spatial(spinorb))
 
@@ -4225,10 +4225,10 @@ contains
         character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
 #endif
 
-        pure_ASSERT(spinorb <= 2*this%get_nsites())
-        pure_ASSERT(spinorb > 0)
-        pure_ASSERT(allocated(this%sites))
-        pure_ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
+        ASSERT(spinorb <= 2*this%get_nsites())
+        ASSERT(spinorb > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
 
         neighbors = this%get_nn_neighbors(get_spatial(spinorb))
 
@@ -4655,9 +4655,9 @@ contains
         character(*), parameter :: this_routine = "get_length_cube"
 #endif
 
-        pure_ASSERT(present(dimen))
-        pure_ASSERT(dimen > 0)
-        pure_ASSERT(dimen <= 3)
+        ASSERT(present(dimen))
+        ASSERT(dimen > 0)
+        ASSERT(dimen <= 3)
 
         get_length_cube = this%length(dimen)
 
@@ -4668,8 +4668,8 @@ contains
         integer, intent(in), optional :: dimen
         character(*), parameter :: this_routine = "get_length_rect"
 
-        pure_ASSERT(present(dimen))
-        pure_ASSERT(dimen > 0)
+        ASSERT(present(dimen))
+        ASSERT(dimen > 0)
 
         if (dimen > 2) then
             get_length_rect = 1
@@ -4715,7 +4715,7 @@ contains
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_star")
         unused_var(this)
-        pure_ASSERT(.not. present(dimen))
+        ASSERT(.not. present(dimen))
 
         is_periodic_star = .false.
 
@@ -4725,7 +4725,7 @@ contains
         class(chain), intent(in) :: this
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_chain")
-        pure_ASSERT(.not. present(dimen))
+        ASSERT(.not. present(dimen))
         is_periodic_chain = this%t_periodic(1)
     end function is_periodic_chain
 
@@ -4734,7 +4734,7 @@ contains
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_cube")
         if (present(dimen)) then
-            pure_ASSERT(1 <= dimen .and. dimen <= 3)
+            ASSERT(1 <= dimen .and. dimen <= 3)
             is_periodic_cube = this%t_periodic(dimen)
 
         else
@@ -4747,7 +4747,7 @@ contains
         integer, intent(in), optional :: dimen
         debug_function_name("is_periodic_rect")
         if (present(dimen)) then
-            pure_ASSERT(1 <= dimen .and. dimen <= 3)
+            ASSERT(1 <= dimen .and. dimen <= 3)
             is_periodic_rect = this%t_periodic(dimen)
         else
             is_periodic_rect = all(this%t_periodic)

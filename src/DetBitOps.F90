@@ -10,7 +10,7 @@ module DetBitOps
     use bit_rep_data, only: NIfTot, NIfD, &
                             test_flag, extract_sign
     use constants, only: n_int, bits_n_int, end_n_int, dp, lenof_sign
-    use error_handling_neci, only: stop_all, pure_stop_all
+    use error_handling_neci, only: stop_all
 
     implicit none
 
@@ -1059,7 +1059,7 @@ contains
         debug_function_name("LargestBitSet")
 
         ! Initialise with invalid value (in case being erroniously called on empty bit-string).
-        pure_ASSERT(.not. all(ilut == 0))
+        ASSERT(.not. all(ilut == 0))
         LargestOrb = 99999
 
         do i = NIfD, 0, -1

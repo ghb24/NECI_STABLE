@@ -13,7 +13,7 @@ module matel_getter
     use DetBitOps, only: FindBitExcitLevel
     use bit_reps, only: decode_bit_det
     use bit_rep_data, only: NIfTot
-    use Determinants, only: get_helement
+    use determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_bitRepOps, only: CSF_Info_t

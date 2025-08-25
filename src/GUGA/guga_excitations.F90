@@ -51,8 +51,7 @@ module guga_excitations
     use FciMCData, only: ilutRef, tFillingStochRDMOnFly
 
     use util_mod, only: binary_search_first_ge, abs_l1, operator(.isclose.), &
-                        operator(.div.), near_zero, stop_all, neci_flush, &
-                        pure_stop_all
+                        operator(.div.), near_zero, stop_all, neci_flush
 
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
 
@@ -5142,7 +5141,7 @@ contains
         type(WeightObj_t) :: forced_double
         character(*), parameter :: this_routine = "init_forced_end_exchange_weight"
 
-        pure_ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         forced_double%dat%F = endFx(csf_i, sOrb)
         forced_double%dat%G = endGx(csf_i, sOrb)

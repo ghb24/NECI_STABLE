@@ -5,7 +5,7 @@ module input_parser_mod
     !!
     !! Oskar Weser, 2022
     use constants, only: stderr, stdout
-    use util_mod, only: stop_all, pure_stop_all
+    use util_mod, only: stop_all
     use fortran_strings, only: str, Token_t, split, to_int, WHITESPACE
     use sets_mod, only: disjoint, operator(.U.)
     use SystemData, only: nEl
@@ -290,14 +290,14 @@ contains
         class(TokenIterator_t), intent(in) :: this
         character(*), parameter :: this_routine = 'remaining_items'
         remaining_items = this%size() - this%i_curr_token + 1
-        pure_ASSERT(remaining_items >= 0)
+        ASSERT(remaining_items >= 0)
     end function
 
     integer elemental function size_TokenIterator_t(this)
         !! Return the number of tokens in this Iterator.
         class(TokenIterator_t), intent(in) :: this
         character(*), parameter :: this_routine = 'size_TokenIterator_t'
-        pure_ASSERT(allocated(this%tokens))
+        ASSERT(allocated(this%tokens))
         size_TokenIterator_t = size(this%tokens)
     end function
 
@@ -372,7 +372,7 @@ contains
             if (k < 0 .and. (this%i_curr_token + k) >= 1) then
                 this%i_curr_token = this%i_curr_token + k
             else
-                call pure_stop_all(this_routine, 'k has to be smaller 0 and one cannot reset past the beginning.')
+                call stop_all(this_routine, 'k has to be smaller 0 and one cannot reset past the beginning.')
             end if
         else
             this%i_curr_token = 1
@@ -410,7 +410,7 @@ contains
         else if (size(tokens) == 2) then
             res = [(i, i = to_int(tokens(1)%str), to_int(tokens(2)%str))]
         else
-            call pure_stop_all(this_routine, 'Invalid input: '//str_range)
+            call stop_all(this_routine, 'Invalid input: '//str_range)
         end if
     end function
 
@@ -422,7 +422,7 @@ contains
         if (allocated(this%file_name)) then
             res = this%file_name
         else
-            call pure_stop_all(this_routine, 'File name not defined.')
+            call stop_all(this_routine, 'File name not defined.')
         end if
     end function
 
@@ -436,7 +436,7 @@ contains
         if (allocated(this%current_line)) then
             res = this%current_line
         else
-            call pure_stop_all(this_routine, 'Current line not defined.')
+            call stop_all(this_routine, 'Current line not defined.')
         end if
     end function
 

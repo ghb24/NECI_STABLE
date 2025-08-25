@@ -10,13 +10,13 @@ module Determinants
     use SystemData, only: alat, arr, arr, basisfn, basisfnsize, basisfnsizeb, &
         brr, ecore, g1, irreporboffset, k_lattice_constant, k_lattice_vectors, &
         k_momentum, lms, lnosymmetry, nbasis, nbasismax, &
-        nclosedorbs, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
+        nclosedorbs, nel, nirreps, nmsh, noccorbs, stot, symmetry, symmetrysize, &
         symmetrysizeb, symrestrict, t_guga_noreorder, t_lattice_model, tcpmd, &
         tfixlz, tguga, thphfints, thub, tmolpro, tpickvirtuniform, &
         tref_not_hf, tspn, tstoreasexcitations, tsymset, tueg, tueg2, &
         tuegspecifymomentum, tusebrillouin, t_k_space_hubbard, &
         tStoquastize, tZeroDelimitedFCIDUMP, tHFOrder, tHFNoOrder, &
-        t_heisenberg_model, tHPHF, exchange_j, nEl
+        t_heisenberg_model, tHPHF, exchange_j
     use bit_rep_data, only: nIfTot
     use bit_reps, only: decode_bit_det
     use blas_interface_mod, only: dcopy
@@ -231,6 +231,7 @@ contains
     End Subroutine DetPreFreezeInit_old
 
     Subroutine DetPreFreezeInit()
+
         integer ierr, ms, iEl, flagAlpha
         integer i, j, Lz, OrbOrder(8, 2), FDetTemp(NEl), lmsMax
         type(BasisFn) s
@@ -548,6 +549,7 @@ contains
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         !      IC           - The number of orbitals I,J differ by
         ! Ret: hel          - The desired matrix element.
+
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
@@ -604,6 +606,7 @@ contains
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         ! Out: ICret        - The number of orbitals I,J differ by
         ! Ret: hel          - The desired matrix element.
+
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
@@ -680,6 +683,7 @@ contains
         !      ex           - The excitation matrix
         !      tParity      - The parity of the excitation
         ! Ret: hel          - The H matrix element
+
         integer, intent(in) :: nI(nel), nJ(nel), IC
         integer, intent(in) :: ExcitMat(2, ic)
         logical, intent(in) :: tParity
@@ -737,6 +741,7 @@ contains
         !      ex           - Excitation matrix
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
+
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
@@ -1499,4 +1504,4 @@ contains
         RETURN
     END SUBROUTINE WRITEBASIS
 
-end module
+end module Determinants

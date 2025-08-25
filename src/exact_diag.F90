@@ -73,7 +73,7 @@ contains
         expected_ndets_tot = int(choose_i64(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
             write(stdout, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
-            call stop_all('t_r', 'The number of Determinants generated is not &
+            call stop_all('t_r', 'The number of determinants generated is not &
                                     &consistent with the expected number.')
         end if
 

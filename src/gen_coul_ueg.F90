@@ -12,7 +12,7 @@ module gen_coul_ueg_mod
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD, stdout
     use Parallel_neci, only: iProcIndex, root
-    use util_mod, only: near_zero, stop_all, pure_stop_all
+    use util_mod, only: near_zero, stop_all
     use breathing_Hub, only: bHubIndexFunction
     implicit none
 
@@ -310,7 +310,7 @@ contains
                         ! attenuated and screened potentials and
                         ! considering the limit of G->0.  Both give the same
                         ! result.
-                        call pure_stop_all(this_routine, "<ii|ii> calculation error")
+                        call stop_all(this_routine, "<ii|ii> calculation error")
                         hel = 2 * pi * ALAT(4)**2 / (ALAT(1) * ALAT(2) * ALAT(3))
                     end if
                 end if
@@ -388,7 +388,7 @@ contains
                         ! attenuated and screened potentials and
                         ! considering the limit of G->0.  Both give the same
                         ! result.
-                        call pure_stop_all(this_routine, "<ii|ii> calculation error")
+                        call stop_all(this_routine, "<ii|ii> calculation error")
                         hel = 2 * pi * ALAT(4)**2 / (ALAT(1) * ALAT(2))
                     end if
                 end if
@@ -397,7 +397,7 @@ contains
             end if
 
         else
-            call pure_stop_all(this_routine, 'dimension error in get_ueg_umat_el')
+            call stop_all(this_routine, 'dimension error in get_ueg_umat_el')
         end if
 
     end function
@@ -816,7 +816,7 @@ contains
             end if ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
 
         else
-            call pure_stop_all(this_routine, 'dimension error in get_contact_umat_el')
+            call stop_all(this_routine, 'dimension error in get_contact_umat_el')
         end if
 
     end function
@@ -1192,7 +1192,7 @@ contains
                 u_tc = -6.283185307179586 / k2 / dsqrt(k2)
             end if
         else
-            call pure_stop_all(this_routine, 'dimension error in uu_tc_prod')
+            call stop_all(this_routine, 'dimension error in uu_tc_prod')
         end if
 
     end function
@@ -1449,7 +1449,7 @@ contains
                 hel = 0.d0
             end if
         else
-            call pure_stop_all(this_routine, 'at moment Lmat is only available for 3D UEG')
+            call stop_all(this_routine, 'at moment Lmat is only available for 3D UEG')
         end if
 
     end function
@@ -1548,7 +1548,7 @@ contains
 
             hel = hel / ALAT(1)
         else
-            call pure_stop_all(this_routine, 'at moment Lmat is only available for 1D and 3D contact interactions')
+            call stop_all(this_routine, 'at moment Lmat is only available for 1D and 3D contact interactions')
         end if
 
     end function

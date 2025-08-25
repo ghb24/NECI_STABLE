@@ -19,8 +19,7 @@ module property_vector_index
     !! i.e. the property vectors are indexed by calculating the corresponding composition index.
     use constants, only: int64, n_int
     use SystemData, only: nEl
-    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, &
-        pure_stop_all
+    use util_mod, only: choose_i64, cumsum, binary_search_first_ge, custom_findloc, stop_all
     use bit_rep_data, only: nIfD
     use hash, only: hash_table_lookup
     use guga_bitRepOps, only: CSF_Info_t
@@ -364,7 +363,7 @@ contains
         type is(Excite_3_t)
             dyn_is_allowed = this%is_allowed(exc, prop_vec)
         class default
-            call pure_stop_all(this_routine, "invalid excitation passed in.")
+            call stop_all(this_routine, "invalid excitation passed in.")
         end select
     end function
 

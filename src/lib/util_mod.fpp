@@ -27,7 +27,7 @@ module util_mod
     use DetBitOps, only: DetBitLt
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
     use mpi_f08, only: MPI_WTIME
-    use error_handling_neci, only: pure_stop_all, stop_all, neci_flush, warning_neci
+    use error_handling_neci, only: stop_all, neci_flush, warning_neci
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -50,7 +50,7 @@ module util_mod
     public :: choose_i128
 #endif
 
-    public :: error_function, error_function_c, stop_all, pure_stop_all, delete_file
+    public :: error_function, error_function_c, stop_all, delete_file
     public :: arr_2d_ptr, ptr_abuse_1d, ptr_abuse_2d, ptr_abuse_scalar
     public :: neci_etime, get_free_unit, int_fmt,&
         strlen_wrap, record_length, open_new_file, &
@@ -558,10 +558,18 @@ contains
                         if (signal_overflow) then
                             res = -1
                         else
-                            call pure_stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#if defined(IFORT_) || defined(INTELLLVM_)
+                            error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
                         end if
                     else
-                        call pure_stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#if defined(IFORT_) || defined(INTELLLVM_)
+                            error stop 'Binomial coefficient exceeds range of int64.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int64.')
+#endif
                     end if
                 end if check_for_overflow
             end block
@@ -610,10 +618,18 @@ contains
                         if (signal_overflow) then
                             res = -1
                         else
-                            call pure_stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#if defined(IFORT_) || defined(INTELLLVM_)
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
                         end if
                     else
-                        call pure_stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#if defined(IFORT_) || defined(INTELLLVM_)
+                            error stop 'Binomial coefficient exceeds range of int128.'
+#else
+                            call stop_all(this_routine, 'Binomial coefficient exceeds range of int128.')
+#endif
                     end if
                 end if check_for_overflow
             end block

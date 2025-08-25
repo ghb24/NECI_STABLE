@@ -26,11 +26,11 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
-    use orb_idx_mod, only: sum, calc_spin_raw
+    use orb_idx_mod, only: size, sum, calc_spin_raw
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use fortran_strings, only: join, Token_t, str
-    use util_mod, only: stop_all, pure_stop_all
+    use util_mod, only: stop_all
     use SystemData, only: nEl, G1
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement, is_set, &
@@ -312,7 +312,7 @@ contains
             res = defined(exc)
         #:endfor
         class default
-            call pure_stop_all(this_routine, "Excitation type invalid.")
+            call stop_all(this_routine, "Excitation type invalid.")
         end select
     end function
 
@@ -588,7 +588,7 @@ contains
             res = excite(det_I, exc)
         #:endfor
         class default
-            call pure_stop_all("dyn_nI_excite", "Excitation type invalid.")
+            call stop_all("dyn_nI_excite", "Excitation type invalid.")
         end select
     end function
 

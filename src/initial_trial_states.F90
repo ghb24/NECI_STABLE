@@ -16,7 +16,7 @@ module initial_trial_states
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
     use SystemData, only: tGUGA, tHPHF
-    use Determinants, only: get_helement
+    use determinants, only: get_helement
     use guga_bitRepOps, only: CSF_Info_t
 #ifdef CMPLX_
     use blas_interface_mod, only: zheev

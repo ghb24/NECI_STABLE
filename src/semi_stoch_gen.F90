@@ -42,7 +42,7 @@ module semi_stoch_gen
         get_initiator_flag_by_run
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
-    use Determinants, only: get_helement
+    use determinants, only: get_helement
     use enumerate_excitations, only: generate_connected_space
     use shared_rhash, only: initialise_shared_rht
     use sparse_arrays, only: calc_determ_hamil_sparse_hphf, &

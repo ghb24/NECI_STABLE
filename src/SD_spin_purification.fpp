@@ -7,7 +7,7 @@ module SD_spin_purification_mod
     use constants, only: n_int, dp, int64
     use growing_buffers, only: buffer_int_1D_t
     use util_mod, only: stop_all, operator(.isclose.), swap, operator(.div.), &
-        EnumBase_t, pure_stop_all
+        EnumBase_t
     use sets_mod, only: subset, disjoint
     use excitation_types, only: excitation_t, Excite_0_t, Excite_1_t, Excite_2_t, &
                                 Excite_3_t, UNKNOWN, get_excitation, get_bit_excitation, &
@@ -103,7 +103,7 @@ contains
         character(*), parameter :: this_routine = 'S2_expval'
 
         res = 0.0_dp
-        pure_ASSERT(size(nI) == size(nJ))
+        ASSERT(size(nI) == size(nJ))
 
         oS_nI = get_open_shell(nI)
         if (size(oS_nI) == 0) return
@@ -125,7 +125,7 @@ contains
 
         ! We assume that inside NECI all determinants have the
         ! same spin projection.
-        pure_ASSERT(count(alpha_I) == count(alpha_J))
+        ASSERT(count(alpha_I) == count(alpha_J))
 
         ! There is one exchange, rest is equal
         if (count(alpha_I .neqv. alpha_J) == 2) then
@@ -404,7 +404,7 @@ contains
             !! The spin quantum number. \(s = \frac{n}{2}, n \in \mathbb{N}\)
         real(dp) :: res
         character(*), parameter :: this_routine = 'spin_momentum'
-        pure_ASSERT((2._dp * s) .isclose. (real(nint(2.0_dp * s, int64), dp)))
+        ASSERT((2._dp * s) .isclose. (real(nint(2.0_dp * s, int64), dp)))
         res = sqrt(s * (s + 1_dp))
     end function
 
@@ -417,7 +417,7 @@ contains
             !! The spin angular momentum.
         real(dp) :: res
         character(*), parameter :: this_routine = 'spin_q_num'
-        pure_ASSERT(spin_momentum >= 0._dp)
+        ASSERT(spin_momentum >= 0._dp)
         res = -0.5_dp + sqrt(0.25_dp + spin_momentum**2)
     end function
 

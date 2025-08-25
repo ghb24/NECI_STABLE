@@ -7,8 +7,7 @@ program test_aliasTables
     use aliasSampling, only: AliasTable_t, AliasSampler_t
     use Parallel_neci, only: MPIInit, MPIEnd, MPIBarrier, iProcIndex_intra, root, MPIBcast, Node
     use dSFMT_interface, only: genrand_real2_dSFMT, dSFMT_init
-    use util_mod, only: stop_all, near_zero, operator(.isclose.), ByteSize_t, operator(*), &
-        pure_stop_all
+    use util_mod, only: stop_all, near_zero, operator(.isclose.), ByteSize_t, operator(*)
     better_implicit_none
     integer :: ierr
 
@@ -81,7 +80,7 @@ contains
         real(dp) :: diff
         ! compare the drawn numbers with the distribtuion
         if (size(w) /= size(hist)) then
-            call pure_stop_all(this_routine, "Error: size mismatch in getDiff")
+            call stop_all(this_routine, "Error: size mismatch in getDiff")
         end if
         nSamples = sum(hist)
         diff = sum(abs(hist / real(nSamples, dp) - w))

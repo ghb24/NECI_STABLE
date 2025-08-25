@@ -1,13 +1,16 @@
 #include "macros.h"
 
 submodule (Determinants) Determinants_impls
+    use SymExcitDataMod, only: ScratchSize, ScratchSize3
+    use GenRandSymExcitNUMod, only: SpinOrbSymSetup
+    use sym_mod, only: writesymtable, gensymstatepairs
+    use SystemData, only: nEl
+
     better_implicit_none
 
 contains
 
     subroutine virt_uniform_sym_setup()
-        use SymExcitDataMod, only: ScratchSize, ScratchSize3
-        use GenRandSymExcitNUMod, only: SpinOrbSymSetup
         ! We use the third scratch array to store data for single
         ! excitations
 
@@ -19,9 +22,6 @@ contains
 
 
     module subroutine DetInit()
-        use SystemData, only: nEl
-        use GenRandSymExcitNUMod, only: SpinOrbSymSetup
-        use sym_mod, only: writesymtable, gensymstatepairs
         real(dp) :: DNDET
         integer :: i, j
         integer(int64) :: nDet
@@ -205,4 +205,4 @@ contains
     end subroutine
 
 
-end submodule
+end submodule Determinants_impls
