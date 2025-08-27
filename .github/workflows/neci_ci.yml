@@ -7,132 +7,242 @@ on:
     branches: [ "master", "stable", "devel" ]
 
 env:
-  DOC_PATH: /AltestCICD/neci-build/documentation
   BUILD_ROOT: /AltestCICD/neci-build
   BUILD_IDENTIFIER: ${{ github.event_name == 'pull_request' && format('PR{0}_RUN{1}', github.event.pull_request.number, github.run_number) || format('{0}_RUN{1}', github.ref_name, github.run_number) }}
 
 jobs:
-  # Define matrices in a separate job to avoid repetition
-  setup:
+  # OpenMPI 3 job thread
+  build-ompi3:
     runs-on: self-hosted
-    outputs:
-      full-matrix: ${{ steps.set-matrix.outputs.full-matrix }}
-      test-matrix: ${{ steps.set-matrix.outputs.test-matrix }}
-      unit-test-matrix: ${{ steps.set-matrix.outputs.unit-test-matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          echo "full-matrix=[\"gfort7\",\"gfort7-debug\",\"gfort7-fastdebug\",\"gfort7-debug-integer8\",\"gfort7-debug-nohdf5\",\"gfort7-self_build_hdf5\",\"gfort14\",\"gfort14-debug\",\"gfort14-fastdebug\"]" >> $GITHUB_OUTPUT
-          echo "test-matrix=[\"gfort7\",\"gfort7-fastdebug\"]" >> $GITHUB_OUTPUT
-          echo "unit-test-matrix=[\"gfort7\",\"gfort7-fastdebug\",\"gfort7-debug\",\"gfort14-fastdebug\",\"gfort14-debug\"]" >> $GITHUB_OUTPUT
-
-  build:
-    needs: setup
-    timeout-minutes: 60
-    runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: ${{ env.BUILD_ROOT }}
-    strategy:
-      matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.full-matrix) }}
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/pip
-          /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        key: ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-${{ hashFiles('**/requirements.txt', '**/CMakeLists.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-
-
-    - name: Setup cache symlinks
-      run: |
-        mkdir -p /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        mkdir -p build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-        ln -sf /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/deps
-
-    - name: build all
-      run: |
-        mkdir -p build_${{ env.BUILD_IDENTIFIER }}
-        cd build_${{ env.BUILD_IDENTIFIER }}
-        rm -rf ${{ matrix.BUILD_TYPE }}
-        mkdir ${{ matrix.BUILD_TYPE }}
-        cd ${{ matrix.BUILD_TYPE }}
-
-        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
-        source ${{ github.workspace }}/tools/auto_cmake.sh "${{ matrix.BUILD_TYPE }}" "${{ github.workspace }}"
-        source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
-
-  test_suite:
-    needs: [setup, build]
     timeout-minutes: 300
-    runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}
     strategy:
       matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.test-matrix) }}
+        BUILD_TYPE: ["Release", "FastDebug"]
+        ADDITIONAL_OPTION: ["default"]
+        include:
+          # Debug build with additional options
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "default"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "nohdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "self-build-hdf5"
+          - BUILD_TYPE: "Debug"
+            ADDITIONAL_OPTION: "int8"
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - name: run test suite
-      run: |
-        EXE_DIR=${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/bin
+    - name: Build NECI (OpenMPI 3)
+      uses: ./.github/actions/build-neci
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
-
-        cd test_suite
-
-        /home/cicdadmin/testcode/bin/testcode.py -vvv \
-          -e neci="$EXE_DIR/neci" \
-          -e mneci="$EXE_DIR/mneci" \
-          -e kneci="$EXE_DIR/kneci" \
-          -e kmneci="$EXE_DIR/kmneci" \
-          -e dneci="$EXE_DIR/dneci"
-
-  unit_test:
-    needs: [setup, build]
+  unit-tests-ompi3:
+    needs: build-ompi3
+    runs-on: self-hosted
     timeout-minutes: 60
-    runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: ${{ env.BUILD_ROOT }}
     strategy:
       matrix:
-        BUILD_TYPE: ${{ fromJSON(needs.setup.outputs.unit-test-matrix) }}
+        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - name: run unit test
-      run: |
-        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
+    - name: Run Unit Tests (OpenMPI 3)
+      uses: ./.github/actions/run-unit-tests
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-        cd build_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/unit_tests
+  test-suite-ompi3:
+    needs: unit-tests-ompi3
+    runs-on: self-hosted
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        BUILD_TYPE: ["Release", "FastDebug"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
 
-        ctest --output-on-failure --tests-regex 'test_(d|k|m|km)?neci_.*' -j 2
+    - name: Run Test Suite (OpenMPI 3)
+      uses: ./.github/actions/run-test-suite
+      with:
+        mpi-impl: ompi3
+        build-type: ${{ matrix.BUILD_TYPE }}
+        build-root: ${{ env.BUILD_ROOT }}
+        build-identifier: ${{ env.BUILD_IDENTIFIER }}
 
-  remove_artifacts:
-    needs: [test_suite, unit_test]
+#  # Intel MPI 2021 job thread
+#  build-impi21:
+#    runs-on: self-hosted
+#    timeout-minutes: 300
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug"]
+#        ADDITIONAL_OPTION: ["default"]
+#        include:
+#          # Debug build with additional options
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "default"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "nohdf5"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "self-build-hdf5"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "int8"
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Build NECI (Intel MPI 2021)
+#      uses: ./.github/actions/build-neci
+#      with:
+#        mpi-impl: impi21
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+#
+#  unit-tests-impi21:
+#    needs: build-impi21
+#    runs-on: self-hosted
+#    timeout-minutes: 60
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Run Unit Tests (Intel MPI 2021)
+#      uses: ./.github/actions/run-unit-tests
+#      with:
+#        mpi-impl: impi21
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+#
+#  test-suite-impi21:
+#    needs: unit-tests-impi21
+#    runs-on: self-hosted
+#    timeout-minutes: 300
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug"]
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Run Test Suite (Intel MPI 2021)
+#      uses: ./.github/actions/run-test-suite
+#      with:
+#        mpi-impl: impi21
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+# OMPI5 will be back once a neci issue is resolved.
+#  # OpenMPI 5 job thread
+#  build-ompi5:
+#    runs-on: self-hosted
+#    timeout-minutes: 300
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug"]
+#        ADDITIONAL_OPTION: ["default"]
+#        include:
+#          # Debug build with additional options
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "default"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "nohdf5"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "self-build-hdf5"
+#          - BUILD_TYPE: "Debug"
+#            ADDITIONAL_OPTION: "int8"
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Build NECI (OpenMPI 5)
+#      uses: ./.github/actions/build-neci
+#      with:
+#        mpi-impl: ompi5
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        additional-option: ${{ matrix.ADDITIONAL_OPTION }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+#
+#  unit-tests-ompi5:
+#    needs: build-ompi5
+#    runs-on: self-hosted
+#    timeout-minutes: 60
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug", "Debug"]
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Run Unit Tests (OpenMPI 5)
+#      uses: ./.github/actions/run-unit-tests
+#      with:
+#        mpi-impl: ompi5
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+#
+#  test-suite-ompi5:
+#    needs: unit-tests-ompi5
+#    runs-on: self-hosted
+#    timeout-minutes: 300
+#    strategy:
+#      matrix:
+#        BUILD_TYPE: ["Release", "FastDebug"]
+#      fail-fast: false
+#    steps:
+#    - uses: actions/checkout@v3
+#      with:
+#        submodules: recursive
+#
+#    - name: Run Test Suite (OpenMPI 5)
+#      uses: ./.github/actions/run-test-suite
+#      with:
+#        mpi-impl: ompi5
+#        build-type: ${{ matrix.BUILD_TYPE }}
+#        build-root: ${{ env.BUILD_ROOT }}
+#        build-identifier: ${{ env.BUILD_IDENTIFIER }}
+
+  cleanup:
+    needs: [test-suite-ompi3]
     if: always()
     runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: ${{ env.BUILD_ROOT }}
     steps:
-    - name: remove artifacts
+    - name: Clean up build artifacts
       run: |
-        echo "Removing build artifacts..."
-        rm -rf build_${{ env.BUILD_IDENTIFIER }}
+        echo "Cleaning up build artifacts..."
+        rm -rf ${{ env.BUILD_ROOT }}/build_${{ env.BUILD_IDENTIFIER }} || true
