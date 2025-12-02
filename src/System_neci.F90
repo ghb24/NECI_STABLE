@@ -250,7 +250,6 @@ contains
         tGAS = .false.
         tAnderson = .false.
 
-#ifdef PROG_NUMRUNS_
         ! by default, excitation generation already creates matrix elements
         tGenMatHEl = .true.
         tInfSumTCCalc = .false.
@@ -271,7 +270,7 @@ contains
         PartialNodeGamma = 0.0_dp
         PartialNodeThresh = 0.0_dp
 
-
+#ifdef PROG_NUMRUNS_
         inum_runs = 1
 #ifdef CMPLX_
         lenof_sign = 2

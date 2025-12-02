@@ -20,44 +20,39 @@ jobs:
       run:
         working-directory: ${{ env.BUILD_ROOT }}
 
-    strategy:
-      matrix:
-        BUILD_TYPE: [
-          "gfort7-doc",
-        ]
-
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-        
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/pip
-          /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        key: ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-${{ hashFiles('**/requirements.txt', '**/CMakeLists.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.BUILD_TYPE }}-
 
-    - name: Setup cache symlinks
+    - name: Build doc
+      env:
+        BUILD_TYPE: gfort7-doc
       run: |
-        mkdir -p /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps
-        mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-        ln -sf /AltestCICD/.cache/neci-cache/${{ matrix.BUILD_TYPE }}/deps build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}/deps
+        docker run --rm \
+          -v ${{ github.workspace }}:${{ github.workspace }} \
+          -v ${{ env.BUILD_ROOT }}:${{ env.BUILD_ROOT }} \
+          -w ${{ env.BUILD_ROOT }} \
+          neci_base.ompi3:latest \
+          bash -c "
+            set -euo pipefail
 
-    - name: build doc
-      run: |
-        mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}
-        cd build_doc_${{ env.BUILD_IDENTIFIER }}
-        rm -rf ${{ matrix.BUILD_TYPE }}
-        mkdir ${{ matrix.BUILD_TYPE }}
-        cd ${{ matrix.BUILD_TYPE }}
-
-        source ${{ github.workspace }}/tools/auto_module.sh "${{ matrix.BUILD_TYPE }}"
-        source ${{ github.workspace }}/tools/auto_cmake.sh "${{ matrix.BUILD_TYPE }}" "${{ github.workspace }}"
-        source ${{ github.workspace }}/tools/auto_make.sh "${{ matrix.BUILD_TYPE }}"
+            mkdir -p build_doc_${{ env.BUILD_IDENTIFIER }}
+            cd build_doc_${{ env.BUILD_IDENTIFIER }}
+            rm -rf gfort7-doc
+            mkdir gfort7-doc
+            cd gfort7-doc
+            cmake \
+              -DENABLE_HDF5=ON \
+              -DENABLE_DOC=ON \
+              -DSHORT_FORD_COMPILATION=OFF \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_Fortran_COMPILER=mpifort \
+              -DCMAKE_C_COMPILER=mpicc \
+              -DCMAKE_CXX_COMPILER=mpicxx \
+              ${{ github.workspace }}
+            cmake --build . -j 4 --target doc --verbose
+          "
 
   deploy:
     needs: build
@@ -65,29 +60,15 @@ jobs:
     runs-on: self-hosted
     defaults:
       run:
-        working-directory: ${{ env.BUILD_ROOT }}/build_doc_${{ env.BUILD_IDENTIFIER }}/${{ matrix.BUILD_TYPE }}
-    strategy:
-      matrix:
-        BUILD_TYPE: [
-          "gfort7-doc",
-        ]
+        working-directory: ${{ env.BUILD_ROOT }}/build_doc_${{ env.BUILD_IDENTIFIER }}/gfort7-doc
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
     - name: deploy doc
       run: |
         rm -rf ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
         mkdir -p ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
         mv documentation/html/neci/* ${{ env.DOC_PATH }}/${{ env.BRANCH_NAME }}
 
-#        cp -rp documentation/html/neci/ /home/cicdadmin/doc-test
-#        # this uses configurations and ssh-keys in ${JENKINS_HOME}/.ssh/
-#        DIR_NAME="${GIT_BRANCH#origin/}"
-#        ssh homepage_server "mkdir -p /srv/www/htdocs/alavi/neci/${DIR_NAME}"
-#        rsync -av --delete documentation/html/neci/ homepage_server:/srv/www/htdocs/alavi/neci/${DIR_NAME}
 
   remove_artifacts:
     needs: deploy
