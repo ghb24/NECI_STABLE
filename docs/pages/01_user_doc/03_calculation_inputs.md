@@ -658,10 +658,6 @@ and ends with the `endcalc` keyword.
     used to specifically probe for stochastic effects, but is generally
     not required.
 
--   **averageMcExcits \(x\)**<br>
-    Sets the average number of spawning attempts from each walker to
-    \(x\).
-
 -   **rdmSamplingIters \(n\)**<br>
     Set the maximum number of iterations used for sampling the RDMs to
     \(n\). After \(n\) iterations of sampling RDMs, the calculation will
@@ -678,8 +674,8 @@ and ends with the `endcalc` keyword.
     exact diagonalization technique.
 
 -   **averageMcExcits \(n\)**<br>
-    The number of spawns to attempt per walker. Defaults to \(1\) and
-    should not be changed without good reason.
+    Sets the number of spawns to attempt per walker to \(n\). Defaults to \(1\)
+    and should not be changed without good reason.
 
 -   **adjust-averageMcExcits**<br>
     Dynamically update the number of spawns attempted per walker. Can be
