@@ -699,14 +699,14 @@ and ends with the `endcalc` keyword.
     \end{equation}
     where \(N_s\) is the number of switches in the CSF.
     The number of switches is determined by sweeping over the couplings in the
-    CSF. A switch is counted whenever an one-electron coupling (\(1\) or \(2\) in
+    CSF. A switch is counted whenever a one-electron coupling (\(1\) or \(2\) in
     step-vector notation) differs from the previous one-electron coupling.
     For example, \(|1 1 0 2 3 1 2 \rangle \) has 3 switches corresponding to
     changes between the second and fourth, fourth and sixth, and sixth and
     seventh couplings.
-    The excitation generation attempts for each CSF by their own \(f\), while
-    \(p_{\text{spawn}}\) is scaled by \(1/f\).
-    This feature only available with `guga` and not compatible with
+    The excitation generation attempts for each CSF are scaled by their own
+    \(f\), while \(p_{\text{spawn}}\) is scaled by \(1/f\).
+    This feature is only available with `guga` and not compatible with
     `scale-spawns`.
 
 -   **davidson-max-iters \(n\)**<br>
