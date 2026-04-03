@@ -1194,6 +1194,31 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    function get_spawn_factor(j) result(f)
+        ! Input: j - index of the CSF
+        ! Output: f - spawn scaling factor for CSF j so far
+        implicit none
+        integer, intent(in) :: j
+        real(dp) :: f
+
+        f = global_determinant_data(pos_scaling_factor, j)
+    end function get_spawn_factor
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine set_spawn_factor(f, j)
+        ! Input: j - index of the CSF
+        !        f - spawn scaling factor
+        implicit none
+        real(dp), intent(in) :: f
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_scaling_factor, j) = f
+    end subroutine set_spawn_factor
+
+    !------------------------------------------------------------------------------------------!
+
+
 #ifdef USE_HDF_
     subroutine set_max_ratio_hdf5Int(val, j)
         use hdf5, only: hsize_t
@@ -1230,31 +1255,6 @@ contains
     end subroutine write_max_ratio_as_int
 
     !------------------------------------------------------------------------------------------!
-
-    function get_spawn_factor(j) result(f)
-        ! Input: j - index of the CSF
-        ! Output: f - spawn scaling factor for CSF j so far
-        implicit none
-        integer, intent(in) :: j
-        real(dp) :: f
-
-        f = global_determinant_data(pos_scaling_factor, j)
-    end function get_spawn_factor
-
-    !------------------------------------------------------------------------------------------!
-
-    subroutine set_spawn_factor(f, j)
-        ! Input: j - index of the CSF
-        !        f - spawn scaling factor
-        implicit none
-        real(dp), intent(in) :: f
-        integer, intent(in) :: j
-
-        global_determinant_data(pos_scaling_factor, j) = f
-    end subroutine set_spawn_factor
-
-    !------------------------------------------------------------------------------------------!
-
 
 #endif
 
