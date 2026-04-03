@@ -6,7 +6,7 @@ module global_det_data
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &
                         tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms, &
-                        tInitExpandAnnihil, tModShiftCorr
+                        tInitExpandAnnihil, tModShiftCorr, t_scale_by_switches
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use MemoryManager, only: LogMemAlloc, LogMemDeAlloc
@@ -35,7 +35,8 @@ module global_det_data
         reset_shift_int, update_shift_int, update_tau_int, set_spawn_pop, &
         update_pops_sum_all, get_pops_iter, get_max_ratio, update_max_ratio, &
         set_prop_vec_idx, get_prop_vec_idx, update_iea, get_iea, reset_iea_all, &
-        reset_corr_pop, scale_corr_pop, add_corr_pop, get_corr_pop, death_corr_pop
+        reset_corr_pop, scale_corr_pop, add_corr_pop, get_corr_pop, &
+        death_corr_pop, set_spawn_factor, get_spawn_factor
 #ifdef USE_HDF_
     public :: set_max_ratio_hdf5Int, write_max_ratio_as_int
 #endif
@@ -117,6 +118,8 @@ module global_det_data
     integer :: pos_max_ratio, len_max_ratio, max_ratio_size
     ! Legth of arrays storing estimates to be written to the replica_est file
     integer :: replica_est_len
+
+    integer :: len_scaling_factor, pos_scaling_factor
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:, :) => null()
@@ -278,6 +281,12 @@ contains
             len_max_ratio = 0
         end if
 
+        if (t_scale_by_switches) then
+            len_scaling_factor = 1
+        else
+            len_scaling_factor = 0
+        end if
+
         ! Get the starting positions
         pos_hel_off = pos_hel + len_hel
         pos_spawn_pop = pos_hel_off + len_hel_off
@@ -298,14 +307,16 @@ contains
         pos_ann_sum = pos_max_ratio + len_max_ratio
         pos_spawns_sum = pos_ann_sum + len_ann_sum
         pos_sg_idx = pos_spawns_sum + len_spawns_sum
-        pos_corr_pop = pos_sg_idx + len_corr_pop
+        pos_corr_pop = pos_sg_idx + len_sg_idx
+        pos_scaling_factor = pos_corr_pop + len_corr_pop
 
         tot_len = len_hel + len_hel_off + len_spawn_pop + len_tau_int + &
                   len_shift_int + len_tot_spawns + len_acc_spawns + &
                   len_pops_sum + len_pops_iter + len_av_sgn_tot + &
                   len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
                   len_max_ratio + len_sg_idx + len_ann_sum + &
-                  len_spawns_sum + len_sg_idx + len_corr_pop
+                  len_spawns_sum + len_sg_idx + len_corr_pop + &
+                  len_scaling_factor
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign.div.2
@@ -1217,6 +1228,33 @@ contains
         ms_vals(1) = transfer(global_determinant_data(pos_max_ratio, pos), ms_vals(1))
 
     end subroutine write_max_ratio_as_int
+
+    !------------------------------------------------------------------------------------------!
+
+    function get_spawn_factor(j) result(f)
+        ! Input: j - index of the CSF
+        ! Output: f - spawn scaling factor for CSF j so far
+        implicit none
+        integer, intent(in) :: j
+        real(dp) :: f
+
+        f = global_determinant_data(pos_scaling_factor, j)
+    end function get_spawn_factor
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine set_spawn_factor(f, j)
+        ! Input: j - index of the CSF
+        !        f - spawn scaling factor
+        implicit none
+        real(dp), intent(in) :: f
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_scaling_factor, j) = f
+    end subroutine set_spawn_factor
+
+    !------------------------------------------------------------------------------------------!
+
 
 #endif
 

@@ -97,7 +97,8 @@ module FciMCParMod
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
         flag_trial, flag_connected, flag_removed, niftot,&
-        flag_nospawn, flag_expanded, flag_signflip, well_defined
+        flag_nospawn, flag_expanded, flag_signflip, well_defined, &
+        flag_spawn_factor
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -112,7 +113,8 @@ module FciMCParMod
                                update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio, &
                                reset_iea_all, get_iea, reset_corr_pop, &
-                               scale_corr_pop, get_corr_pop
+                               scale_corr_pop, get_corr_pop, set_spawn_factor, &
+                               get_spawn_factor
 
     use DetBitOps, only: tAccumEmptyDet
 
@@ -1382,7 +1384,7 @@ contains
 
         real(dp) :: inst_rdm_occ
         integer(int64) :: target_walkers, run_walkers
-        real(dp):: RenormFactor(lenof_sign)
+        real(dp):: RenormFactor(lenof_sign), sfac
         integer :: lb, ub, num_sw
 
         real(dp) :: prefac(lenof_sign)
@@ -1875,9 +1877,15 @@ contains
                             AvMCExcitsLoc = AvMCExcitsLoc * scale
                         end if
                     else if (t_scale_by_switches) then
-                        num_sw = count_switches(CurrentDets(:,j))
-                        AvMCExcitsLoc = AvMCExcitsLoc * &
-                            max(scaling_base**(num_sw - switch_offset), 1.0)
+                        if (test_flag(CurrentDets(:, j), flag_spawn_factor)) then
+                            sfac = get_spawn_factor(j)
+                        else
+                            num_sw = count_switches(CurrentDets(:,j))
+                            sfac = max(scaling_base**(num_sw - switch_offset), 1.0)
+                            call set_spawn_factor(sfac, j)
+                            call set_flag(CurrentDets(:,j), flag_spawn_factor)
+                        end if
+                        AvMCExcitsLoc = AvMCExcitsLoc * sfac
                     end if
                 end if
 

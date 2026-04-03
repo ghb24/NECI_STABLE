@@ -116,7 +116,8 @@ module bit_rep_data
                           flag_signflip(lenof_sign_max) &
                               = [66, 67, 68, 69, 70, 71, 72, &
                                   73, 74, 75, 76, 77, 78, 79, 80, 81], &
-                          num_flags = 82
+                          flag_spawn_factor = 82, &
+                          num_flags = 83
 #else
     integer, parameter :: flag_initiator(2) = [13, 14], &
                           flag_adi_checked = 15, &
@@ -126,7 +127,8 @@ module bit_rep_data
                           flag_nospawn = 22, &
                           flag_expanded = 23, &
                           flag_signflip(2) = [24, 25], &
-                          num_flags = 26
+                          flag_spawn_factor = 26, &
+                          num_flags = 27
 #endif
 
 contains

@@ -3754,6 +3754,7 @@ contains
             case("SWITCH-BASED-SCALING")
                 ! Scale spawns based on the number of switches in the selected CSF
                 t_scale_by_switches = .true.
+                tMoveGlobalDetData = .true.
                 scaling_base = to_realdp(tokens%next())
                 switch_offset = to_int(tokens%next())
 
