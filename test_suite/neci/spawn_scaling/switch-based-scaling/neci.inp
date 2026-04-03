@@ -13,6 +13,7 @@ calc
     definedet 1 3 6-7 10 12
 
     seed -1
+    load-balance-blocks off
 
     methods
         method vertex fcimc
