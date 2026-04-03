@@ -17,7 +17,7 @@ MODULE ReadInput_neci
         tau_search_method, possible_tau_search_methods
     use tau_search_hist, only: user_input_histogramming_spec, histogramming_spec, get_settings
     use CalcData, only: tTruncInitiator, InitiatorWalkNo, max_allowed_spawn, tScaleBlooms, &
-        tHartreeGutzwiller
+        tHartreeGutzwiller, t_scale_by_switches
 
     Implicit none
 !   Used to specify which default set of inputs to use
@@ -729,6 +729,15 @@ contains
                 "HARTREE-GUTZWILLER only works in the real-space Hubbard model")
         end if
 
+        if (t_scale_by_switches) then
+            if (.not. tGUGA) then
+                call stop_all(this_routine, &
+                    "SWITCH-BASED-SCALING only works with for GUGA.")
+            else if (tScaleBlooms) then
+                call stop_all(this_routine, &
+                    "SWITCH-BASED-SCALING and SCALE-SPAWNS cannot be used simultaneously.")
+            end if
+        end if
 
         block
             use load_balance_calcnodes, only: &
