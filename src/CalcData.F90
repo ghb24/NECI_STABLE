@@ -223,6 +223,10 @@ module CalcData
     logical :: tScaleBlooms = .false.
     real(dp) :: max_allowed_spawn
 
+    logical :: t_scale_by_switches
+    real(dp) :: scaling_base
+    integer :: switch_offset
+
     real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.

@@ -30,7 +30,7 @@ program test_guga
         getdeltab, encode_matrix_element, update_matrix_element, &
         isdouble, calcocc_vector_ilut, setDeltaB, &
         count_open_orbs_ij, calcb_vector_ni, calcb_vector_ilut, isProperCSF_ilut, &
-        transfer_stochastic_rdm_info
+        transfer_stochastic_rdm_info, count_switches
     use guga_data, only: getMixedFullStop, getSingleMatrixElement, &
         excit_type, gen_type, getDoubleMatrixElement, ExcitationInformation_t, &
         ExcitationType_t
@@ -1650,6 +1650,7 @@ contains
         print *, ""
         print *, "testing module: guga_excitations:"
         print *, ""
+        call run_test_case(test_CountSwitches, "test_CountSwitches")
         call run_test_case(test_calcRemainingSwitches, "test_calcRemainingSwitches")
         call run_test_case(test_actHamiltonian, "test_actHamiltonian")
         call run_test_case(test_excitationIdentifier_single, "test_excitationIdentifier_single")
@@ -8520,6 +8521,54 @@ contains
         print *, "calcRemainingSwitches tests successfull"
 
     end subroutine test_calcRemainingSwitches
+
+    subroutine test_CountSwitches()
+        integer :: nI(4), num_s
+        integer(n_int) :: ilutI(0:niftot)
+
+        print *, ""
+        print *, "testing cout_switches:"
+
+        nI = [1, 2, 3, 4]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 0)
+
+        nI = [5, 6, 7, 8]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 0)
+
+        nI = [3, 6, 7, 8]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 1)
+
+        nI = [1, 3, 4, 6]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 1)
+
+        nI = [1, 4, 5, 7]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 2)
+
+        nI = [1, 4, 5, 8]; ilutI = 0_n_int; call EncodeBitDet(nI, ilutI)
+        num_s = count_switches(ilutI)
+        print *, "nI:", nI
+        print *, "count_switches result:", num_s
+        call assert_true(num_s == 3)
+
+        print *, ""
+        print *, "testing: count_switches DONE!"
+
+    end subroutine test_CountSwitches
 
 
 end program test_guga

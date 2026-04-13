@@ -65,7 +65,8 @@ module guga_bitRepOps
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
             extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl, &
-            StepVector_t, StepVectorVals_t, stepvector_vals, calc_step_vector
+            StepVector_t, StepVectorVals_t, stepvector_vals, calc_step_vector, &
+            count_switches
 
 
     ! interfaces
@@ -3769,5 +3770,28 @@ contains
             [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l])
 
     end function encode_excit_info_obj
+
+    function count_switches(ilut) result(num_s)
+        ! I tested a bit operation version of this function, but could not see
+        ! a noticeable speedup and decided to use this more human readable
+        ! version.
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer :: num_s, sv(nSpatOrbs), i, curr_s, prev_s
+
+        sv = calc_step_vector(ilut)
+
+        num_s = 0
+        prev_s = 0
+        do i = 1, size(sv)
+            if (sv(i) == 1 .or. sv(i) == 2) then
+                curr_s = sv(i)
+                if (curr_s * prev_s == 2) then
+                    num_s = num_s + 1
+                end if
+                prev_s = curr_s
+            end if
+        end do
+
+    end function count_switches
 
 end module guga_bitRepOps
