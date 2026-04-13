@@ -211,12 +211,8 @@ contains
     pure function PQ_to_prop_vec_csf_t(this, csf_i) result(prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         type(CSF_Info_t), intent(in) :: csf_i
-#ifndef IFORT_
-        ! Please intel compilers...
         integer :: prop_vec(this%total_space%prop_vec_dim())
-#else
-        integer, allocatable :: prop_vec(:)
-#endif
+
         prop_vec = this%total_space%to_prop_vec(csf_i)
 
     end function
@@ -224,12 +220,7 @@ contains
     pure function PQ_to_prop_vec_nI_t(this, nI) result(prop_vec)
         class(PQ_indexer_t), intent(in) :: this
         integer, intent(in) :: nI(:)
-#ifndef IFORT_
-        ! Please intel compilers...
         integer :: prop_vec(this%total_space%prop_vec_dim())
-#else
-        integer, allocatable :: prop_vec(:)
-#endif
 
         prop_vec = this%total_space%to_prop_vec(nI)
 

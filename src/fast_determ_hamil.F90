@@ -1004,8 +1004,6 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
 
 
-        ! call stop_all(t_r, 'DEBUGGING STOP ALL. REMOVE THIS!')
-
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
                                  (/int(1 + NifD, int64), int(rep%determ_space_size, int64)/))
         beta_list(0:, 1:) => beta_list_ptr(1:, 1:)

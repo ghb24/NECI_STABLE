@@ -497,7 +497,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_space, tgt_space
 
-        !Keep this for following if-statement
+        ! Keep this for following if-statement
         src_space = this%get_iGAS(exc%val(1, 1))
         tgt_space = this%get_iGAS(exc%val(2, 1))
 
@@ -527,7 +527,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
 
-        !Keep for if-statement
+        ! Keep for if-statement
         src_spaces(1) = this%get_iGAS(exc%val(1, 1))
         src_spaces(2) = this%get_iGAS(exc%val(1, 2))
         tgt_spaces = this%get_iGAS(exc%val(2, :))
@@ -577,7 +577,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(3), tgt_spaces(3)
 
-        !Keep for if-statement
+        ! Keep for if-statement
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 

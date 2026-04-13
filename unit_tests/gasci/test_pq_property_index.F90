@@ -82,8 +82,12 @@ contains
             type(PQ_indexer_t) :: indexer
             type(GAS_SuperGroupIndexer_t) :: total_indexer, P_indexer
 
-            GAS_spec = FlexibleGASSpec_t(supergroups=reshape([[0,4],[1,3],[2,2],[3,1],[4,0]], [2,5]), spat_GAS_orbs=[1,1,2,2])
-            P_spec = FlexibleGASSpec_t(supergroups=reshape([[2,2]], [2,1]), spat_GAS_orbs=[1,1,2,2])
+            GAS_spec = FlexibleGASSpec_t( &
+                supergroups=reshape([[0, 4], [1, 3], [2, 2], [3, 1], [4, 0]], [2, 5]), &
+                spat_GAS_orbs=[1, 1, 2, 2])
+            P_spec = FlexibleGASSpec_t( &
+                supergroups=reshape([[2, 2]], [2, 1]), &
+                spat_GAS_orbs=[1, 1, 2, 2])
 
             total_indexer = GAS_SuperGroupIndexer_t(GAS_spec)
             P_indexer = GAS_SuperGroupIndexer_t(P_spec)

@@ -29,7 +29,6 @@ module property_vector_index
     use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excitation_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
-!    use gasci_supergroup_index, only: GAS_SuperGroupIndexer_t
     better_implicit_none
 
     private
