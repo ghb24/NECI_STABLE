@@ -22,7 +22,7 @@ Title
 Endsys
 
   Calc
-    totalWalkers  500
+    totalWalkers  1000
 
     load-balance-blocks off
 
@@ -41,7 +41,7 @@ Endsys
         method vertex fcimc
     endmethods
 
-    target-shiftdamp 0.01
+    target-shiftdamp 0.5
 
     startsinglepart 300
 
