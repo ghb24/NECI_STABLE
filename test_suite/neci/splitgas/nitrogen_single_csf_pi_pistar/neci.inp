@@ -28,13 +28,14 @@ Endsys
 
     seed 1
 
-    nmcyc 1000
-    semi-stochastic 300
+    nmcyc 1500
+    semi-stochastic 0
     pops-core 100
+    readpops
 
     definedet 1-6
 
-    tau-values  start user-defined 0.01
+    tau-values  start from-popsfile
     tau-search  off
 
     methods
@@ -43,15 +44,13 @@ Endsys
 
     target-shiftdamp 0.01
 
-    startsinglepart 300
-
     proje-changeref 1.6
     memoryfacspawn 100.0
     memoryfacpart 50.0
     truncinitiator
     addtoinitiator 3
     allrealcoeff
-    realspawncutoff 0.30
+    realspawncutoff 0.40
 
   Endcalc
 
