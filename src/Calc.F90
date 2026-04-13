@@ -92,7 +92,7 @@ MODULE Calc
         tMeasureOverlap, tModShiftCorr, tModShiftCorrOnlyS1, tModShiftPhase, &
         tModShiftTarget, tNoNegSpawns, tNonInitModShift, tNoSpawnRev, tot_walkers, &
         tPrintUMat, tRenorm, tTruncateDets, tTruncateHubbard, tTruncHubbAllClose, &
-        tTruncInitHalf
+        tTruncInitHalf, t_scale_by_switches, scaling_base, switch_offset
 
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DetCalc, only: CK, DetInv, iObs, jObs, kObs, nBlk, nKry, tBlock, tCalcHMat, tEnergy, tFindDets, tRead
@@ -625,10 +625,12 @@ contains
         tNonVariationalRDMs = .false.
         tMoveGlobalDetData = .false.
         tAllowSpawnEmpty = .false.
-        ! scaling of spawns
         tScaleBlooms = .false.
+        scaling_base = 0.0_dp
+        switch_offset = 0
         max_allowed_spawn = MaxWalkerBloom
         SftDamp2 = 0.0
+        t_scale_by_switches = .false.
 
         tImportanceSampling = .false.
         tGutzwillerGuide = .false.
@@ -3748,6 +3750,13 @@ contains
                 ! increases the number of spawns to unbias for scaling
                 tScaleBlooms = .true.
                 max_allowed_spawn = to_realdp(tokens%next())
+
+            case("SWITCH-BASED-SCALING")
+                ! Scale spawns based on the number of switches in the selected CSF
+                t_scale_by_switches = .true.
+                tMoveGlobalDetData = .true.
+                scaling_base = to_realdp(tokens%next())
+                switch_offset = to_int(tokens%next())
 
             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

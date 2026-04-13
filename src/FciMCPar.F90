@@ -41,7 +41,8 @@ module FciMCParMod
         InitExpandIters, InitExpandPeriod, tInitExpandReset, &
         tInitExpandAnnihil, InitExpandAnnihilIters, InitExpandAnnihilThresh, &
         tInitExpandFull, tTruncateDets, tNoNegSpawns, NoNegSpawnThresh, &
-        tModShiftCorr, DiagSft2, ModShiftCorrPrefac, N0_Target
+        tModShiftCorr, DiagSft2, ModShiftCorrPrefac, N0_Target, &
+        t_scale_by_switches, scaling_base, switch_offset
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
         tDelayAllDoubsInits, tReferenceChanged, &
@@ -96,7 +97,8 @@ module FciMCParMod
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone, &
         flag_trial, flag_connected, flag_removed, niftot,&
-        flag_nospawn, flag_expanded, flag_signflip, well_defined
+        flag_nospawn, flag_expanded, flag_signflip, well_defined, &
+        flag_spawn_factor
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -111,7 +113,8 @@ module FciMCParMod
                                update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio, &
                                reset_iea_all, get_iea, reset_corr_pop, &
-                               scale_corr_pop, get_corr_pop
+                               scale_corr_pop, get_corr_pop, set_spawn_factor, &
+                               get_spawn_factor
 
     use DetBitOps, only: tAccumEmptyDet
 
@@ -162,7 +165,8 @@ module FciMCParMod
 
     use guga_main, only: generate_excitation_guga
     use guga_excitations, only: global_excitInfo
-    use guga_bitrepops, only: fill_csf_i, current_csf_i, calc_step_vector
+    use guga_bitrepops, only: fill_csf_i, current_csf_i, calc_step_vector, &
+        count_switches
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -1380,8 +1384,8 @@ contains
 
         real(dp) :: inst_rdm_occ
         integer(int64) :: target_walkers, run_walkers
-        real(dp):: RenormFactor(lenof_sign)
-        integer :: lb, ub
+        real(dp):: RenormFactor(lenof_sign), sfac
+        integer :: lb, ub, num_sw
 
         real(dp) :: prefac(lenof_sign)
 
@@ -1865,13 +1869,26 @@ contains
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
                 ! Only done while not updating tau (to prevent interdependencies)
-                if (tScaleBlooms .and. tau_search_method == possible_tau_search_methods%off) then
-                    max_spawn = tau * get_max_ratio(j)
-                    if (max_spawn > max_allowed_spawn) then
-                        scale = max_spawn / max_allowed_spawn
-                        AvMCExcitsLoc = AvMCExcitsLoc * scale
+                if (tau_search_method == possible_tau_search_methods%off) then
+                    if (tScaleBlooms) then
+                        max_spawn = tau * get_max_ratio(j)
+                        if (max_spawn > max_allowed_spawn) then
+                            scale = max_spawn / max_allowed_spawn
+                            AvMCExcitsLoc = AvMCExcitsLoc * scale
+                        end if
+                    else if (t_scale_by_switches) then
+                        if (test_flag(CurrentDets(:, j), flag_spawn_factor)) then
+                            sfac = get_spawn_factor(j)
+                        else
+                            num_sw = count_switches(CurrentDets(:,j))
+                            sfac = max(scaling_base**(num_sw - switch_offset), 1.0)
+                            call set_spawn_factor(sfac, j)
+                            call set_flag(CurrentDets(:,j), flag_spawn_factor)
+                        end if
+                        AvMCExcitsLoc = AvMCExcitsLoc * sfac
                     end if
                 end if
+
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
                 loop_over_walkers : do p = 1, WalkersToSpawn
 
