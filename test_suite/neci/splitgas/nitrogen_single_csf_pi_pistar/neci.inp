@@ -1,0 +1,63 @@
+
+Title
+
+  System read
+    electrons           6
+    nobrillouintheorem
+    freeformat
+    guga 0
+    nonuniformrandexcits guga-gas-pchb delocalised
+
+    GAS-SPEC LOCAl 2
+        3 4 6
+        3 0 2
+        3*1 3*2
+
+    SPLITGAS-SPEC LOCAl 2
+        3 6 6
+        3 0 0
+        3*1 3*2
+
+
+Endsys
+
+  Calc
+    totalWalkers  1000
+
+    load-balance-blocks off
+
+    seed 1
+
+    nmcyc 1000
+    semi-stochastic 300
+    pops-core 100
+
+    definedet 1-6
+
+    tau-values  start user-defined 0.01
+    tau-search  off
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    target-shiftdamp 0.5
+
+    startsinglepart 300
+
+    proje-changeref 1.6
+    memoryfacspawn 100.0
+    memoryfacpart 50.0
+    truncinitiator
+    addtoinitiator 3
+    allrealcoeff
+    realspawncutoff 0.30
+
+  Endcalc
+
+  Logging
+    highlypopwrite 50
+    hdf5-pops
+  Endlog
+End
+

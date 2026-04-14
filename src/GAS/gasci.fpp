@@ -8,9 +8,8 @@
 module gasci
     use constants, only: n_int, dp, int64
     use SystemData, only: nBasis, tGUGA
-    use util_mod, only: cumsum, stop_all, operator(.div.)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc, EnumBase_t, lex_geq
+        operator(.isclose.), custom_findloc, EnumBase_t, lex_geq, stop_all
     use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum, alpha, beta
     use excitation_types, only: Excite_1_t, Excite_2_t, Excite_3_t, excite, canonicalize
@@ -30,7 +29,8 @@ module gasci
     public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         get_name, LocalGASSpec_t, CumulGASSpec_t, FlexibleGASSpec_t, tGAS, tSD_GAS, tGUGA_GAS, &
-        CAS_spec, finalize_GAS, frequency
+        CAS_spec, finalize_GAS, P_specification, frequency, &
+        GAS_SpecKind_t, GAS_SpecKind_vals_t, GAS_spec_kind_vals
 
     logical :: tGAS = .false.
         !! Are we restricting excitations
@@ -49,6 +49,19 @@ module gasci
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
     type(GAS_exc_gen_t), allocatable :: GAS_exc_gen
+
+    type, extends(EnumBase_t) :: GAS_SpecKind_t
+    end type
+
+    type :: GAS_SpecKind_vals_t
+        type(GAS_SpecKind_t) :: &
+            LOCAL = GAS_SpecKind_t(1), &
+            CUMULATIVE = GAS_SpecKind_t(2), &
+            FLEXIBLE = GAS_SpecKind_t(3)
+    end type
+
+    type(GAS_SpecKind_vals_t), parameter :: GAS_spec_kind_vals = GAS_SpecKind_vals_t()
+
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
@@ -236,6 +249,8 @@ module gasci
     end interface
 
     class(GASSpec_t), allocatable :: GAS_specification
+
+    class(GASSpec_t), allocatable :: P_specification
 
 contains
 
@@ -433,16 +448,18 @@ contains
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(2), tgt_spaces(2)
+        integer :: src_spaces(2), tgt_spaces(2), i
 
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 
         excited_supergroup = supergroup
-        !Remove particles form src_spaces
-        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-        !Add particles to tgt_spaces
-        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+        do i = 1, 2
+            !Remove particles form src_spaces
+            excited_supergroup(src_spaces(i)) = excited_supergroup(src_spaces(i)) - 1
+            !Add particles to tgt_spaces
+            excited_supergroup(tgt_spaces(i)) = excited_supergroup(tgt_spaces(i)) + 1
+        end do
 
     end function
 
@@ -454,16 +471,18 @@ contains
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(3), tgt_spaces(3)
+        integer :: src_spaces(3), tgt_spaces(3), i
 
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 
         excited_supergroup = supergroup
-        !Remove particles form src_spaces
-        excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-        !Add particles to tgt_spaces
-        excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+        do i = 1, 3
+            !Remove particles form src_spaces
+            excited_supergroup(src_spaces(i)) = excited_supergroup(src_spaces(i)) - 1
+            !Add particles to tgt_spaces
+            excited_supergroup(tgt_spaces(i)) = excited_supergroup(tgt_spaces(i)) + 1
+        end do
 
     end function
 
@@ -478,6 +497,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_space, tgt_space
 
+        ! Keep this for following if-statement
         src_space = this%get_iGAS(exc%val(1, 1))
         tgt_space = this%get_iGAS(exc%val(2, 1))
 
@@ -507,6 +527,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
 
+        ! Keep for if-statement
         src_spaces(1) = this%get_iGAS(exc%val(1, 1))
         src_spaces(2) = this%get_iGAS(exc%val(1, 2))
         tgt_spaces = this%get_iGAS(exc%val(2, :))
@@ -556,7 +577,7 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(3), tgt_spaces(3)
 
-        !Keep for if-statement
+        ! Keep for if-statement
         src_spaces(:) = this%get_iGAS(exc%val(1, :))
         tgt_spaces(:) = this%get_iGAS(exc%val(2, :))
 
@@ -756,19 +777,6 @@ contains
         end block
 
         @:pure_ASSERT(GAS_spec%is_valid())
-
-        contains
-
-        pure function frequency(N) result(res)
-            integer, intent(in) :: N(:)
-            integer, allocatable :: res(:)
-            integer :: i
-            @:pure_ASSERT(minval(N) == 1)
-            allocate(res(maxval(N)), source=0)
-            do i = 1, size(N)
-                res(N(i)) = res(N(i)) + 1
-            end do
-        end function
 
     end function
 
@@ -986,19 +994,6 @@ contains
                 n_particle=nEl)
 
         @:pure_ASSERT(GAS_spec%is_valid())
-
-        contains
-
-        pure function frequency(N) result(res)
-            integer, intent(in) :: N(:)
-            integer, allocatable :: res(:)
-            integer :: i
-            @:pure_ASSERT(minval(N) == 1)
-            allocate(res(maxval(N)), source=0)
-            do i = 1, size(N)
-                res(N(i)) = res(N(i)) + 1
-            end do
-        end function
     end function
 
     !> Query wether a supergroup is contained in the GAS space.
@@ -1369,16 +1364,6 @@ contains
 
         contains
 
-            pure function frequency(N) result(res)
-                integer, intent(in) :: N(:)
-                integer, allocatable :: res(:)
-                integer :: i
-                @:pure_ASSERT(minval(N) == 1)
-                allocate(res(maxval(N)), source=0)
-                do i = 1, size(N)
-                    res(N(i)) = res(N(i)) + 1
-                end do
-            end function
     end function
 
     pure logical function tSD_GAS()

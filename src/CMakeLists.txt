@@ -412,6 +412,7 @@ set( FYPP_SRC_FILES
     GAS/gasci_singles_main.fpp
     GAS/gasci_util.fpp
     GAS/gasci_supergroup_index.fpp
+    GAS/pq_property_index.fpp
     property_vector_constraint/composition_utils.fpp
     property_vector_constraint/property_vector_index.fpp
     property_vector_constraint/property_vector_pchb_doubles_main.fpp

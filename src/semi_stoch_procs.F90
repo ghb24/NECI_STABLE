@@ -2070,6 +2070,7 @@ contains
     subroutine calc_determin_hamil_full(hamil, rep)
         use guga_data, only: ExcitationInformation_t
         use guga_matrixElements, only: calc_guga_matrix_element
+        use property_vector_index, only: is_zero_by_prop_vec
         type(core_space_t) :: rep
         type(CSF_Info_t) :: csf_i, csf_j
         type(ExcitationInformation_t) :: excitInfo
@@ -2100,18 +2101,21 @@ contains
 
                 if (tGUGA) csf_j = CSF_Info_t(rep%core_space(:, j))
 
-                if (tHPHF) then
-                    hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
-                                     rep%core_space(:, i), rep%core_space(:, j))
-                else if (tGUGA) then
-                    call calc_guga_matrix_element(&
-                        rep%core_space(:, i), csf_i, &
-                        rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true.)
+                if (is_zero_by_prop_vec(nI, nJ)) then
+                    hamil(i, j) = 0._dp
                 else
-                    hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
-                        rep%core_space(:, j))
+                    if (tHPHF) then
+                        hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
+                                         rep%core_space(:, i), rep%core_space(:, j))
+                    else if (tGUGA) then
+                        call calc_guga_matrix_element(&
+                            rep%core_space(:, i), csf_i, &
+                            rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true.)
+                    else
+                        hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
+                            rep%core_space(:, j))
+                    end if
                 end if
-
             end do
         end do
 

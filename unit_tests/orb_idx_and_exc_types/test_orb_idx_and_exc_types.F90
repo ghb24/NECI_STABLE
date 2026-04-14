@@ -1,5 +1,6 @@
 module test_orb_idx_mod
-    use fruit, only: assert_true, assert_false, run_test_case
+    use fruit, only: assert_true, assert_false, run_test_case, assert_equals
+    use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
         calc_spin, alpha, beta, operator(==)
     use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excite_Further_t, excite, is_canonical, &

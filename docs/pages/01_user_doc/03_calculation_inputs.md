@@ -513,6 +513,25 @@ considered. The block starts with the `system` keyword and ends with the
     Note that, depending on the GAS specifications, this operation can be actually
     expensive, so it is not done by default.
 
+-   **GAS-PQ-TRUNCATION**<br>
+    Perform PQ-downfolding within a GAS. The respective GAS is partitioned into an explicitly correlated \(P\) space and a perturbative \(Q\) space.
+    Both the total GAS (\(P + Q\)) and the \(P\) space can be defined using *local*, *cumulative* and *flexible* constraints.
+    The total space is denoted via `GAS-SPEC`, i.e. two local GAS spaces with up to three interspace excitations:
+
+        GAS-SPEC LOCAL 2
+        4 1 7 
+        4 1 7
+        4*1 4*2
+
+    The \(P\) space is defined almost identically. It is only necessary to change the header from *GAS-SPEC* to *GAS-PQ-TRUNCATION*.
+    A \(P\) space consisting of 4 electrons within both GAS spaces and no interspace excitations would be denoted as:
+
+        GAS-PQ-TRUNCATION LOCAL 2
+        4 4 4
+        4 4 4
+        4*1 4*2
+
+    Note that `GAS-SPEC` has to be defined **before** `GAS-PQ-TRUNCATION`.
 
 #### Hubbard model and UEG options
 

@@ -10,13 +10,14 @@ module fast_determ_hamil
     use CalcData, only: tImportanceSampling
     use Determinants, only: get_helement, calcImportanceRatio
     use FciMCData, only: Hii
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+    use hphf_integrals, only: hphf_diag_helement, &
                               hphf_off_diag_helement_opt, hphf_off_diag_special_case
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, iProcIndex_intra, mpi_comm_intra
-    use sltcnd_mod, only: sltcnd_knowIC
+    use sltcnd_mod, only: dyn_sltcnd_excit
     use sparse_arrays
+    use property_vector_index, only: is_zero_by_prop_vec
     use SystemData, only: tHPHF, nel
-    use timing_neci
+    use timing_neci, only: get_total_time
     use util_mod, only: get_free_unit
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use shared_array
@@ -1523,6 +1524,7 @@ contains
             end do
 
             ! Loop through alpha strings connected to this ind_alpha by a single excitation
+            ic = 2
             do j = 1, nalpha_alpha%ptr(ind_alpha)
                 ! This is the index of the connected alpha string
                 ind_alpha_conn = alpha_alpha%sub(ind_alpha, j)

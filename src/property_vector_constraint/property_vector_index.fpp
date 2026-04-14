@@ -29,12 +29,11 @@ module property_vector_index
     use excitation_types, only: Excite_0_t, Excite_1_t, Excite_2_t, Excite_3_t, Excitation_t
     use guga_bitRepOps, only: CSF_Info_t
     use guga_data, only: DistinctDouble_t
-
     better_implicit_none
 
     private
-    public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t, &
-         indexer, lookup_property_indexer
+    public :: PropertyIndexer_t, AlsoGUGA_PropertyIndexer_t,&
+         indexer, lookup_property_indexer, is_zero_by_prop_vec
 
     type, abstract :: PropertyIndexer_t
         integer(int64), allocatable :: allowed_composition_indices(:)
@@ -365,6 +364,16 @@ contains
         class default
             call stop_all(this_routine, "invalid excitation passed in.")
         end select
+    end function
+
+    pure logical function is_zero_by_prop_vec(nI, nJ)
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+
+        is_zero_by_prop_vec = .false.
+
+        if (allocated(indexer)) then
+            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
+        end if
     end function
 
 end module

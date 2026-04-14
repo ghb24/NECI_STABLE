@@ -21,7 +21,7 @@ submodule (tau_main) tau_main_impls
 
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
                                 CalcNonUniPGen
-    use HPHF_integrals, only: hphf_off_diag_helement_norm
+    use HPHF_integrals, only: hphf_off_diag_helement
 
     use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
                                calc_pgen_k_space_hubbard_transcorr, calc_pgen_k_space_hubbard
@@ -224,7 +224,7 @@ contains
                         end if
                     end if
                 end if
-                hel = hphf_off_diag_helement_norm(ProjEDet(:, 1), nJ, iLutRef(:, 1), iLutnJ)
+                hel = hphf_off_diag_helement(ProjEDet(:, 1), nJ, iLutRef(:, 1), iLutnJ)
             else
                 hel = get_helement(ProjEDet(:, 1), nJ, ic, ex, tParity)
             end if

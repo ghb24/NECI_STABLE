@@ -1,6 +1,6 @@
 SUBROUTINE DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, TCOUNT, ICMAX, GC, TMC)
     use global_utilities, only: timer, halt_timer, set_timer
-    use sparse_arrays, only: is_zero_by_prop_vec
+    use property_vector_index, only: is_zero_by_prop_vec
     use constants, only: dp, n_int, stdout
     Use Determinants, only: get_helement
     use SystemData, only: BasisFN, t_lattice_model, tGUGA

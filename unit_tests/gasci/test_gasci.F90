@@ -16,6 +16,10 @@ module test_gasci_mod
     use gasci, only: LocalGASSpec_t, FlexibleGASSpec_t
 
     use DetBitOps, only: ilut_lt, ilut_gt
+
+    use property_vector_index, only: indexer
+    use pq_property_index, only: PQ_indexer_t
+    use excitation_types, only: Excite_1_t
     implicit none
     private
     public :: test_igas, test_contains_det, test_particles_per_GAS, &
@@ -89,6 +93,10 @@ contains
         call assert_true(GAS_spec%is_valid())
         GAS_spec = LocalGASSpec_t(n_min=[1, 1], n_max=[3, 3], spat_GAS_orbs=[1, 1, 2, 2], nEl=2)
         call assert_true(GAS_spec%is_valid(n_basis=8))
+
+        GAS_spec = LocalGASSpec_t(n_min=[0, 10], n_max=[2, 14], &
+                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2, 2, 2, 2], nEl=12)
+        call assert_true(GAS_spec%is_valid(n_basis=18))
 
         block
             type(FlexibleGASSpec_t) :: GAS_spec

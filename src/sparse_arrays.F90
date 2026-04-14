@@ -28,7 +28,7 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
-    use property_vector_index, only: indexer
+    use property_vector_index, only: is_zero_by_prop_vec
     use excitation_types, only: get_excitation, Excitation_t, Excite_Further_t
     use guga_excitations, only: actHamiltonian
     use guga_matrixElements, only: calc_guga_matrix_element
@@ -48,8 +48,7 @@ module sparse_arrays
         HDiagTag, trial_ht, con_ht, calculate_sparse_ham_par, trial_hashtable, &
         SparseHamilTags, approx_ham, allocate_sparse_ham_row, calc_approx_hamil_sparse_hphf, &
         calculate_sparse_hamiltonian_non_hermitian, var_ht, &
-        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable, &
-        is_zero_by_prop_vec
+        calculate_sparse_hamiltonian, t_evolve_adjoint, deallocate_trial_hashtable
 
 
     type trial_hashtable
@@ -455,11 +454,10 @@ contains
         type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
-        ASSERT(.not. tHPHF)
-
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), &
                  rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)), &
                  rep%core_ham_diag(rep%determ_sizes(iProcIndex)))
+
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size), 8, this_routine, HRTag, ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
@@ -922,18 +920,5 @@ contains
 
         transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
     end function t_evolve_adjoint
-
-    pure logical function is_zero_by_prop_vec(nI, nJ)
-        !! Check if an excitation from nI -> nJ is forbidden by property vector constraints
-        !!
-        !! If constraints are not given, then it is trivially allowed, at least
-        !! from the point of view of the constraints.
-        integer, intent(in) :: nI(nEl), nJ(nEl)
-
-        is_zero_by_prop_vec = .false.
-        if (allocated(indexer)) then
-            is_zero_by_prop_vec = .not. indexer%is_allowed(nI, nJ)
-        end if
-    end function
 
 end module sparse_arrays
