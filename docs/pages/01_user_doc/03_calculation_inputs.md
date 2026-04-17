@@ -507,14 +507,9 @@ considered. The block starts with the `system` keyword and ends with the
     It is possible to switch off the spin recoupling between
     different GAS spaces by appending `NO-RECOUPLING`.
 
--   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
-    *Optional keyword.* If a GAS calculation is performed, then output the
-    sizes of the CAS and GAS Hilbert-Space sizes.
-    Note that, depending on the GAS specifications, this operation can be actually
-    expensive, so it is not done by default.
-
--   **GAS-PQ-TRUNCATION**<br>
-    Perform PQ-downfolding within a GAS. The respective GAS is partitioned into an explicitly correlated \(P\) space and a perturbative \(Q\) space.
+-   **SPLITGAS-SPEC**<br>
+    Perform PQ-downfolding within a GAS.
+    The respective GAS is partitioned into an explicitly correlated \(P\) space and a perturbative \(Q\) space ([SplitGAS](https://doi.org/10.1021/acs.jctc.5c01270)).
     Both the total GAS (\(P + Q\)) and the \(P\) space can be defined using *local*, *cumulative* and *flexible* constraints.
     The total space is denoted via `GAS-SPEC`, i.e. two local GAS spaces with up to three interspace excitations:
 
@@ -523,15 +518,21 @@ considered. The block starts with the `system` keyword and ends with the
         4 1 7
         4*1 4*2
 
-    The \(P\) space is defined almost identically. It is only necessary to change the header from *GAS-SPEC* to *GAS-PQ-TRUNCATION*.
+    The \(P\) space is defined almost identically. It is only necessary to change the header from *GAS-SPEC* to *SPLITGAS-SPEC*.
     A \(P\) space consisting of 4 electrons within both GAS spaces and no interspace excitations would be denoted as:
 
-        GAS-PQ-TRUNCATION LOCAL 2
+        SPLITGAS-SPEC LOCAL 2
         4 4 4
         4 4 4
         4*1 4*2
 
-    Note that `GAS-SPEC` has to be defined **before** `GAS-PQ-TRUNCATION`.
+    Note that `GAS-SPEC` has to be defined **before** `SPLITGAS-SPEC`.
+
+-   **OUTPUT-GAS-HILBERT-SPACE-SIZE**<br>
+    *Optional keyword.* If a GAS calculation is performed, then output the
+    sizes of the CAS and GAS Hilbert-Space sizes.
+    Note that, depending on the GAS specifications, this operation can be actually
+    expensive, so it is not done by default.
 
 #### Hubbard model and UEG options
 
@@ -951,6 +952,7 @@ and ends with the `endcalc` keyword.
             Note that for \(c = 1\) the conventional and histogramming time-search are
             equivalent.
             The prefactor \(k_{\text{maxbloom}}\) is changed via `MaxWalkerBloom`.
+            The default values are \(c = 0.999, n_\text{bins} = 100000, b = 10000.0\).
 
     - **[stop-condition]**<br>
         Optional keyword.

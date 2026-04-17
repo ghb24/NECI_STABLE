@@ -11,7 +11,7 @@ very powerful parallelization and scales efficiently to more than 24 000 central
 ## Contributors
 Contributors to the NECI codebase, in alphabetical order
 
-Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Matias E. di Mauro, 
+Ali Alavi, Robert Anderson, Nick Blunt, Luca Bonfirraro, George Booth, Deirdre Cleland, Matias E. di Mauro,
 Werner Dobrautz, Khaldoon Ghanem, Kai Guther, Philip Haupt, Peter Jeszenski, Giovanni Li Manni,
 Niklas Liebermann, Florian Merz, Jennifer Mohr, Catherine Overy, Arta Safari, Pradipta Samanta,
 Lauretta Schwarz, James Shepherd, Simon Smart, Maru Song, James Spencer, Anthony Stone, Pierre-Louis Taillat,
