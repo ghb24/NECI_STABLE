@@ -19,7 +19,7 @@ Alex Thom, Robert Thomas, David Thompson, Demetrio Vilardi, Eugenio Vitale, Oska
 
 ## Documentation
 
-The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/devel/page/index.html).
+The documentation can be found [here](https://www2.fkf.mpg.de/alavi/neci/stable/page/index.html).
 
 ## Compilation
 
